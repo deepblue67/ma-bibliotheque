@@ -131,7 +131,28 @@
   </div>
 
   <div class="card">
-    <h2><span class="num">5</span>Requête personnalisée (avancé)</h2>
+    <h2><span class="num">5</span>Rechercher automatiquement les couvertures manquantes</h2>
+    <p class="hint">
+      Recherche sur Open Library une couverture pour chaque livre qui n'en a pas encore, en essayant une recherche plus souple que lors de l'import initial (beaucoup de couvertures existaient sur Open Library mais n'avaient pas été trouvées). Rien n'est modifié tant que tu n'as pas coché puis cliqué sur « Téléverser la sélection » — tu vois chaque couverture proposée avant de l'appliquer.
+    </p>
+    <button id="btn-find-covers">1. Chercher les livres sans couverture</button>
+    <div class="hint" id="find-covers-status"></div>
+    <div class="progress" id="find-covers-progress-wrap" style="display:none;"><div id="find-covers-progress"></div></div>
+    <div id="find-covers-controls" style="display:none; margin-top:1rem;">
+      <div class="row" style="align-items:center;">
+        <div><button id="btn-select-confident" class="secondary" type="button">Cocher les correspondances fiables</button></div>
+        <div><button id="btn-select-none" class="secondary" type="button">Tout décocher</button></div>
+        <div style="flex:none; align-self:center;"><span id="find-covers-summary" class="hint"></span></div>
+      </div>
+      <div id="find-covers-results" style="max-height:480px; overflow-y:auto; border:1px solid var(--line); border-radius:10px; margin-top:0.8rem;"></div>
+      <button id="btn-apply-covers">2. Téléverser la sélection</button>
+      <div class="progress" id="apply-covers-progress-wrap" style="display:none;"><div id="apply-covers-progress"></div></div>
+    </div>
+    <div class="log" id="find-covers-log" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">6</span>Requête personnalisée (avancé)</h2>
     <p class="hint">Pour un correctif ponctuel que les sections ci-dessus ne couvrent pas. Exemple : <code>PATCH /rest/v1/books?title=eq.Un+Monde+Sans+Fin</code> avec le corps <code>{"genre": "Historique"}</code>. À utiliser avec précaution — ceci parle directement à ta base avec les pleins pouvoirs.</p>
     <div class="row">
       <div>
@@ -431,7 +452,195 @@ async function uploadCoverQueue(queue, logId, progWrapId, progId){
   logTo(logId, `Couvertures : ${done} OK, ${errors} erreur(s).`, errors ? 'err' : 'ok');
 }
 
-// ---------- 5. Requête personnalisée ----------
+// ---------- 5. Recherche automatique des couvertures manquantes ----------
+let FOUND_COVERS = []; // { id, title, author_name, candidate: {cover_i, title, author_name, authorConf, titleConf, score} | null }
+
+function normalizeStr(s){
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function authorConfidence(actualAuthorName, candidateAuthorNames){
+  if (!candidateAuthorNames || !candidateAuthorNames.length) return 0;
+  const actualWords = normalizeStr(actualAuthorName).split(' ').filter(w => w.length > 1);
+  if (!actualWords.length) return 0;
+  let best = 0;
+  for (const cand of candidateAuthorNames) {
+    const candWords = new Set(normalizeStr(cand).split(' ').filter(w => w.length > 1));
+    const matched = actualWords.filter(w => candWords.has(w)).length;
+    const ratio = matched / actualWords.length;
+    if (ratio > best) best = ratio;
+  }
+  return best;
+}
+
+function titleConfidence(actualTitle, candidateTitle){
+  const a = normalizeStr(actualTitle);
+  const b = normalizeStr(candidateTitle);
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const aw = new Set(a.split(' ').filter(w => w.length > 2));
+  if (!aw.size) return 0;
+  const bw = new Set(b.split(' ').filter(w => w.length > 2));
+  let matched = 0;
+  for (const w of aw) if (bw.has(w)) matched++;
+  return matched / aw.size;
+}
+
+async function fetchAllPaginated(pathBuilder){
+  let out = [];
+  let offset = 0;
+  while (true) {
+    const res = await sbFetch(pathBuilder(offset));
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' lors du chargement paginé.');
+    const page = await res.json();
+    out = out.concat(page);
+    if (page.length < 1000) break;
+    offset += 1000;
+  }
+  return out;
+}
+
+async function searchOpenLibraryCandidate(title, authorName){
+  const q = `${title} ${authorName}`;
+  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=5&fields=title,cover_i,author_name,language`;
+  let json;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    json = await res.json();
+  } catch (e) {
+    return null;
+  }
+  const docs = (json && json.docs) || [];
+  let best = null;
+  for (const d of docs) {
+    if (!d.cover_i) continue;
+    const aConf = authorConfidence(authorName, d.author_name);
+    if (aConf < 0.5) continue; // l'auteur doit au moins correspondre partiellement
+    const tConf = titleConfidence(title, d.title || '');
+    const score = aConf * 0.6 + tConf * 0.4;
+    if (!best || score > best.score) {
+      best = { cover_i: d.cover_i, title: d.title, author_name: (d.author_name || []).join(', '), authorConf: aConf, titleConf: tConf, score };
+    }
+  }
+  return best;
+}
+
+function escapeHtmlLocal(s){
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function isConfidentCandidate(candidate){
+  return !!candidate && candidate.authorConf >= 0.99 && candidate.titleConf >= 0.5;
+}
+
+function renderFoundCovers(){
+  const box = document.getElementById('find-covers-results');
+  box.innerHTML = '';
+  let withCandidate = 0, confident = 0, noCandidate = 0;
+  FOUND_COVERS.forEach((item, idx) => {
+    if (!item.candidate) { noCandidate++; return; }
+    withCandidate++;
+    const confident_ = isConfidentCandidate(item.candidate);
+    if (confident_) confident++;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; gap:0.8rem; padding:0.7rem 0.9rem; border-bottom:1px solid var(--line); align-items:center;';
+    const coverUrl = `https://covers.openlibrary.org/b/id/${item.candidate.cover_i}-M.jpg`;
+    row.innerHTML = `
+      <input type="checkbox" data-idx="${idx}" class="cover-check" ${confident_ ? 'checked' : ''} style="width:18px; height:18px; flex:none;">
+      <img src="${coverUrl}" alt="" loading="lazy" style="width:40px; height:58px; object-fit:cover; border-radius:4px; background:var(--lin); flex:none;">
+      <div style="flex:1; min-width:0; font-size:0.82rem;">
+        <div style="font-weight:600;">${escapeHtmlLocal(item.title)}</div>
+        <div style="color:var(--sub);">${escapeHtmlLocal(item.author_name)}</div>
+        <div style="color:${confident_ ? 'var(--ok)' : '#a8763f'}; font-size:0.74rem; margin-top:0.15rem;">
+          ${confident_ ? '✓ correspondance fiable' : '⚠ à vérifier'} — trouvé : « ${escapeHtmlLocal(item.candidate.title || '')} » par ${escapeHtmlLocal(item.candidate.author_name || '')}
+        </div>
+      </div>
+    `;
+    box.appendChild(row);
+  });
+  document.getElementById('find-covers-summary').textContent =
+    `${withCandidate} correspondance(s) trouvée(s) (${confident} fiable(s)), ${noCandidate} sans résultat.`;
+}
+
+document.getElementById('btn-find-covers').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-find-covers');
+  btn.disabled = true;
+  document.getElementById('find-covers-controls').style.display = 'none';
+  document.getElementById('find-covers-status').textContent = 'Chargement des auteurs et des livres sans couverture…';
+  try {
+    const authorsList = await fetchAllPaginated(offset => `/rest/v1/authors?select=id,name&order=id.asc&offset=${offset}&limit=1000`);
+    const authorById = {};
+    for (const a of authorsList) authorById[a.id] = a.name;
+
+    const books = await fetchAllPaginated(offset => `/rest/v1/books?select=id,title,author_id&cover_path=is.null&order=id.asc&offset=${offset}&limit=1000`);
+    if (!books.length) {
+      document.getElementById('find-covers-status').textContent = 'Aucun livre sans couverture — tout est déjà illustré 🎉';
+      btn.disabled = false;
+      return;
+    }
+    document.getElementById('find-covers-status').textContent = `${books.length} livre(s) sans couverture. Recherche sur Open Library en cours…`;
+
+    FOUND_COVERS = books.map(b => ({ id: b.id, title: b.title, author_name: authorById[b.author_id] || '(auteur inconnu)', candidate: null }));
+
+    const CONC = 5;
+    let processed = 0;
+    for (let i = 0; i < FOUND_COVERS.length; i += CONC) {
+      const chunk = FOUND_COVERS.slice(i, i + CONC);
+      await Promise.all(chunk.map(async (item) => {
+        item.candidate = await searchOpenLibraryCandidate(item.title, item.author_name);
+      }));
+      processed += chunk.length;
+      setProgress('find-covers-progress-wrap', 'find-covers-progress', Math.round((processed / FOUND_COVERS.length) * 100));
+    }
+
+    renderFoundCovers();
+    document.getElementById('find-covers-controls').style.display = 'block';
+    document.getElementById('find-covers-status').textContent = `Recherche terminée sur ${FOUND_COVERS.length} livre(s).`;
+  } catch (e) {
+    logTo('find-covers-log', 'Erreur : ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('btn-select-confident').addEventListener('click', () => {
+  document.querySelectorAll('.cover-check').forEach(cb => {
+    const idx = parseInt(cb.dataset.idx, 10);
+    const item = FOUND_COVERS[idx];
+    cb.checked = !!(item && isConfidentCandidate(item.candidate));
+  });
+});
+
+document.getElementById('btn-select-none').addEventListener('click', () => {
+  document.querySelectorAll('.cover-check').forEach(cb => { cb.checked = false; });
+});
+
+document.getElementById('btn-apply-covers').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-apply-covers');
+  const checked = Array.from(document.querySelectorAll('.cover-check:checked'));
+  if (!checked.length) { logTo('find-covers-log', 'Aucune couverture sélectionnée.', 'err'); return; }
+  btn.disabled = true;
+  try {
+    const queue = checked.map(cb => {
+      const item = FOUND_COVERS[parseInt(cb.dataset.idx, 10)];
+      return { id: item.id, cover_i: item.candidate.cover_i, title: item.title };
+    });
+    logTo('find-covers-log', `Téléversement de ${queue.length} couverture(s)…`, 'info');
+    await uploadCoverQueue(queue, 'find-covers-log', 'apply-covers-progress-wrap', 'apply-covers-progress');
+  } catch (e) {
+    logTo('find-covers-log', 'Erreur : ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- 6. Requête personnalisée ----------
 document.getElementById('btn-custom').addEventListener('click', async () => {
   const method = document.getElementById('custom-method').value;
   const path = document.getElementById('custom-path').value.trim();
