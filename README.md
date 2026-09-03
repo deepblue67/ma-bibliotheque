@@ -40,6 +40,8 @@ Une bibliothèque numérique personnelle, sous forme d'application web, présent
 - [x] Téléversement des 795 couvertures candidates dans le bucket Storage `covers`, avec mise à jour de `cover_path` sur chaque livre correspondant.
 - [x] Manifest PWA + icônes (apple-touch-icon).
 - [x] Fichiers finaux prêts pour dépôt GitHub par Christophe (le dossier `webapp/` est le contenu à déposer ; livré sous forme d'archive `ma-bibliotheque-webapp.zip`).
+- [x] **Bug corrigé (premier test de Christophe)** : `js/app.js` ne récupérait que les 1000 premières lignes de `books` (limite par défaut de Supabase/PostgREST) au lieu des 1944 — ce qui faisait apparaître seulement ~232 auteurs et cachait entièrement certains auteurs (dont Ken Follett, dont les 4 livres se trouvaient après la limite). Corrigé avec une pagination par `.range()` dans `loadLibrary()`. Voir §4.5.
+- [x] Outil d'import Supabase autonome livré (`webapp-admin-tools/supabase_import_tool.html`) — voir §4.6.
 
 ## 3. Chiffres clés (dernière mise à jour : peuplement Supabase terminé)
 
@@ -113,6 +115,30 @@ Si ce projet est repris plus tard par une nouvelle instance de Claude/Codex, il 
 Source : Open Library uniquement (l'API Google Books s'est révélée inutilisable — quota épuisé rapidement — et n'a donc pas été utilisée en pratique, malgré le plan initial de l'utiliser en priorité).
 
 URL de couverture à partir d'un `cover_i` : `https://covers.openlibrary.org/b/id/{cover_i}-L.jpg`
+
+### 4.5 Bug de pagination corrigé (premier retour de Christophe)
+
+**Symptôme observé** : sur la page d'accueil, seulement ~1000 livres et ~232 auteurs affichés au lieu de 1944/436 ; certains auteurs (dont Ken Follett) totalement absents.
+
+**Cause** : Supabase (PostgREST) limite chaque requête à 1000 lignes par défaut. `loadLibrary()` dans `js/app.js` faisait une seule requête `sb.from('books').select(...)` sans pagination — elle ne récupérait donc que les 1000 premières lignes selon l'ordre interne de la table, ce qui excluait environ 900 livres (dont tous ceux d'auteurs comme Ken Follett, insérés dans un lot tardif).
+
+**Correction appliquée** : `loadLibrary()` boucle maintenant avec `.order('id').range(offset, offset+999)` jusqu'à avoir tout récupéré (2 pages pour ~1944 livres). Testé et confirmé : les 1944 livres, 436 auteurs et 795 couvertures se chargent bien avec cette méthode.
+
+**Au sujet des livres audio de Ken Follett** : vérification faite directement dans le dossier `D:\Christophe\Mes livres audio` — Ken Follett n'y a aucun livre audio (seulement 4 ebooks : *Apocalypse sur commande*, *Code zéro*, *Les Piliers de la Terre*, *Un Monde Sans Fin*). Ce n'était donc pas un bug de données : une fois la pagination corrigée, ses 4 romans s'affichent bien, simplement sans badge "Audio" puisqu'il n'y en a pas dans le dossier source. Si Christophe a des livres audio de Ken Follett stockés ailleurs, il faudra les indiquer pour qu'ils soient ajoutés (voir §4.6).
+
+**Sur les couvertures** : le mécanisme a été vérifié bout en bout (bucket public, URL correcte, 795 couvertures bien présentes en base) — le problème rapporté ("aucune couverture visible") devrait disparaître avec la correction de pagination, puisque les livres chargés changent entièrement. À revérifier après le nouveau déploiement ; si le souci persiste sur des livres précis, le signaler avec le nom d'un livre concerné.
+
+### 4.6 Outil d'import Supabase autonome (`webapp-admin-tools/supabase_import_tool.html`)
+
+À la demande de Christophe (pour ne pas consommer de tokens Claude à chaque nouvelle insertion de données), un outil HTML autonome a été créé : **`webapp-admin-tools/supabase_import_tool.html`**. Il s'ouvre en double-cliquant dessus (aucune installation, aucun serveur) et tourne entièrement dans le navigateur de Christophe, sans jamais passer par Claude.
+
+Fonctions disponibles :
+- **Import d'auteurs** : colle/charge un JSON `[{"name": "...", "name_sort": "..."}]`, upsert idempotent (les doublons par `name` sont fusionnés, pas dupliqués).
+- **Import de livres** : colle/charge un JSON de livres (voir format dans l'outil), résout automatiquement l'auteur par nom, ignore les doublons déjà présents (par auteur+titre), et téléverse automatiquement la couverture si un `cover_i` Open Library est fourni.
+- **Téléversement de couvertures seules** : pour ajouter/remplacer des couvertures sur des livres déjà en base.
+- **Requête personnalisée** : pour un correctif ponctuel (GET/POST/PATCH/DELETE brut vers l'API REST Supabase) — à utiliser avec précaution.
+
+Christophe doit coller sa clé `service_role` directement dans la page (jamais sauvegardée, jamais envoyée ailleurs qu'à son propre projet Supabase). C'est l'outil à utiliser pour toute correction ou ajout de données futur (nouveaux livres, correctifs de genre, ajout de livres audio manquants, etc.) — Claude peut préparer le JSON à coller, mais l'exécution se fait chez Christophe.
 
 ## 5. Prochaines étapes (dans l'ordre)
 

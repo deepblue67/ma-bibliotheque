@@ -28,20 +28,36 @@ const FORMAT_LABEL = { ebook: 'Ebook', pdf: 'PDF', audio: 'Audio' };
 // Chargement des données (une fois, tout le catalogue est petit)
 // ---------------------------------------------------------------
 async function loadLibrary() {
-  const { data, error } = await sb
-    .from('books')
-    .select(`
-      id, title, has_ebook, has_pdf, has_audio,
-      is_read, is_listened, is_favorite,
-      genre, cover_path, source_note,
-      author_id, authors ( id, name, name_sort )
-    `);
+  // Supabase/PostgREST ne renvoie que 1000 lignes max par requête : on doit
+  // paginer avec .range() jusqu'à avoir tout récupéré (le catalogue fait
+  // ~1900 livres, donc 2 pages). Sans ça, seuls les ~1000 premiers livres
+  // (selon l'ordre interne de la table) s'affichaient, ce qui coupait aussi
+  // des auteurs entiers dont tous les livres tombaient après la limite.
+  const PAGE_SIZE = 1000;
+  let data = [];
+  let offset = 0;
+  while (true) {
+    const { data: page, error } = await sb
+      .from('books')
+      .select(`
+        id, title, has_ebook, has_pdf, has_audio,
+        is_read, is_listened, is_favorite,
+        genre, cover_path, source_note,
+        author_id, authors ( id, name, name_sort )
+      `)
+      .order('id', { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
 
-  if (error) {
-    el.app.innerHTML = `<div class="empty">Impossible de charger la bibliothèque.<br>
-      <span style="font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(error.message)}</span><br><br>
-      Vérifie que le script <code>supabase_schema.sql</code> a bien été exécuté et que les données ont été importées.</div>`;
-    return false;
+    if (error) {
+      el.app.innerHTML = `<div class="empty">Impossible de charger la bibliothèque.<br>
+        <span style="font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(error.message)}</span><br><br>
+        Vérifie que le script <code>supabase_schema.sql</code> a bien été exécuté et que les données ont été importées.</div>`;
+      return false;
+    }
+
+    data = data.concat(page);
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
   }
 
   ALL_BOOKS = data.map(b => ({
