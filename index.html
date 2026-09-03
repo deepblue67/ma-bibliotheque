@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ma Bibliothèque</title>
+<meta name="description" content="Bibliothèque numérique personnelle — ebooks et livres audio.">
+<meta name="theme-color" content="#f4f1ec">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a href="#/" class="brand">Ma Bibliothèque</a>
+  <button id="menu-toggle" class="menu-toggle" aria-label="Filtres">⚲</button>
+  <div class="controls" id="controls">
+    <input type="search" id="search-input" placeholder="Auteur ou titre…" autocomplete="off">
+    <select id="filter-format">
+      <option value="">Tous formats</option>
+      <option value="ebook">Ebook</option>
+      <option value="pdf">PDF</option>
+      <option value="audio">Audio</option>
+    </select>
+    <select id="filter-genre">
+      <option value="">Tous genres</option>
+    </select>
+    <select id="filter-status">
+      <option value="">Tous statuts</option>
+      <option value="favorite">Favoris</option>
+      <option value="read">Lus</option>
+      <option value="listened">Écoutés</option>
+      <option value="unread">Non lus</option>
+    </select>
+  </div>
+</header>
+
+<main id="app">
+  <div class="loading">Chargement de la bibliothèque…</div>
+</main>
+
+<div id="lightbox" class="lightbox hidden">
+  <button id="lightbox-close" class="lightbox-close" aria-label="Fermer">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
