@@ -5,6 +5,47 @@
 const cfg = window.SUPABASE_CONFIG;
 const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
 
+// -----------------------------------------------------------
+// Thèmes et préférences
+// Les 10 thèmes sont définis en CSS (css/style.css) ; ici on ne
+// garde que leur nom et ce qui sert à les présenter dans les réglages.
+// -----------------------------------------------------------
+const THEMES = [
+  {id:"nordique", label:"Nordique", desc:"Lin et sauge, tout en rondeur"},
+  {id:"grenat", label:"Papier & Grenat", desc:"La bibliothèque classique, serif et rouge sombre"},
+  {id:"encre", label:"Encre & Or", desc:"Bleu nuit profond rehaussé d'or"},
+  {id:"terracotta", label:"Terracotta", desc:"Sable chaud et terre cuite"},
+  {id:"bibliotheque", label:"Cuir & Laiton", desc:"Un cabinet de lecture, chaud et feutré"},
+  {id:"brume", label:"Brume", desc:"Gris bleutés, minimal et reposant"},
+  {id:"agrume", label:"Agrume", desc:"Blanc net, orange franc, très lisible"},
+  {id:"minuit", label:"Minuit", desc:"Indigo électrique sur bleu très sombre"},
+  {id:"botanique", label:"Botanique", desc:"Vert profond et papier végétal"},
+  {id:"pulp", label:"Rétro Pulp", desc:"Crème jauni, rouge d'affiche, angles vifs"},
+];
+const DEFAULTS = {theme:"nordique", mode:"auto", rail:"on"};
+
+// localStorage peut lever une exception (navigation privée, cookies bloqués) :
+// l'app doit continuer à fonctionner sans, d'où les try/catch.
+function prefGet(k){
+  try{ return localStorage.getItem("mabiblio."+k) || DEFAULTS[k]; }
+  catch(e){ return DEFAULTS[k]; }
+}
+function prefSet(k, v){
+  try{ localStorage.setItem("mabiblio."+k, v); }catch(e){}
+}
+function applyTheme(){
+  const t = THEMES.some(x => x.id === prefGet("theme")) ? prefGet("theme") : DEFAULTS.theme;
+  document.documentElement.setAttribute("data-theme", t);
+  document.documentElement.setAttribute("data-mode", prefGet("mode"));
+  // la barre d'état du téléphone suit la couleur de fond du thème
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta){
+    const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    if (bg) meta.setAttribute("content", bg);
+  }
+}
+applyTheme();
+
 const el = {
   app: document.getElementById('app'),
   search: document.getElementById('search-input'),
@@ -13,26 +54,25 @@ const el = {
   filterStatus: document.getElementById('filter-status'),
   controls: document.getElementById('controls'),
   menuToggle: document.getElementById('menu-toggle'),
+  settingsBtn: document.getElementById('settings-btn'),
   lightbox: document.getElementById('lightbox'),
   lightboxImg: document.getElementById('lightbox-img'),
   lightboxClose: document.getElementById('lightbox-close'),
 };
 
-let ALL_BOOKS = [];      // liste plate {id, title, author_id, author_name, ...}
+let ALL_BOOKS = [];      // liste plate
 let AUTHORS = new Map(); // id -> {id, name, name_sort, books:[...]}
 let LOADED = false;
-
-const FORMAT_LABEL = { ebook: 'Ebook', pdf: 'PDF', audio: 'Audio' };
+const scrollMemory = new Map(); // hash -> position, pour revenir là où on était
 
 // ---------------------------------------------------------------
-// Chargement des données (une fois, tout le catalogue est petit)
+// Chargement des données
 // ---------------------------------------------------------------
 async function loadLibrary() {
   // Supabase/PostgREST ne renvoie que 1000 lignes max par requête : on doit
   // paginer avec .range() jusqu'à avoir tout récupéré (le catalogue fait
-  // ~1900 livres, donc 2 pages). Sans ça, seuls les ~1000 premiers livres
-  // (selon l'ordre interne de la table) s'affichaient, ce qui coupait aussi
-  // des auteurs entiers dont tous les livres tombaient après la limite.
+  // ~2000 livres, donc 2 pages). Sans ça, seuls les ~1000 premiers livres
+  // s'affichaient, ce qui coupait aussi des auteurs entiers.
   const PAGE_SIZE = 1000;
   let data = [];
   let offset = 0;
@@ -42,7 +82,7 @@ async function loadLibrary() {
       .select(`
         id, title, has_ebook, has_pdf, has_audio,
         is_read, is_listened, is_favorite,
-        genre, cover_path, source_note,
+        genre, cover_path, source_note, created_at,
         author_id, authors ( id, name, name_sort )
       `)
       .order('id', { ascending: true })
@@ -71,6 +111,7 @@ async function loadLibrary() {
     genre: b.genre || 'Non classé',
     cover_path: b.cover_path,
     source_note: b.source_note,
+    created_at: b.created_at || '',
   }));
 
   AUTHORS = new Map();
@@ -108,14 +149,45 @@ function coverUrl(cover_path) {
   return `${cfg.url}/storage/v1/object/public/${cfg.coversBucket}/${cover_path}`;
 }
 
-function coverTile(book, sizeClass) {
-  const url = coverUrl(book.cover_path);
-  const initial = (book.title || '?').trim().charAt(0).toUpperCase();
-  if (url) {
-    return `<div class="cover ${sizeClass||''}"><img src="${url}" alt="Couverture de ${escapeHtml(book.title)}" loading="lazy"></div>`;
-  }
-  return `<div class="cover ${sizeClass||''}">${escapeHtml(initial)}</div>`;
+// Teinte stable déduite du titre : un même livre garde toujours la même
+// jaquette de remplacement, d'une session à l'autre et d'un appareil à l'autre.
+function hueOf(str) {
+  let h = 0;
+  const s = String(str || '?');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return h;
 }
+
+function jacketMarkup(title, author) {
+  return `<div class="jacket" style="--h:${hueOf(title + author)}">
+      <span class="j-title">${escapeHtml(title)}</span>
+      <span class="j-author">${escapeHtml(author)}</span>
+    </div>`;
+}
+
+// Couverture réelle si elle existe, sinon jaquette générée (dégradé + texte).
+// Les données du livre restent sur le conteneur : si l'image ne se charge pas
+// (fichier absent du bucket, hors ligne), on peut reconstruire la jaquette.
+function coverTile(book, cls) {
+  const url = coverUrl(book.cover_path);
+  const data = `data-t="${escapeHtml(book.title)}" data-a="${escapeHtml(book.author_name)}"`;
+  if (url) {
+    return `<div class="cover ${cls||''}" ${data}><img src="${url}" alt="Couverture de ${escapeHtml(book.title)}" loading="lazy"></div>`;
+  }
+  return `<div class="cover ${cls||''}" ${data}>${jacketMarkup(book.title, book.author_name)}</div>`;
+}
+
+// Une image de couverture qui échoue laisse sinon une icône cassée :
+// on la remplace par la jaquette générée. L'évènement "error" ne remonte pas,
+// d'où l'écoute en phase de capture.
+document.addEventListener('error', ev => {
+  const img = ev.target;
+  if (!img || img.tagName !== 'IMG') return;
+  const box = img.closest('.cover');
+  if (!box || box.dataset.failed) return;
+  box.dataset.failed = '1';
+  box.innerHTML = jacketMarkup(box.dataset.t || '?', box.dataset.a || '');
+}, true);
 
 function formatBadges(book) {
   let out = '';
@@ -136,10 +208,7 @@ function currentFilters() {
     status: el.filterStatus.value,
   };
 }
-
-function filtersActive(f) {
-  return !!(f.q || f.format || f.genre || f.status);
-}
+function filtersActive(f) { return !!(f.q || f.format || f.genre || f.status); }
 
 function matchesFilters(b, f) {
   if (f.q) {
@@ -161,8 +230,16 @@ function matchesFilters(b, f) {
   return true;
 }
 
+// Première lettre de classement d'un auteur (les chiffres et symboles vont dans "#").
+function initialOf(author) {
+  const c = (author.name_sort || author.name || '#').trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .charAt(0).toUpperCase();
+  return /[A-Z]/.test(c) ? c : '#';
+}
+
 // ---------------------------------------------------------------
-// Rendu — accueil (liste d'auteurs, ou résultats de recherche)
+// Accueil : rayon des derniers ajouts + index A–Z + grille d'auteurs
 // ---------------------------------------------------------------
 function renderHome() {
   const f = currentFilters();
@@ -174,18 +251,78 @@ function renderHome() {
     return;
   }
 
-  const authors = Array.from(AUTHORS.values()).sort((a, b) => a.name_sort.localeCompare(b.name_sort, 'fr'));
-  el.app.innerHTML = `
-    <div class="section-title">${authors.length} auteurs · ${ALL_BOOKS.length} livres</div>
+  const authors = Array.from(AUTHORS.values())
+    .sort((a, b) => (a.name_sort || a.name).localeCompare(b.name_sort || b.name, 'fr'));
+
+  // regroupement par lettre
+  const groups = new Map();
+  for (const a of authors) {
+    const k = initialOf(a);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(a);
+  }
+  const LETTERS = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+  const az = LETTERS.map(L =>
+    groups.has(L)
+      ? `<a href="#/" data-jump="L-${L}">${L}</a>`
+      : `<a class="off">${L}</a>`
+  ).join('');
+
+  const sections = Array.from(groups.entries()).map(([L, list]) => `
+    <h2 class="letter-head" id="L-${L}">${L}</h2>
     <div class="author-grid">
-      ${authors.map(a => `
-        <a class="author-card" href="#/author/${a.id}">
-          <span class="name">${escapeHtml(a.name)}</span>
-          <span class="count">${a.books.length} livre${a.books.length > 1 ? 's' : ''}</span>
-        </a>
-      `).join('')}
+      ${list.map(a => authorCard(a)).join('')}
     </div>
+  `).join('');
+
+  el.app.innerHTML = `
+    ${prefGet('rail') === 'on' ? recentRail() : ''}
+    <div class="section-title">${authors.length} auteurs · ${ALL_BOOKS.length} livres <span class="rule"></span></div>
+    <nav class="az" aria-label="Aller à une lettre">${az}</nav>
+    ${sections}
   `;
+
+  // l'index A–Z fait défiler sans changer l'URL (sinon on casse le retour arrière)
+  el.app.querySelectorAll('.az a[data-jump]').forEach(a => {
+    a.addEventListener('click', ev => {
+      ev.preventDefault();
+      const t = document.getElementById(a.dataset.jump);
+      if (t) t.scrollIntoView({block:'start'});
+    });
+  });
+}
+
+// Mini-mosaïque : jusqu'à 4 couvertures de l'auteur, les vraies d'abord.
+function authorCard(a) {
+  const withCover = a.books.filter(b => b.cover_path);
+  const rest = a.books.filter(b => !b.cover_path);
+  const pick = withCover.concat(rest).slice(0, 4);
+  return `
+    <a class="author-card" href="#/author/${a.id}">
+      <div class="mosaic">${pick.map(b => coverTile(b)).join('')}</div>
+      <div class="meta">
+        <span class="name">${escapeHtml(a.name)}</span>
+        <span class="count">${a.books.length}</span>
+      </div>
+    </a>`;
+}
+
+function recentRail() {
+  const recent = ALL_BOOKS.filter(b => b.created_at)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 18);
+  if (recent.length < 4) return '';
+  return `
+    <div class="section-title">Derniers ajouts <span class="rule"></span></div>
+    <div class="rail">
+      ${recent.map(b => `
+        <a class="rail-item" href="#/book/${b.id}">
+          ${coverTile(b)}
+          <div class="t">${escapeHtml(b.title)}</div>
+          <div class="a">${escapeHtml(b.author_name)}</div>
+        </a>`).join('')}
+    </div>`;
 }
 
 function renderBookResults(results) {
@@ -194,7 +331,7 @@ function renderBookResults(results) {
     return;
   }
   el.app.innerHTML = `
-    <div class="section-title">${results.length} résultat${results.length > 1 ? 's' : ''}</div>
+    <div class="section-title">${results.length} résultat${results.length > 1 ? 's' : ''} <span class="rule"></span></div>
     <div class="book-grid">
       ${results.map(b => `
         <a class="book-card" href="#/book/${b.id}">
@@ -204,21 +341,16 @@ function renderBookResults(results) {
             <p class="by">${escapeHtml(b.author_name)}</p>
             <div class="badges">${formatBadges(b)}<span class="badge genre">${escapeHtml(b.genre)}</span></div>
           </div>
-        </a>
-      `).join('')}
-    </div>
-  `;
+        </a>`).join('')}
+    </div>`;
 }
 
 // ---------------------------------------------------------------
-// Rendu — page auteur
+// Page auteur
 // ---------------------------------------------------------------
 function renderAuthor(authorId) {
   const author = AUTHORS.get(authorId);
-  if (!author) {
-    el.app.innerHTML = `<div class="empty">Auteur introuvable.</div>`;
-    return;
-  }
+  if (!author) { el.app.innerHTML = `<div class="empty">Auteur introuvable.</div>`; return; }
   const books = author.books.slice().sort((a, b) => a.title.localeCompare(b.title, 'fr'));
   el.app.innerHTML = `
     <a class="back-link" href="#/">← Tous les auteurs</a>
@@ -235,21 +367,16 @@ function renderAuthor(authorId) {
             <p class="by">${escapeHtml(b.genre)}</p>
             <div class="badges">${formatBadges(b)}</div>
           </div>
-        </a>
-      `).join('')}
-    </div>
-  `;
+        </a>`).join('')}
+    </div>`;
 }
 
 // ---------------------------------------------------------------
-// Rendu — fiche livre
+// Fiche livre
 // ---------------------------------------------------------------
 function renderBook(bookId) {
   const book = ALL_BOOKS.find(b => b.id === bookId);
-  if (!book) {
-    el.app.innerHTML = `<div class="empty">Livre introuvable.</div>`;
-    return;
-  }
+  if (!book) { el.app.innerHTML = `<div class="empty">Livre introuvable.</div>`; return; }
   const url = coverUrl(book.cover_path);
   const formats = [];
   if (book.has_ebook) formats.push('Ebook');
@@ -261,7 +388,10 @@ function renderBook(bookId) {
     <div class="fiche">
       <div class="cover-wrap">
         ${coverTile(book, 'fiche-cover')}
-        ${url ? `<button class="magnify" id="magnify-btn" aria-label="Agrandir la couverture">🔍</button>` : ''}
+        ${url ? `<button class="magnify" id="magnify-btn" aria-label="Agrandir la couverture">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/>
+          </svg></button>` : ''}
       </div>
       <div class="details">
         <h1>${escapeHtml(book.title)}</h1>
@@ -282,31 +412,27 @@ function renderBook(bookId) {
 
         ${book.source_note ? `<div class="source-note">${escapeHtml(book.source_note)}</div>` : ''}
       </div>
-    </div>
-  `;
+    </div>`;
 
-  if (url) {
-    document.getElementById('magnify-btn').addEventListener('click', () => openLightbox(url, book.title));
-  }
+  if (url) document.getElementById('magnify-btn')
+    .addEventListener('click', () => openLightbox(url, book.title));
 
   el.app.querySelectorAll('.toggle').forEach(label => {
-    label.addEventListener('click', (ev) => {
+    label.addEventListener('click', ev => {
       ev.preventDefault();
-      const field = label.dataset.field;
-      toggleField(book, field, label);
+      toggleField(book, label.dataset.field, label);
     });
   });
 }
 
 async function toggleField(book, field, label) {
   const newValue = !book[field];
-  book[field] = newValue; // optimistic
+  book[field] = newValue; // on affiche tout de suite, on corrige si ça rate
   label.classList.toggle('active', newValue);
   label.querySelector('input').checked = newValue;
 
   const { error } = await sb.from('books').update({ [field]: newValue }).eq('id', book.id);
   if (error) {
-    // rollback
     book[field] = !newValue;
     label.classList.toggle('active', !newValue);
     label.querySelector('input').checked = !newValue;
@@ -315,7 +441,111 @@ async function toggleField(book, field, label) {
 }
 
 // ---------------------------------------------------------------
-// Lightbox
+// Réglages
+// ---------------------------------------------------------------
+function renderSettings() {
+  const cur = prefGet('theme');
+  const mode = prefGet('mode');
+  const n = ALL_BOOKS.length || 1;
+  const read = ALL_BOOKS.filter(b => b.is_read).length;
+  const listened = ALL_BOOKS.filter(b => b.is_listened).length;
+  const fav = ALL_BOOKS.filter(b => b.is_favorite).length;
+  const done = ALL_BOOKS.filter(b => b.is_read || b.is_listened).length;
+
+  el.app.innerHTML = `
+    <div class="settings">
+      <a class="back-link" href="#/">← Retour à la bibliothèque</a>
+      <h1>Réglages</h1>
+      <p class="lede">Dix habillages pour la même bibliothèque. Le choix est enregistré sur cet appareil :
+        ton téléphone et ton PC peuvent avoir deux ambiances différentes.</p>
+
+      <div class="set-block">
+        <div class="section-title">Clair ou sombre <span class="rule"></span></div>
+        <div class="segmented" id="mode-seg">
+          <button data-mode="auto" class="${mode==='auto'?'on':''}">Automatique</button>
+          <button data-mode="light" class="${mode==='light'?'on':''}">Clair</button>
+          <button data-mode="dark" class="${mode==='dark'?'on':''}">Sombre</button>
+        </div>
+        <p class="lede" style="margin:0.8rem 0 0; font-size:0.8rem;">
+          « Automatique » suit le réglage de ton téléphone ou de ton PC. Chacun des dix thèmes
+          existe dans les deux ambiances.</p>
+      </div>
+
+      <div class="set-block">
+        <div class="section-title">Thème <span class="rule"></span></div>
+        <div class="theme-grid" id="theme-grid">
+          ${THEMES.map(t => themeCard(t, t.id === cur)).join('')}
+        </div>
+      </div>
+
+      <div class="set-block">
+        <div class="section-title">Page d'accueil <span class="rule"></span></div>
+        <div class="segmented" id="rail-seg">
+          <button data-rail="on" class="${prefGet('rail')==='on'?'on':''}">Avec « Derniers ajouts »</button>
+          <button data-rail="off" class="${prefGet('rail')==='off'?'on':''}">Sans</button>
+        </div>
+      </div>
+
+      <div class="set-block">
+        <div class="section-title">Où j'en suis <span class="rule"></span></div>
+        <div class="stats">
+          <div class="stat"><div class="n">${ALL_BOOKS.length}</div><div class="l">livres</div></div>
+          <div class="stat"><div class="n">${AUTHORS.size}</div><div class="l">auteurs</div></div>
+          <div class="stat"><div class="n">${read}</div><div class="l">lus</div></div>
+          <div class="stat"><div class="n">${listened}</div><div class="l">écoutés</div></div>
+          <div class="stat"><div class="n">${fav}</div><div class="l">favoris</div></div>
+        </div>
+        <div class="bar" title="${done} livres sur ${ALL_BOOKS.length}"><i style="width:${(done/n*100).toFixed(1)}%"></i></div>
+        <p class="lede" style="margin:0.6rem 0 0; font-size:0.8rem;">
+          ${done} livre${done>1?'s':''} lu${done>1?'s':''} ou écouté${done>1?'s':''}, soit ${(done/n*100).toFixed(1)} % de la bibliothèque.</p>
+      </div>
+    </div>`;
+
+  el.app.querySelectorAll('#theme-grid .theme-card').forEach(card => {
+    card.addEventListener('click', () => {
+      prefSet('theme', card.dataset.theme);
+      applyTheme();
+      renderSettings();   // on redessine pour que les vignettes suivent le nouveau thème
+    });
+  });
+  el.app.querySelectorAll('#mode-seg button').forEach(b => {
+    b.addEventListener('click', () => { prefSet('mode', b.dataset.mode); applyTheme(); renderSettings(); });
+  });
+  el.app.querySelectorAll('#rail-seg button').forEach(b => {
+    b.addEventListener('click', () => { prefSet('rail', b.dataset.rail); renderSettings(); });
+  });
+}
+
+// Vignette d'un thème : une interface miniature peinte avec les couleurs
+// de ce thème, pour juger sans avoir à l'appliquer.
+function themeCard(t, on) {
+  return `
+    <button class="theme-card ${on?'on':''}" data-theme="${t.id}"
+            aria-pressed="${on}" title="Appliquer le thème ${escapeHtml(t.label)}">
+      <span class="tick">✓</span>
+      <div class="tp" data-preview="${t.id}">
+        <div class="tp-bar">
+          <span class="tp-brand">Ma Bibliothèque</span>
+          <span class="tp-pill"></span>
+        </div>
+        <div class="tp-row">
+          <span class="tp-cover"></span>
+          <span class="tp-lines">
+            <span class="tp-l" style="width:85%"></span>
+            <span class="tp-l" style="width:55%"></span>
+            <span class="tp-chips"><span class="tp-chip"></span><span class="tp-chip"></span></span>
+          </span>
+        </div>
+      </div>
+      <div class="tp-meta">
+        <div class="tp-name">${escapeHtml(t.label)}</div>
+        <div class="tp-desc">${escapeHtml(t.desc)}</div>
+      </div>
+    </button>`;
+}
+
+// ---------------------------------------------------------------
+// Visionneuse de couverture
 // ---------------------------------------------------------------
 function openLightbox(url, alt) {
   el.lightboxImg.src = url;
@@ -327,41 +557,46 @@ function closeLightbox() {
   el.lightboxImg.src = '';
 }
 el.lightboxClose.addEventListener('click', closeLightbox);
-el.lightbox.addEventListener('click', (e) => { if (e.target === el.lightbox) closeLightbox(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+el.lightbox.addEventListener('click', e => { if (e.target === el.lightbox) closeLightbox(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
 // ---------------------------------------------------------------
 // Routage
 // ---------------------------------------------------------------
+let lastHash = null;
+
 function route() {
   if (!LOADED) return;
+  // on mémorise où on en était sur la page qu'on quitte
+  if (lastHash !== null) scrollMemory.set(lastHash, window.scrollY);
+
   const hash = location.hash || '#/';
   const authorMatch = hash.match(/^#\/author\/(.+)$/);
   const bookMatch = hash.match(/^#\/book\/(.+)$/);
 
-  if (authorMatch) {
-    renderAuthor(authorMatch[1]);
-  } else if (bookMatch) {
-    renderBook(bookMatch[1]);
-  } else {
-    renderHome();
-  }
-  window.scrollTo(0, 0);
+  if (hash === '#/settings') renderSettings();
+  else if (authorMatch) renderAuthor(authorMatch[1]);
+  else if (bookMatch) renderBook(bookMatch[1]);
+  else renderHome();
+
+  // et on y revient si on avait déjà visité cette page
+  const back = scrollMemory.get(hash);
+  window.scrollTo(0, back || 0);
+  lastHash = hash;
 }
 
 window.addEventListener('hashchange', route);
 
-// filtres -> reviennent à l'accueil et rafraîchissent
 [el.search, el.filterFormat, el.filterGenre, el.filterStatus].forEach(input => {
   input.addEventListener('input', () => {
+    scrollMemory.delete('#/');            // nouvelle recherche = on repart du haut
     if (location.hash !== '#/' && location.hash !== '') location.hash = '#/';
     else renderHome();
   });
 });
 
-el.menuToggle.addEventListener('click', () => {
-  el.controls.classList.toggle('open');
-});
+el.menuToggle.addEventListener('click', () => el.controls.classList.toggle('open'));
+el.settingsBtn.addEventListener('click', () => { location.hash = '#/settings'; });
 
 // ---------------------------------------------------------------
 // Démarrage
