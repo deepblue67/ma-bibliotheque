@@ -867,9 +867,15 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .author-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-hi); border-color:var(--accent);}
-.mosaic{display:flex; gap:4px;}
+/* Quatre emplacements de largeur égale, quel que soit le nombre de livres :
+   une vignette garde donc toujours la même taille et les mêmes proportions.
+   Chez un auteur qui n'a qu'un livre, les trois emplacements restants
+   restent vides — sans cela la vignette s'étirait sur toute la carte et
+   l'image se retrouvait rognée à l'horizontale. */
+.mosaic{display:grid; grid-template-columns:repeat(4, 1fr); gap:4px;}
 .mosaic .cover{
-  flex:1 1 0; height:74px; min-width:0;
+  width:100%; min-width:0;
+  aspect-ratio:2 / 3;          /* proportion d'une couverture de livre */
   border-radius:calc(var(--radius) - 6px);
 }
 /* dans la mosaïque, une tuile peut être large (auteur à un seul livre) :
@@ -1096,7 +1102,6 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   .fiche .cover{width:135px; height:198px;}
   #app{padding:1.2rem 1rem 3rem;}
   .author-grid{grid-template-columns:repeat(auto-fill, minmax(150px,1fr));}
-  .mosaic .cover{height:58px;}
 }
 
 @media (prefers-reduced-motion: reduce){
