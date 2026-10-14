@@ -872,6 +872,13 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   flex:1 1 0; height:74px; min-width:0;
   border-radius:calc(var(--radius) - 6px);
 }
+/* dans la mosaïque, une tuile peut être large (auteur à un seul livre) :
+   on plafonne le texte de la jaquette pour qu'il reste à l'échelle de la vignette */
+.mosaic .jacket{padding:8% 8%;}
+.mosaic .jacket .j-title{font-size:clamp(0.46rem, 5.5cqw, 0.74rem); -webkit-line-clamp:3;}
+.mosaic .jacket .j-author{font-size:clamp(0.36rem, 3.6cqw, 0.56rem); margin-top:0.25em;}
+.mosaic .jacket::before{top:18%;}
+
 .author-card .meta{display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem;}
 .author-card .name{font-weight:600; font-size:0.95rem; line-height:1.25;}
 .author-card .count{font-family:var(--font-mono); font-size:0.68rem; color:var(--sub); white-space:nowrap;}
@@ -960,6 +967,50 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .toggle.active{border-color:var(--accent); background:var(--chip);}
 
 .source-note{margin-top:1.4rem; font-size:0.7rem; color:var(--sub); font-family:var(--font-mono); line-height:1.6;}
+
+/* ---------- corriger / masquer un livre ---------- */
+.book-actions{display:flex; gap:1.1rem; flex-wrap:wrap; margin-top:1.4rem;}
+.linkish{
+  background:none; border:none; padding:0; color:var(--sub);
+  font-size:0.8rem; text-decoration:underline; text-underline-offset:3px;
+}
+.linkish:hover{color:var(--ink);}
+.linkish.danger:hover{color:var(--danger, #b2685a);}
+.btn-main{
+  border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink);
+  border-radius:999px; padding:0.5em 1.1em; font-size:0.82rem; font-weight:600;
+}
+.btn-main.danger{background:var(--danger, #b2685a); border-color:var(--danger, #b2685a); color:#fff;}
+.inline-form{
+  margin-top:1.4rem; padding:1rem 1.1rem;
+  border:1px solid var(--line); border-radius:var(--radius); background:var(--bg);
+  max-width:420px;
+}
+.inline-form label{display:block; font-size:0.74rem; color:var(--sub); margin-bottom:0.35rem;}
+.inline-form input[type="text"]{
+  width:100%; font-family:var(--font-body); font-size:0.92rem;
+  padding:0.55em 0.75em; border-radius:var(--radius); margin-bottom:0.8rem;
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+}
+.inline-form input[type="text"]:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);}
+.inline-form .row{display:flex; gap:0.9rem; align-items:center;}
+.inline-form .confirm-q{margin:0 0 0.4rem; font-weight:600; font-size:0.92rem;}
+.hint-sm{margin:0.8rem 0 0; font-size:0.74rem; color:var(--sub); line-height:1.55;}
+.form-error{
+  margin:0.8rem 0 0; font-size:0.78rem; line-height:1.5;
+  color:var(--danger, #b2685a);
+}
+
+/* ---------- livres masqués (réglages) ---------- */
+.hidden-list{border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+.hidden-row{
+  display:flex; align-items:center; gap:1rem;
+  padding:0.65rem 0.9rem; border-bottom:1px solid var(--line); background:var(--card);
+}
+.hidden-row:last-child{border-bottom:none;}
+.hidden-row .who{flex:1; min-width:0;}
+.hidden-row .t{display:block; font-size:0.86rem; font-weight:600;}
+.hidden-row .a{display:block; font-size:0.74rem; color:var(--sub);}
 
 /* ---------- page de réglages ---------- */
 .settings h1{

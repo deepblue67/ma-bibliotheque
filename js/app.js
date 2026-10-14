@@ -60,7 +60,13 @@ const el = {
   lightboxClose: document.getElementById('lightbox-close'),
 };
 
-let ALL_BOOKS = [];      // liste plate
+// Passe à false si la migration d'octobre 2026 (colonnes source_title et
+// is_hidden) n'a pas encore été exécutée dans Supabase : l'app fonctionne
+// alors comme avant, sans les commandes de correction et de masquage.
+let EDITABLE = true;
+
+let ALL_BOOKS = [];      // liste plate des livres visibles
+let HIDDEN_BOOKS = [];   // fiches masquées : conservées en base, invisibles ici
 let AUTHORS = new Map(); // id -> {id, name, name_sort, books:[...]}
 let LOADED = false;
 const scrollMemory = new Map(); // hash -> position, pour revenir là où on était
@@ -73,20 +79,36 @@ async function loadLibrary() {
   // paginer avec .range() jusqu'à avoir tout récupéré (le catalogue fait
   // ~2000 livres, donc 2 pages). Sans ça, seuls les ~1000 premiers livres
   // s'affichaient, ce qui coupait aussi des auteurs entiers.
+  const COLS_BASE = `
+        id, title,
+        has_ebook, has_pdf, has_audio,
+        is_read, is_listened, is_favorite,
+        genre, cover_path, source_note, created_at,
+        author_id, authors ( id, name, name_sort )`;
+  const COLS_FULL = `id, title, source_title, is_hidden,` + COLS_BASE.replace('id, title,', '');
+
   const PAGE_SIZE = 1000;
   let data = [];
   let offset = 0;
   while (true) {
-    const { data: page, error } = await sb
+    let { data: page, error } = await sb
       .from('books')
-      .select(`
-        id, title, has_ebook, has_pdf, has_audio,
-        is_read, is_listened, is_favorite,
-        genre, cover_path, source_note, created_at,
-        author_id, authors ( id, name, name_sort )
-      `)
+      .select(EDITABLE ? COLS_FULL : COLS_BASE)
       .order('id', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
+
+    // Les colonnes source_title et is_hidden sont ajoutées par la migration
+    // d'octobre 2026. Si elle n'a pas encore été exécutée, on recharge sans
+    // elles : l'app reste utilisable, seules les commandes de correction et
+    // de masquage sont retirées.
+    if (error && EDITABLE && /source_title|is_hidden|column/i.test(error.message || '')) {
+      EDITABLE = false;
+      ({ data: page, error } = await sb
+        .from('books')
+        .select(COLS_BASE)
+        .order('id', { ascending: true })
+        .range(offset, offset + PAGE_SIZE - 1));
+    }
 
     if (error) {
       el.app.innerHTML = `<div class="empty">Impossible de charger la bibliothèque.<br>
@@ -100,9 +122,11 @@ async function loadLibrary() {
     offset += PAGE_SIZE;
   }
 
-  ALL_BOOKS = data.map(b => ({
+  const all = data.map(b => ({
     id: b.id,
     title: b.title,
+    source_title: b.source_title || null,
+    is_hidden: !!b.is_hidden,
     author_id: b.author_id,
     author_name: b.authors ? b.authors.name : 'Auteur inconnu',
     author_name_sort: b.authors ? b.authors.name_sort : 'zzz',
@@ -114,6 +138,20 @@ async function loadLibrary() {
     created_at: b.created_at || '',
   }));
 
+  // Les fiches masquées restent en base pour empêcher leur réinsertion lors
+  // d'une synchronisation, mais l'application ne les montre nulle part.
+  ALL_BOOKS = all.filter(b => !b.is_hidden);
+  HIDDEN_BOOKS = all.filter(b => b.is_hidden);
+
+  rebuildAuthors();
+  populateGenreFilter();
+  LOADED = true;
+  return true;
+}
+
+// Reconstruit l'index des auteurs à partir des livres visibles.
+// Appelée au chargement, et après chaque masquage ou restauration.
+function rebuildAuthors() {
   AUTHORS = new Map();
   for (const b of ALL_BOOKS) {
     if (!AUTHORS.has(b.author_id)) {
@@ -121,10 +159,6 @@ async function loadLibrary() {
     }
     AUTHORS.get(b.author_id).books.push(b);
   }
-
-  populateGenreFilter();
-  LOADED = true;
-  return true;
 }
 
 function populateGenreFilter() {
@@ -410,6 +444,12 @@ function renderBook(bookId) {
           </label>
         </div>
 
+        ${EDITABLE ? `<div class="book-actions" id="book-actions">
+          <button type="button" class="linkish" data-act="rename">Corriger le titre</button>
+          <button type="button" class="linkish danger" data-act="hide">Masquer ce livre</button>
+        </div>` : ''}
+
+        ${book.source_title ? `<div class="source-note">Sur le disque : « ${escapeHtml(book.source_title)} »</div>` : ''}
         ${book.source_note ? `<div class="source-note">${escapeHtml(book.source_note)}</div>` : ''}
       </div>
     </div>`;
@@ -423,6 +463,134 @@ function renderBook(bookId) {
       toggleField(book, label.dataset.field, label);
     });
   });
+
+  el.app.querySelectorAll('#book-actions button').forEach(b => {
+    b.addEventListener('click', () => {
+      if (b.dataset.act === 'rename') startRename(book);
+      else confirmHide(book);
+    });
+  });
+}
+
+// ---------------------------------------------------------------
+// Corriger un titre
+//
+// Le titre affiché devient celui que Christophe saisit, mais l'orthographe
+// d'origine — celle des fichiers sur le disque — est conservée dans
+// source_title. C'est elle que les imports utilisent pour retrouver la fiche :
+// sans ça, la synchronisation suivante lirait l'ancien titre sur le disque,
+// ne trouverait rien, et recréerait un doublon.
+// ---------------------------------------------------------------
+function startRename(book) {
+  const box = document.getElementById('book-actions');
+  box.innerHTML = `
+    <div class="inline-form">
+      <label for="new-title">Titre affiché dans l'application</label>
+      <input type="text" id="new-title" value="${escapeHtml(book.title)}" autocomplete="off">
+      <div class="row">
+        <button type="button" class="btn-main" id="rename-ok">Enregistrer</button>
+        <button type="button" class="linkish" id="rename-cancel">Annuler</button>
+      </div>
+      <p class="hint-sm">L'orthographe d'origine est conservée pour que les prochaines
+        synchronisations retrouvent ce livre et ne le recréent pas.</p>
+      <p class="form-error" id="rename-error" hidden></p>
+    </div>`;
+  const input = document.getElementById('new-title');
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+
+  document.getElementById('rename-cancel').addEventListener('click', () => renderBook(book.id));
+  document.getElementById('rename-ok').addEventListener('click', () => doRename(book));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doRename(book);
+    if (e.key === 'Escape') renderBook(book.id);
+  });
+}
+
+async function doRename(book) {
+  const input = document.getElementById('new-title');
+  const err = document.getElementById('rename-error');
+  const btn = document.getElementById('rename-ok');
+  const next = input.value.trim();
+
+  if (!next) { showFormError(err, 'Le titre ne peut pas être vide.'); return; }
+  if (next === book.title) { renderBook(book.id); return; }
+
+  // Un autre livre du même auteur porte déjà ce titre : la base refuserait
+  // l'enregistrement (unicité auteur + titre). On le dit avant d'essayer.
+  const clash = ALL_BOOKS.concat(HIDDEN_BOOKS).find(
+    b => b.author_id === book.author_id && b.id !== book.id && b.title === next);
+  if (clash) {
+    showFormError(err, `${escapeHtml(book.author_name)} a déjà un livre intitulé « ${escapeHtml(next)} ». Ces deux fiches sont probablement le même livre : masque plutôt celle-ci.`);
+    return;
+  }
+
+  btn.disabled = true;
+  const payload = { title: next };
+  // On ne fige l'orthographe du disque qu'à la première correction.
+  if (!book.source_title) payload.source_title = book.title;
+
+  const { error } = await sb.from('books').update(payload).eq('id', book.id);
+  if (error) {
+    btn.disabled = false;
+    showFormError(err, "L'enregistrement a échoué. Vérifie ta connexion et réessaie.");
+    return;
+  }
+  if (!book.source_title) book.source_title = book.title;
+  book.title = next;
+  renderBook(book.id);
+}
+
+function showFormError(node, msg) {
+  node.innerHTML = msg;
+  node.hidden = false;
+}
+
+// ---------------------------------------------------------------
+// Masquer une fiche (suppression réversible)
+// ---------------------------------------------------------------
+function confirmHide(book) {
+  const box = document.getElementById('book-actions');
+  box.innerHTML = `
+    <div class="inline-form">
+      <p class="confirm-q">Masquer « ${escapeHtml(book.title)} » ?</p>
+      <p class="hint-sm">La fiche disparaît de la bibliothèque mais reste en base,
+        ce qui empêche les prochaines synchronisations de la recréer.
+        Tu pourras la restaurer depuis les réglages.</p>
+      <div class="row">
+        <button type="button" class="btn-main danger" id="hide-ok">Masquer</button>
+        <button type="button" class="linkish" id="hide-cancel">Annuler</button>
+      </div>
+      <p class="form-error" id="hide-error" hidden></p>
+    </div>`;
+  document.getElementById('hide-cancel').addEventListener('click', () => renderBook(book.id));
+  document.getElementById('hide-ok').addEventListener('click', async () => {
+    const btn = document.getElementById('hide-ok');
+    btn.disabled = true;
+    const { error } = await sb.from('books').update({ is_hidden: true }).eq('id', book.id);
+    if (error) {
+      btn.disabled = false;
+      showFormError(document.getElementById('hide-error'), "Le masquage a échoué. Vérifie ta connexion et réessaie.");
+      return;
+    }
+    book.is_hidden = true;
+    ALL_BOOKS = ALL_BOOKS.filter(b => b.id !== book.id);
+    HIDDEN_BOOKS.push(book);
+    rebuildAuthors();
+    scrollMemory.delete('#/');
+    // on retourne à l'auteur, ou à l'accueil s'il ne lui reste plus rien
+    location.hash = AUTHORS.has(book.author_id) ? `#/author/${book.author_id}` : '#/';
+  });
+}
+
+async function restoreBook(book) {
+  const { error } = await sb.from('books').update({ is_hidden: false }).eq('id', book.id);
+  if (error) { alert("La restauration n'a pas pu être enregistrée."); return; }
+  book.is_hidden = false;
+  HIDDEN_BOOKS = HIDDEN_BOOKS.filter(b => b.id !== book.id);
+  ALL_BOOKS.push(book);
+  rebuildAuthors();
+  renderSettings();
 }
 
 async function toggleField(book, field, label) {
@@ -499,6 +667,11 @@ function renderSettings() {
         <p class="lede" style="margin:0.6rem 0 0; font-size:0.8rem;">
           ${done} livre${done>1?'s':''} lu${done>1?'s':''} ou écouté${done>1?'s':''}, soit ${(done/n*100).toFixed(1)} % de la bibliothèque.</p>
       </div>
+
+      ${EDITABLE ? `<div class="set-block">
+        <div class="section-title">Livres masqués <span class="rule"></span></div>
+        ${renderHiddenBlock()}
+      </div>` : ''}
     </div>`;
 
   el.app.querySelectorAll('#theme-grid .theme-card').forEach(card => {
@@ -514,6 +687,37 @@ function renderSettings() {
   el.app.querySelectorAll('#rail-seg button').forEach(b => {
     b.addEventListener('click', () => { prefSet('rail', b.dataset.rail); renderSettings(); });
   });
+  el.app.querySelectorAll('.hidden-row button').forEach(b => {
+    b.addEventListener('click', () => {
+      const book = HIDDEN_BOOKS.find(x => x.id === b.dataset.id);
+      if (book) restoreBook(book);
+    });
+  });
+}
+
+function renderHiddenBlock() {
+  if (!HIDDEN_BOOKS.length) {
+    return `<p class="lede" style="margin:0; font-size:0.85rem;">
+      Aucun livre masqué. Masquer une fiche depuis sa page retire le livre de la bibliothèque
+      sans l'effacer : la ligne reste en base pour empêcher les prochaines synchronisations
+      de la recréer.</p>`;
+  }
+  const list = HIDDEN_BOOKS.slice()
+    .sort((a, b) => a.author_name_sort.localeCompare(b.author_name_sort, 'fr') || a.title.localeCompare(b.title, 'fr'));
+  return `
+    <p class="lede" style="margin:0 0 1rem; font-size:0.85rem;">
+      ${list.length} fiche${list.length > 1 ? 's' : ''} masquée${list.length > 1 ? 's' : ''}.
+      Elles restent en base pour bloquer toute réinsertion ; tu peux les remettre à tout moment.</p>
+    <div class="hidden-list">
+      ${list.map(b => `
+        <div class="hidden-row">
+          <div class="who">
+            <span class="t">${escapeHtml(b.title)}</span>
+            <span class="a">${escapeHtml(b.author_name)}</span>
+          </div>
+          <button type="button" class="linkish" data-id="${b.id}">Restaurer</button>
+        </div>`).join('')}
+    </div>`;
 }
 
 // Vignette d'un thème : une interface miniature peinte avec les couleurs
