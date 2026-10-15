@@ -19,5 +19,5 @@ window.SUPABASE_CONFIG = {
   // Ce n'est pas une sécurité : la clé anon ci-dessus et les droits d'écriture
   // de la base sont publics. C'est un garde-fou contre les fausses manœuvres
   // de tes visiteurs.
-  ownerHash: ""
+  ownerHash: "75427575978df4cec1e3ac9325aa756ba4381f56a675c51f13d9f02cc3553e67"
 };
