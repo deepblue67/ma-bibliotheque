@@ -1007,6 +1007,14 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   color:var(--danger, #b2685a);
 }
 
+.ro-status{margin-top:0.2rem;}
+.snippet{
+  margin:0.9rem 0 0; padding:0.6rem 0.75rem;
+  background:var(--chip); border:1px solid var(--line); border-radius:var(--radius);
+  font-family:var(--font-mono); font-size:0.7rem; line-height:1.5;
+  white-space:pre-wrap; word-break:break-all; color:var(--ink);
+}
+
 /* ---------- livres masqués (réglages) ---------- */
 .hidden-list{border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
 .hidden-row{

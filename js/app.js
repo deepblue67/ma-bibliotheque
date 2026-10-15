@@ -65,6 +65,42 @@ const el = {
 // alors comme avant, sans les commandes de correction et de masquage.
 let EDITABLE = true;
 
+// ---------------------------------------------------------------
+// Mode propriétaire
+//
+// Cette application est publique : elle est consultée par les proches de
+// Christophe, la clé Supabase `anon` est dans le code, et la politique RLS
+// autorise la mise à jour de `books` sans authentification — c'est ce qui
+// fait fonctionner les cases de statut.
+//
+// Ce code n'est donc PAS une serrure. C'est un garde-fou : il empêche un
+// visiteur de masquer un livre ou de renommer un titre par inadvertance.
+// Il n'empêche pas quelqu'un de déterminé, qui lirait le source et
+// appellerait l'API directement, d'écrire dans la base. La seule fermeture
+// réelle serait de retirer le droit d'écriture publique sur `books` et de
+// passer par une authentification Supabase.
+//
+// Le code n'est pas stocké en clair : config.js ne contient que son
+// empreinte SHA-256, et la page de réglages sait générer cette empreinte
+// pour que le code choisi n'ait à être écrit nulle part.
+// ---------------------------------------------------------------
+const OWNER_CONFIGURED = typeof cfg.ownerHash === 'string' && /^[0-9a-f]{64}$/.test(cfg.ownerHash);
+let OWNER = false;
+try { OWNER = OWNER_CONFIGURED && localStorage.getItem('mabiblio.owner') === '1'; } catch (e) {}
+
+// crypto.subtle n'existe qu'en contexte sécurisé : disponible sur le site
+// publié (https), absent si le fichier est ouvert en local (file://).
+async function hashCode(code) {
+  if (!(window.crypto && window.crypto.subtle)) return null;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('mabiblio:' + code));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function setOwner(on) {
+  OWNER = !!on;
+  try { localStorage.setItem('mabiblio.owner', OWNER ? '1' : '0'); } catch (e) {}
+}
+
 let ALL_BOOKS = [];      // liste plate des livres visibles
 let HIDDEN_BOOKS = [];   // fiches masquées : conservées en base, invisibles ici
 let AUTHORS = new Map(); // id -> {id, name, name_sort, books:[...]}
@@ -455,7 +491,7 @@ function renderBook(bookId) {
         <p class="by-line"><a href="#/author/${book.author_id}">${escapeHtml(book.author_name)}</a> · ${escapeHtml(book.genre)}</p>
         <div class="badges">${formats.map(f => `<span class="badge">${f}</span>`).join('')}</div>
 
-        <div class="toggles">
+        ${OWNER ? `<div class="toggles">
           <label class="toggle ${book.is_read ? 'active' : ''}" data-field="is_read">
             <input type="checkbox" ${book.is_read ? 'checked' : ''}> Lu sur liseuse
           </label>
@@ -465,9 +501,9 @@ function renderBook(bookId) {
           <label class="toggle ${book.is_favorite ? 'active' : ''}" data-field="is_favorite">
             <input type="checkbox" ${book.is_favorite ? 'checked' : ''}> Favori
           </label>
-        </div>
+        </div>` : readOnlyStatuses(book)}
 
-        ${EDITABLE ? `<div class="book-actions" id="book-actions">
+        ${(EDITABLE && OWNER) ? `<div class="book-actions" id="book-actions">
           <button type="button" class="linkish" data-act="rename">Corriger le titre</button>
           <button type="button" class="linkish danger" data-act="hide">Masquer ce livre</button>
         </div>` : ''}
@@ -479,6 +515,8 @@ function renderBook(bookId) {
 
   if (url) document.getElementById('magnify-btn')
     .addEventListener('click', () => openLightbox(url, book.title));
+
+  if (!OWNER) return;   // un visiteur n'a aucune commande à brancher
 
   el.app.querySelectorAll('.toggle').forEach(label => {
     label.addEventListener('click', ev => {
@@ -564,6 +602,16 @@ async function doRename(book) {
   // le titre corrigé entre dans l'index de recherche, l'ancien y reste
   book.search = fold(`${book.title} ${book.author_name} ${book.source_title || ''}`);
   renderBook(book.id);
+}
+
+// Pour un visiteur, les statuts ne sont pas modifiables : on n'affiche que
+// ceux qui sont vrais, et seulement s'il y en a.
+function readOnlyStatuses(book) {
+  const out = [];
+  if (book.is_favorite) out.push('<span class="badge fav">★ Coup de cœur</span>');
+  if (book.is_read) out.push('<span class="badge status">Lu</span>');
+  if (book.is_listened) out.push('<span class="badge status">Écouté</span>');
+  return out.length ? `<div class="badges ro-status">${out.join('')}</div>` : '';
 }
 
 function showFormError(node, msg) {
@@ -680,6 +728,11 @@ function renderSettings() {
       </div>
 
       <div class="set-block">
+        <div class="section-title">Mode propriétaire <span class="rule"></span></div>
+        ${renderOwnerBlock()}
+      </div>
+
+      ${OWNER ? `<div class="set-block">
         <div class="section-title">Où j'en suis <span class="rule"></span></div>
         <div class="stats">
           <div class="stat"><div class="n">${ALL_BOOKS.length}</div><div class="l">livres</div></div>
@@ -691,9 +744,9 @@ function renderSettings() {
         <div class="bar" title="${done} livres sur ${ALL_BOOKS.length}"><i style="width:${(done/n*100).toFixed(1)}%"></i></div>
         <p class="lede" style="margin:0.6rem 0 0; font-size:0.8rem;">
           ${done} livre${done>1?'s':''} lu${done>1?'s':''} ou écouté${done>1?'s':''}, soit ${(done/n*100).toFixed(1)} % de la bibliothèque.</p>
-      </div>
+      </div>` : ''}
 
-      ${EDITABLE ? `<div class="set-block">
+      ${(EDITABLE && OWNER) ? `<div class="set-block">
         <div class="section-title">Livres masqués <span class="rule"></span></div>
         ${renderHiddenBlock()}
       </div>` : ''}
@@ -712,12 +765,82 @@ function renderSettings() {
   el.app.querySelectorAll('#rail-seg button').forEach(b => {
     b.addEventListener('click', () => { prefSet('rail', b.dataset.rail); renderSettings(); });
   });
+  wireOwnerBlock();
   el.app.querySelectorAll('.hidden-row button').forEach(b => {
     b.addEventListener('click', () => {
       const book = HIDDEN_BOOKS.find(x => x.id === b.dataset.id);
       if (book) restoreBook(book);
     });
   });
+}
+
+function renderOwnerBlock() {
+  if (OWNER) {
+    return `
+      <p class="lede" style="margin:0 0 1rem; font-size:0.85rem;">
+        Mode propriétaire actif sur cet appareil : tu peux corriger un titre, masquer une fiche
+        et cocher les statuts. Tes visiteurs, eux, ne voient que la bibliothèque.</p>
+      <button type="button" class="linkish" id="owner-off">Quitter le mode propriétaire</button>`;
+  }
+  if (!OWNER_CONFIGURED) {
+    return `
+      <p class="lede" style="margin:0 0 1rem; font-size:0.85rem;">
+        Pas encore configuré. Tant qu'aucun code n'est défini, <strong>personne</strong> ne peut
+        modifier la bibliothèque depuis l'application — toi non plus. Choisis un code ci-dessous :
+        l'empreinte à recopier dans <code>js/config.js</code> s'affichera, et ton code lui-même
+        ne sera écrit nulle part.</p>
+      <div class="inline-form">
+        <label for="owner-new">Code de ton choix</label>
+        <input type="password" id="owner-new" autocomplete="new-password">
+        <div class="row"><button type="button" class="btn-main" id="owner-gen">Générer l'empreinte</button></div>
+        <p class="form-error" id="owner-msg" hidden></p>
+        <pre class="snippet" id="owner-out" hidden></pre>
+      </div>`;
+  }
+  return `
+    <p class="lede" style="margin:0 0 1rem; font-size:0.85rem;">
+      Saisis ton code pour activer les commandes de correction et de masquage sur cet appareil.
+      Il reste actif jusqu'à ce que tu en sortes.</p>
+    <div class="inline-form">
+      <label for="owner-code">Code</label>
+      <input type="password" id="owner-code" autocomplete="current-password">
+      <div class="row"><button type="button" class="btn-main" id="owner-ok">Déverrouiller</button></div>
+      <p class="form-error" id="owner-msg" hidden></p>
+    </div>
+    <p class="hint-sm" style="max-width:52ch;">
+      Ce code est un garde-fou contre les fausses manœuvres de tes visiteurs, pas une sécurité :
+      l'application étant publique, quelqu'un de déterminé pourrait toujours écrire dans la base.</p>`;
+}
+
+function wireOwnerBlock() {
+  const msg = document.getElementById('owner-msg');
+  const off = document.getElementById('owner-off');
+  if (off) off.addEventListener('click', () => { setOwner(false); renderSettings(); });
+
+  const gen = document.getElementById('owner-gen');
+  if (gen) gen.addEventListener('click', async () => {
+    const code = document.getElementById('owner-new').value;
+    if (code.length < 4) { showFormError(msg, 'Choisis un code d\'au moins 4 caractères.'); return; }
+    const h = await hashCode(code);
+    if (!h) { showFormError(msg, "Le calcul de l'empreinte n'est possible que sur le site publié (https), pas en ouvrant le fichier en local."); return; }
+    msg.hidden = true;
+    const out = document.getElementById('owner-out');
+    out.textContent = `ownerHash: "${h}",`;
+    out.hidden = false;
+  });
+
+  const ok = document.getElementById('owner-ok');
+  if (ok) {
+    const tryCode = async () => {
+      const h = await hashCode(document.getElementById('owner-code').value);
+      if (!h) { showFormError(msg, "Vérification impossible ici : l'application doit être ouverte depuis son adresse https."); return; }
+      if (h !== cfg.ownerHash) { showFormError(msg, 'Code incorrect.'); return; }
+      setOwner(true);
+      renderSettings();
+    };
+    ok.addEventListener('click', tryCode);
+    document.getElementById('owner-code').addEventListener('keydown', e => { if (e.key === 'Enter') tryCode(); });
+  }
 }
 
 function renderHiddenBlock() {
