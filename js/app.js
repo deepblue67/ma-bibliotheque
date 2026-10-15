@@ -137,6 +137,10 @@ async function loadLibrary() {
     source_note: b.source_note,
     created_at: b.created_at || '',
   }));
+  // Texte de recherche calculé une fois pour toutes, à plat. On y joint le
+  // titre d'origine du disque : un livre renommé reste trouvable par son
+  // ancienne orthographe.
+  for (const b of all) b.search = fold(`${b.title} ${b.author_name} ${b.source_title || ''}`);
 
   // Les fiches masquées restent en base pour empêcher leur réinsertion lors
   // d'une synchronisation, mais l'application ne les montre nulle part.
@@ -176,6 +180,22 @@ function populateGenreFilter() {
 // ---------------------------------------------------------------
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Met un texte à plat pour la recherche : sans accent, sans ligature, avec une
+// seule forme d'apostrophe et de tiret. « Les Brûlés » et « les brules » doivent
+// se valoir, de même que « cœur » et « coeur », ou l'apostrophe courbe « ’ » et
+// l'apostrophe droite « ' » — les deux coexistent dans les titres selon la
+// source des métadonnées.
+function fold(s) {
+  return (s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')  // retire les accents
+    .toLowerCase()
+    .replace(/[œ]/g, 'oe').replace(/[æ]/g, 'ae')       // non décomposées par NFD
+    .replace(/[’‘`´']/g, ' ')                          // l'apostrophe ne sépare plus
+    .replace(/[–—−]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function coverUrl(cover_path) {
@@ -235,19 +255,22 @@ function formatBadges(book) {
 }
 
 function currentFilters() {
+  // La recherche est découpée en mots : « piliers terre » ou « follett piliers »
+  // trouvent le livre, sans avoir à taper les mots dans l'ordre ni en entier.
+  const q = fold(el.search.value);
   return {
-    q: el.search.value.trim().toLowerCase(),
+    terms: q ? q.split(' ').filter(Boolean) : [],
     format: el.filterFormat.value,
     genre: el.filterGenre.value,
     status: el.filterStatus.value,
   };
 }
-function filtersActive(f) { return !!(f.q || f.format || f.genre || f.status); }
+function filtersActive(f) { return !!(f.terms.length || f.format || f.genre || f.status); }
 
 function matchesFilters(b, f) {
-  if (f.q) {
-    const hay = (b.title + ' ' + b.author_name).toLowerCase();
-    if (!hay.includes(f.q)) return false;
+  if (f.terms.length) {
+    const hay = b.search || fold(b.title + ' ' + b.author_name);
+    for (const t of f.terms) if (!hay.includes(t)) return false;
   }
   if (f.format) {
     if (f.format === 'ebook' && !b.has_ebook) return false;
@@ -538,6 +561,8 @@ async function doRename(book) {
   }
   if (!book.source_title) book.source_title = book.title;
   book.title = next;
+  // le titre corrigé entre dans l'index de recherche, l'ancien y reste
+  book.search = fold(`${book.title} ${book.author_name} ${book.source_title || ''}`);
   renderBook(book.id);
 }
 
