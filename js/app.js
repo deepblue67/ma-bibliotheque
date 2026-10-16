@@ -65,6 +65,10 @@ const el = {
 // alors comme avant, sans les commandes de correction et de masquage.
 let EDITABLE = true;
 
+// Idem pour la migration « séries » : sans elle, la page d'un auteur reste
+// une simple liste alphabétique, comme avant.
+let SERIES_READY = true;
+
 // ---------------------------------------------------------------
 // Mode propriétaire
 //
@@ -121,27 +125,33 @@ async function loadLibrary() {
         is_read, is_listened, is_favorite,
         genre, cover_path, source_note, created_at,
         author_id, authors ( id, name, name_sort )`;
-  const COLS_FULL = `id, title, source_title, is_hidden,` + COLS_BASE.replace('id, title,', '');
+  // Les colonnes ajoutées par les migrations d'octobre 2026 sont demandées
+  // séparément : si l'une des deux migrations n'a pas encore été exécutée,
+  // l'app se replie sur ce qui existe au lieu de ne plus rien afficher. Les
+  // deux replis sont indépendants — une base sans « séries » garde les
+  // commandes de correction et de masquage, et réciproquement.
+  const cols = () => `id, title,`
+    + (EDITABLE ? ` source_title, is_hidden,` : ``)
+    + (SERIES_READY ? ` series, series_index,` : ``)
+    + COLS_BASE.replace('id, title,', '');
 
   const PAGE_SIZE = 1000;
   let data = [];
   let offset = 0;
   while (true) {
     let { data: page, error } = await sb
-      .from('books')
-      .select(EDITABLE ? COLS_FULL : COLS_BASE)
+      .from('books').select(cols())
       .order('id', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
 
-    // Les colonnes source_title et is_hidden sont ajoutées par la migration
-    // d'octobre 2026. Si elle n'a pas encore été exécutée, on recharge sans
-    // elles : l'app reste utilisable, seules les commandes de correction et
-    // de masquage sont retirées.
-    if (error && EDITABLE && /source_title|is_hidden|column/i.test(error.message || '')) {
-      EDITABLE = false;
+    // deux essais au plus : on retire d'abord les séries, puis l'édition
+    for (let essai = 0; error && essai < 2; essai++) {
+      const msg = error.message || '';
+      if (SERIES_READY && /series/i.test(msg)) SERIES_READY = false;
+      else if (EDITABLE && /source_title|is_hidden|column/i.test(msg)) EDITABLE = false;
+      else break;
       ({ data: page, error } = await sb
-        .from('books')
-        .select(COLS_BASE)
+        .from('books').select(cols())
         .order('id', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1));
     }
@@ -163,6 +173,8 @@ async function loadLibrary() {
     title: b.title,
     source_title: b.source_title || null,
     is_hidden: !!b.is_hidden,
+    series: b.series || null,
+    series_index: (b.series_index === 0 || b.series_index) ? b.series_index : null,
     author_id: b.author_id,
     author_name: b.authors ? b.authors.name : 'Auteur inconnu',
     author_name_sort: b.authors ? b.authors.name_sort : 'zzz',
@@ -445,23 +457,66 @@ function renderAuthor(authorId) {
   const author = AUTHORS.get(authorId);
   if (!author) { el.app.innerHTML = `<div class="empty">Auteur introuvable.</div>`; return; }
   const books = author.books.slice().sort((a, b) => a.title.localeCompare(b.title, 'fr'));
+  const groupes = groupBySeries(books);
+
   el.app.innerHTML = `
     <a class="back-link" href="#/">← Tous les auteurs</a>
     <div class="author-header">
       <h1>${escapeHtml(author.name)}</h1>
       <span class="count">${books.length} livre${books.length > 1 ? 's' : ''}</span>
     </div>
-    <div class="book-grid">
-      ${books.map(b => `
-        <a class="book-card" href="#/book/${b.id}">
-          ${coverTile(b)}
-          <div class="info">
-            <h3>${escapeHtml(b.title)}</h3>
-            <p class="by">${escapeHtml(b.genre)}</p>
-            <div class="badges">${formatBadges(b)}</div>
-          </div>
-        </a>`).join('')}
-    </div>`;
+    ${groupes.map(g => `
+      ${g.nom ? `<div class="serie-head">
+          <span class="s-nom">${escapeHtml(g.nom)}</span>
+          <span class="s-cnt">${g.livres.length} tome${g.livres.length > 1 ? 's' : ''}</span>
+        </div>` : (groupes.length > 1 ? `<div class="serie-head hors">
+          <span class="s-nom">Hors série</span>
+          <span class="s-cnt">${g.livres.length} livre${g.livres.length > 1 ? 's' : ''}</span>
+        </div>` : '')}
+      <div class="book-grid">
+        ${g.livres.map(b => `
+          <a class="book-card" href="#/book/${b.id}">
+            ${coverTile(b)}
+            <div class="info">
+              <h3>${g.nom && b.series_index ? `<span class="tome">${b.series_index}.</span> ` : ''}${escapeHtml(b.title)}</h3>
+              <p class="by">${escapeHtml(b.genre)}</p>
+              <div class="badges">${formatBadges(b)}</div>
+            </div>
+          </a>`).join('')}
+      </div>`).join('')}`;
+}
+
+// Regroupe les livres d'un auteur par saga : chaque série dans l'ordre de ses
+// tomes, les sagas les plus fournies d'abord, et les livres isolés rassemblés
+// à la fin sous « Hors série ». Sans série renseignée, on retombe sur une
+// liste unique, exactement comme avant.
+function groupBySeries(books) {
+  const par = new Map();
+  const hors = [];
+  for (const b of books) {
+    if (b.series) {
+      if (!par.has(b.series)) par.set(b.series, []);
+      par.get(b.series).push(b);
+    } else {
+      hors.push(b);
+    }
+  }
+  // une « série » dont un seul tome est présent n'apporte rien : elle rejoint
+  // les livres isolés
+  for (const [nom, liste] of Array.from(par)) {
+    if (liste.length < 2) { hors.push(...liste); par.delete(nom); }
+  }
+  const groupes = Array.from(par.entries())
+    .map(([nom, liste]) => ({
+      nom,
+      livres: liste.sort((a, b) => (a.series_index ?? 9999) - (b.series_index ?? 9999)
+                                   || a.title.localeCompare(b.title, 'fr')),
+    }))
+    .sort((a, b) => b.livres.length - a.livres.length || a.nom.localeCompare(b.nom, 'fr'));
+  if (hors.length) {
+    groupes.push({ nom: null, livres: hors.sort((a, b) => a.title.localeCompare(b.title, 'fr')) });
+  }
+  return groupes;
 }
 
 // ---------------------------------------------------------------
@@ -489,6 +544,7 @@ function renderBook(bookId) {
       <div class="details">
         <h1>${escapeHtml(book.title)}</h1>
         <p class="by-line"><a href="#/author/${book.author_id}">${escapeHtml(book.author_name)}</a> · ${escapeHtml(book.genre)}</p>
+        ${seriesStrip(book)}
         <div class="badges">${formats.map(f => `<span class="badge">${f}</span>`).join('')}</div>
 
         ${OWNER ? `<div class="toggles">
@@ -602,6 +658,42 @@ async function doRename(book) {
   // le titre corrigé entre dans l'index de recherche, l'ancien y reste
   book.search = fold(`${book.title} ${book.author_name} ${book.source_title || ''}`);
   renderBook(book.id);
+}
+
+// Bandeau de saga sur la fiche d'un livre : le nom de la série, le numéro du
+// tome, et de quoi sauter au tome précédent ou suivant PARMI CEUX QUE
+// POSSÈDE CHRISTOPHE — on ne propose jamais un tome absent de la
+// bibliothèque. Le total affiché est donc celui de ses tomes à lui, pas celui
+// de la saga complète : il a 32 Bob Morane sur une série qui en compte 105.
+function seriesStrip(book) {
+  if (!book.series) return '';
+  const author = AUTHORS.get(book.author_id);
+  if (!author) return '';
+  const tomes = author.books
+    .filter(b => b.series === book.series)
+    .sort((a, b) => (a.series_index ?? 9999) - (b.series_index ?? 9999)
+                    || a.title.localeCompare(b.title, 'fr'));
+  if (tomes.length < 2) return '';
+  const i = tomes.findIndex(b => b.id === book.id);
+  const prev = i > 0 ? tomes[i - 1] : null;
+  const next = i >= 0 && i < tomes.length - 1 ? tomes[i + 1] : null;
+  const rang = book.series_index
+    ? `tome ${book.series_index}`
+    : `${i + 1}<sup>e</sup> de la série`;
+
+  return `
+    <div class="serie-strip">
+      <div class="s-line">
+        <span class="s-name">${escapeHtml(book.series)}</span>
+        <span class="s-rank">${rang} · ${tomes.length} dans la bibliothèque</span>
+      </div>
+      <div class="s-nav">
+        ${prev ? `<a href="#/book/${prev.id}" title="${escapeHtml(prev.title)}">← ${prev.series_index ? 'Tome ' + prev.series_index : 'Précédent'}</a>`
+               : `<span class="off">← Précédent</span>`}
+        ${next ? `<a href="#/book/${next.id}" title="${escapeHtml(next.title)}">${next.series_index ? 'Tome ' + next.series_index : 'Suivant'} →</a>`
+               : `<span class="off">Suivant →</span>`}
+      </div>
+    </div>`;
 }
 
 // Pour un visiteur, les statuts ne sont pas modifiables : on n'affiche que
