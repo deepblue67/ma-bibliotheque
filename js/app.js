@@ -108,6 +108,7 @@ function setOwner(on) {
 let ALL_BOOKS = [];      // liste plate des livres visibles
 let HIDDEN_BOOKS = [];   // fiches masquées : conservées en base, invisibles ici
 let AUTHORS = new Map(); // id -> {id, name, name_sort, books:[...]}
+let AUTHOR_ORDER = [];   // les mêmes ids, dans l'ordre alphabétique affiché
 let LOADED = false;
 const scrollMemory = new Map(); // hash -> position, pour revenir là où on était
 
@@ -211,6 +212,12 @@ function rebuildAuthors() {
     }
     AUTHORS.get(b.author_id).books.push(b);
   }
+  // Un seul ordre pour tout le monde : la grille de l'accueil et les flèches
+  // « précédent / suivant » le partagent, donc avancer d'une flèche revient
+  // toujours à prendre le voisin qu'on voyait dans la grille.
+  AUTHOR_ORDER = Array.from(AUTHORS.values())
+    .sort((a, b) => (a.name_sort || a.name).localeCompare(b.name_sort || b.name, 'fr'))
+    .map(a => a.id);
 }
 
 function populateGenreFilter() {
@@ -356,8 +363,7 @@ function renderHome() {
     return;
   }
 
-  const authors = Array.from(AUTHORS.values())
-    .sort((a, b) => (a.name_sort || a.name).localeCompare(b.name_sort || b.name, 'fr'));
+  const authors = AUTHOR_ORDER.map(id => AUTHORS.get(id));
 
   // regroupement par lettre
   const groups = new Map();
@@ -465,6 +471,7 @@ function renderAuthor(authorId) {
       <h1>${escapeHtml(author.name)}</h1>
       <span class="count">${books.length} livre${books.length > 1 ? 's' : ''}</span>
     </div>
+    ${authorNav(authorId)}
     ${groupes.map(g => `
       ${g.nom ? `<div class="serie-head">
           <span class="s-nom">${escapeHtml(g.nom)}</span>
@@ -484,6 +491,37 @@ function renderAuthor(authorId) {
             </div>
           </a>`).join('')}
       </div>`).join('')}`;
+}
+
+// Passage à l'auteur précédent / suivant, dans l'ordre alphabétique de
+// l'accueil. Les deux liens ne sont écrits qu'une fois : sur grand écran la
+// feuille de style les sort du flux pour les poser dans les marges, partout
+// ailleurs ils restent une barre normale sous le titre — pas de bouton
+// flottant au bord de l'écran sur iPhone, où le bord gauche appartient déjà
+// au geste « retour » du système.
+function authorNav(authorId) {
+  if (AUTHOR_ORDER.length < 2) return '';
+  const i = AUTHOR_ORDER.indexOf(authorId);
+  if (i < 0) return '';
+  const prev = i > 0 ? AUTHORS.get(AUTHOR_ORDER[i - 1]) : null;
+  const next = i < AUTHOR_ORDER.length - 1 ? AUTHORS.get(AUTHOR_ORDER[i + 1]) : null;
+  if (!prev && !next) return '';
+
+  const chevron = sens => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="${sens === 'prev' ? '15 18 9 12 15 6' : '9 18 15 12 9 6'}"></polyline></svg>`;
+
+  const lien = (a, sens) => {
+    if (!a) return '';
+    const quoi = `Auteur ${sens === 'prev' ? 'précédent' : 'suivant'} : ${escapeHtml(a.name)}`;
+    const nom = `<span class="n">${escapeHtml(a.name)}</span>`;
+    return `<a class="nav-author ${sens}" href="#/author/${a.id}" rel="${sens}"
+      title="${quoi}" aria-label="${quoi}">${
+      sens === 'prev' ? chevron(sens) + nom : nom + chevron(sens)}</a>`;
+  };
+
+  return `<nav class="author-nav" aria-label="Navigation entre auteurs">${
+    lien(prev, 'prev')}${lien(next, 'next')}</nav>`;
 }
 
 // Regroupe les livres d'un auteur par saga : chaque série dans l'ordre de ses
@@ -1003,6 +1041,25 @@ function closeLightbox() {
 el.lightboxClose.addEventListener('click', closeLightbox);
 el.lightbox.addEventListener('click', e => { if (e.target === el.lightbox) closeLightbox(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+// Au clavier, ← et → font la même chose que les flèches de la page auteur.
+// On s'abstient dès qu'on est en train de taper, sinon on ne pourrait plus
+// déplacer le curseur dans la zone de recherche.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+  const actif = document.activeElement;
+  if (actif && (/^(INPUT|SELECT|TEXTAREA)$/.test(actif.tagName) || actif.isContentEditable)) return;
+  if (el.lightbox && !el.lightbox.classList.contains('hidden')) return;
+  const m = (location.hash || '').match(/^#\/author\/(.+)$/);
+  if (!m) return;
+  const i = AUTHOR_ORDER.indexOf(m[1]);
+  if (i < 0) return;
+  const cible = AUTHOR_ORDER[e.key === 'ArrowLeft' ? i - 1 : i + 1];
+  if (!cible) return;
+  e.preventDefault();
+  location.hash = `#/author/${cible}`;
+});
 
 // ---------------------------------------------------------------
 // Routage
