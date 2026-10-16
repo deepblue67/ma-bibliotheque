@@ -939,6 +939,64 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .author-header h1{font-family:var(--font-display); font-weight:700; font-size:1.8rem; margin:0; letter-spacing:-0.015em;}
 .author-header .count{font-family:var(--font-mono); font-size:0.72rem; color:var(--sub);}
 
+/* ---------- écran des anomalies ---------- */
+.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap;}
+
+.ano-fam{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:0.7rem; overflow:hidden;}
+.ano-head{
+  display:flex; align-items:center; gap:0.7rem; width:100%;
+  min-height:52px; padding:0.7rem 1rem; text-align:left;
+  background:var(--card); border:0; color:var(--ink); cursor:pointer;
+  font-family:inherit; font-size:0.92rem;
+}
+.ano-head:hover{background:var(--chip);}
+.ano-head .t{flex:1; min-width:0;}
+.ano-head .n{
+  flex:none; font-family:var(--font-mono); font-size:0.72rem;
+  padding:0.15rem 0.5rem; border-radius:999px; background:var(--chip); color:var(--sub);
+}
+.ano-head::after{
+  content:''; flex:none; width:8px; height:8px; margin-left:0.2rem;
+  border-right:2px solid var(--sub); border-bottom:2px solid var(--sub);
+  transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s ease;
+}
+.ano-head[aria-expanded="true"]::after{transform:rotate(-135deg) translate(-2px,-2px);}
+.ano-body{padding:1rem; border-top:1px solid var(--line);}
+
+.ano-row{padding:0.8rem 0; border-bottom:1px dashed var(--line);}
+.ano-row:last-of-type{border-bottom:0;}
+.ano-who{display:flex; flex-direction:column; gap:0.15rem; min-width:0;}
+.ano-who .t{font-size:0.9rem; word-break:break-word;}
+.ano-who .a{font-size:0.78rem; color:var(--sub); word-break:break-word;}
+
+.ano-fix{display:flex; gap:0.5rem; margin-top:0.5rem; flex-wrap:wrap;}
+.ano-fix input{
+  flex:1 1 16rem; min-width:0; min-height:44px; padding:0.45rem 0.7rem;
+  border:1px solid var(--line); border-radius:var(--radius); background:var(--bg);
+  color:var(--ink); font-family:inherit; font-size:0.88rem;
+}
+.btn-mini{
+  flex:none; min-height:44px; padding:0.45rem 0.9rem;
+  border:1px solid var(--line); border-radius:999px;
+  background:var(--card); color:var(--ink); cursor:pointer;
+  font-family:inherit; font-size:0.82rem;
+}
+.btn-mini:hover{background:var(--ink); border-color:var(--ink); color:var(--bg);}
+.btn-mini:disabled{opacity:0.5; cursor:default;}
+
+.ano-opts{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.5rem;}
+.ano-opt{
+  display:flex; flex-direction:column; align-items:flex-start; gap:0.45rem;
+  padding:0.7rem; border:1px solid var(--line); border-radius:var(--radius); background:var(--bg);
+}
+.ano-opt .ano-t{font-size:0.86rem; word-break:break-word;}
+.ano-msg{margin:0.6rem 0 0; font-size:0.8rem; color:var(--danger, #b2685a);}
+
+@media (max-width:760px){
+  .ano-body{padding:0.8rem;}
+  .ano-opts{grid-template-columns:1fr;}
+}
+
 /* ---------- auteur précédent / suivant ----------
    Deux liens, deux présentations selon la place disponible :
    - jusqu'à 1400px (téléphone, iPad, petit portable) : une barre normale sous
