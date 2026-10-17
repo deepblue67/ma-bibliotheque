@@ -2,6 +2,8 @@
 
 Ce fichier a deux rôles :
 1. Permettre à Christophe de se rappeler comment l'application fonctionne.
+
+**À qui sert l'application** : elle est publique et consultée par la famille et les amis de Christophe, pour qu'ils voient quels livres il possède et lui en demandent une copie (ce sont des epubs qu'il donne ; il n'y a pas de prêt). Christophe en est le seul administrateur. Ce point conditionne beaucoup de décisions — voir §4.15.
 2. Permettre à une IA (Claude, Codex, etc.) de reprendre rapidement le projet plus tard pour le corriger ou le faire évoluer.
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
@@ -42,10 +44,26 @@ Une bibliothèque numérique personnelle, sous forme d'application web, présent
 - [x] Fichiers finaux prêts pour dépôt GitHub par Christophe (le dossier `webapp/` est le contenu à déposer ; livré sous forme d'archive `ma-bibliotheque-webapp.zip`).
 - [x] **Bug corrigé (premier test de Christophe)** : `js/app.js` ne récupérait que les 1000 premières lignes de `books` (limite par défaut de Supabase/PostgREST) au lieu des 1944 — ce qui faisait apparaître seulement ~232 auteurs et cachait entièrement certains auteurs (dont Ken Follett, dont les 4 livres se trouvaient après la limite). Corrigé avec une pagination par `.range()` dans `loadLibrary()`. Voir §4.5.
 - [x] Outil d'import Supabase autonome livré (`webapp-admin-tools/supabase_import_tool.html`) — voir §4.6.
+- [x] **Bug de complétude des couvertures identifié (deuxième retour de Christophe, exemple : Isaac Asimov)** et fonction de recherche automatique de couvertures manquantes ajoutée à l'outil autonome (section 5) — voir §4.7.
+- [x] Fonction de couverture manuelle ajoutée à l'outil (section 6, troisième retour de Christophe sur les sites de couverture) — voir §4.8.
+- [x] **Gestion des séries : page auteur groupée par saga, navigation entre tomes (onzième retour)** — livré le 2026-10-16, migration et import à exécuter — voir §4.16.
+- [x] **Mode propriétaire : l'app publique passe en lecture seule pour les visiteurs (dixième retour)** — livré le 2026-10-15, empreinte à configurer — voir §4.15.
+- [x] **Recherche insensible aux accents, aux apostrophes et aux ligatures, avec recherche par mots (neuvième retour)** — livré le 2026-10-15 — voir §4.14.
+- [x] **Suppression réversible et correction de titre depuis l'app (huitième retour)** — colonnes `is_hidden` et `source_title`, avec la garantie qu'une synchro ne réintroduit rien ; livré le 2026-10-14, migration SQL à exécuter — voir §4.13.
+- [x] **Recherche de couvertures assouplie (septième retour)** — la section 5 de l'outil passe de 6 à 22 trouvailles sur un échantillon de 50 ; livrée le 2026-10-14, reste à relancer — voir §4.12.
+- [x] **Synchronisation des nouveaux livres audio ajoutés par Christophe (quatrième retour)** — JSON préparés dans `data_sync_2026-09/` puis **importés par Christophe** (vérifié directement dans Supabase le 2026-10-14 : la base est passée de 436 auteurs / 1944 livres à **437 / 1966**) — voir §4.9.
+- [x] **Synchronisation d'octobre 2026 (cinquième retour) : nouveaux ebooks ET nouveaux livres audio** — 3 JSON préparés (`*_2026-10.json`) et **importés par Christophe le 2026-10-14**, import vérifié en base (voir §4.10).
+- [x] **Refonte ergonomique et système de 10 thèmes avec page de réglages (sixième retour : « l'app est triste et fade »)** — livrée le 2026-10-14 et testée en navigateur ; reste à redéployer sur GitHub — voir §4.11.
 
-## 3. Chiffres clés (dernière mise à jour : peuplement Supabase terminé)
+## 3. Chiffres clés (dernière mise à jour : 2026-10-16 après les correctifs et l'écran des anomalies, lus directement dans Supabase)
 
-- **436 auteurs** et **1944 livres uniques** effectivement présents dans Supabase (sur 1945 fiches préparées à l'origine — un vrai doublon entre deux lots d'import portait sur le même livre de Ken Follett, "Un Monde Sans Fin", et a fusionné en une seule ligne comme prévu par la contrainte d'unicité auteur+titre).
+- **433 auteurs** et **1987 livres visibles**, plus **12 fiches masquées** (doublons et fiches cassées conservées comme garde-fous), soit 1999 lignes en base.
+- **1319 livres** (~66%) ont une couverture, contre 795 au premier peuplement et 1093 après la première passe de la section 5. **668** n'en ont pas encore.
+- **1053 livres** sont rattachés à une saga (§4.16), et plus de 25 titres ont été corrigés depuis l'application, chacun gardant l'orthographe du disque dans `source_title`.
+- Le nombre d'auteurs a *baissé* de 443 à 433 : dix fiches d'auteur n'étaient pas des auteurs mais des morceaux de titres ou des noms de co-auteurs mélangés (§4.18, §4.20 et §4.21).
+- **L'écran des anomalies est à zéro sur cinq de ses six familles** : plus un doublon, plus un reste de nom de fichier, plus une inversion, plus un nom mal découpé, plus un détail de présentation. Seule subsiste la famille d'information « auteurs sans prénom » (11 lignes, légitimes pour la plupart : Ayerdhal, Collectif, Sempé-Goscinny…).
+- Historique des volumes : 436/1944 au premier peuplement → 437/1966 après la synchro de septembre → 443/1999 après celle d'octobre.
+- Historique : 436 auteurs / 1944 livres au premier peuplement (sur 1945 fiches préparées à l'origine — un vrai doublon entre deux lots d'import portait sur le même livre de Ken Follett, "Un Monde Sans Fin", et a fusionné en une seule ligne comme prévu par la contrainte d'unicité auteur+titre).
 - Répartition des genres (approximative, sujette à amélioration continue) :
   Fantasy, Science-fiction et Policier sont les genres dominants ; environ 10% des livres restent "Non classé" faute de données suffisantes (à affiner au fil du temps en complétant la table auteur→genre dans `genre_mapping.py`).
 - **795 livres** (~41%) ont une couverture effectivement téléversée dans le bucket `covers` (`cover_path` renseigné). Les autres restent sans couverture — c'est normal pour une bibliothèque incluant beaucoup de titres anciens ou peu diffusés en langue française ; l'app affiche un visuel de remplacement dans ce cas.
@@ -132,13 +150,391 @@ URL de couverture à partir d'un `cover_i` : `https://covers.openlibrary.org/b/i
 
 À la demande de Christophe (pour ne pas consommer de tokens Claude à chaque nouvelle insertion de données), un outil HTML autonome a été créé : **`webapp-admin-tools/supabase_import_tool.html`**. Il s'ouvre en double-cliquant dessus (aucune installation, aucun serveur) et tourne entièrement dans le navigateur de Christophe, sans jamais passer par Claude.
 
-Fonctions disponibles :
-- **Import d'auteurs** : colle/charge un JSON `[{"name": "...", "name_sort": "..."}]`, upsert idempotent (les doublons par `name` sont fusionnés, pas dupliqués).
-- **Import de livres** : colle/charge un JSON de livres (voir format dans l'outil), résout automatiquement l'auteur par nom, ignore les doublons déjà présents (par auteur+titre), et téléverse automatiquement la couverture si un `cover_i` Open Library est fourni.
-- **Téléversement de couvertures seules** : pour ajouter/remplacer des couvertures sur des livres déjà en base.
-- **Requête personnalisée** : pour un correctif ponctuel (GET/POST/PATCH/DELETE brut vers l'API REST Supabase) — à utiliser avec précaution.
+Fonctions disponibles (numérotées comme dans l'outil) :
+1. **Connexion** : URL + clé `service_role`, test de connexion.
+2. **Import d'auteurs** : colle/charge un JSON `[{"name": "...", "name_sort": "..."}]`, upsert idempotent (les doublons par `name` sont fusionnés, pas dupliqués).
+3. **Import de livres** : colle/charge un JSON de livres (voir format dans l'outil), résout automatiquement l'auteur par nom, ignore les doublons déjà présents (par auteur+titre), et téléverse automatiquement la couverture si un `cover_i` Open Library est fourni.
+4. **Téléversement de couvertures seules** : pour ajouter/remplacer des couvertures sur des livres déjà en base, à partir d'un `cover_i` Open Library.
+5. **Recherche automatique des couvertures manquantes** : voir §4.7.
+6. **Ajouter une couverture trouvée ailleurs (manuel)** : voir §4.8.
+7. **Mettre à jour des livres déjà en base (champs choisis)** : pour modifier un ou plusieurs champs (typiquement `has_audio`) sur un livre déjà existant sans toucher au reste — utile quand Christophe ajoute la version audio d'un livre qu'il a déjà en ebook. Format : `[{"author_name": "...", "title": "...", "fields": {"has_audio": true}}]`, résolution par auteur+titre exact comme les autres sections.
+8. **Requête personnalisée** : pour un correctif ponctuel (GET/POST/PATCH/DELETE brut vers l'API REST Supabase) — à utiliser avec précaution.
 
 Christophe doit coller sa clé `service_role` directement dans la page (jamais sauvegardée, jamais envoyée ailleurs qu'à son propre projet Supabase). C'est l'outil à utiliser pour toute correction ou ajout de données futur (nouveaux livres, correctifs de genre, ajout de livres audio manquants, etc.) — Claude peut préparer le JSON à coller, mais l'exécution se fait chez Christophe.
+
+### 4.7 Couvertures manquantes (deuxième retour de Christophe — exemple Isaac Asimov)
+
+**Symptôme observé** : sur la fiche d'Isaac Asimov, la plupart des 34 livres n'ont pas de vraie couverture (visuel de remplacement à la place).
+
+**Cause identifiée** : lors de l'enrichissement initial (`extract_and_merge.py` / recherche Open Library), la recherche utilisait des paramètres stricts (`title=`, `author=`, `language=fre` séparés), ce qui ne trouvait aucun résultat pour plusieurs titres pourtant bien présents sur Open Library (ex. *Fondation et empire*, *Seconde Fondation*, *Les cavernes d'acier*). Une recherche en texte libre, plus souple (`q=<titre> <auteur>`), retrouve la bonne couverture pour la plupart de ces livres. Ce n'est donc pas spécifique à Asimov : cela concerne potentiellement une bonne partie des ~1149 livres actuellement sans couverture dans le catalogue.
+
+**Correction livrée** : une nouvelle section dans l'outil autonome (**section 5 — "Rechercher automatiquement les couvertures manquantes"** de `webapp-admin-tools/supabase_import_tool.html`) permet à Christophe de :
+1. Lister tous les livres sans couverture (`cover_path` vide) directement depuis sa base Supabase.
+2. Lancer une recherche Open Library en texte libre pour chacun.
+3. Voir chaque couverture proposée (miniature + titre/auteur trouvés) avant toute modification — rien n'est appliqué automatiquement. Les correspondances où le nom de l'auteur retrouvé correspond exactement sont marquées « fiable » et pré-cochées ; les autres sont marquées « à vérifier » et laissées décochées par défaut. Deux boutons permettent de cocher uniquement les correspondances fiables ou de tout décocher.
+4. Cliquer sur « Téléverser la sélection » pour appliquer uniquement les couvertures cochées (même mécanisme de téléversement que les sections 3/4 : image envoyée dans le bucket `covers`, `cover_path` mis à jour).
+
+Les livres pour lesquels aucune correspondance fiable n'est trouvée (ex. potentiellement *La fin de l'éternité*, *Les robots et l'empire*) restent simplement sans couverture après cette étape — Christophe peut relancer la recherche plus tard (Open Library s'enrichit avec le temps) ou laisser le visuel de remplacement, qui est un comportement normal de l'app.
+
+### 4.8 Pourquoi seulement Open Library, et couverture manuelle (troisième retour de Christophe)
+
+Christophe a demandé si les couvertures pouvaient aussi être cherchées sur d'autres sites (Fnac, etc.). Réponse technique et pratique :
+
+- **Open Library** a une API publique gratuite, sans clé, pensée pour cet usage, avec des URLs d'image directes et stables (`covers.openlibrary.org`) — c'est pour ça qu'elle est utilisée ici.
+- **Fnac, Amazon, Babelio et la plupart des sites marchands n'ont pas d'API de couvertures publique.** Aller y chercher une image automatiquement voudrait dire "scraper" leurs pages web, ce qui pose deux problèmes concrets : (1) ces sites bloquent en général ce genre d'accès automatisé (CAPTCHA, blocage d'IP) et surtout (2) le navigateur de Christophe ne peut techniquement pas télécharger l'image pour la mettre dans Supabase à cause des règles de sécurité CORS des navigateurs (une page web ne peut récupérer le contenu binaire d'une image que si le site d'origine l'autorise explicitement, ce que ces sites ne font pas). Google Books avait déjà été essayé au tout début du projet et abandonné pour quota trop restrictif (voir §4.4).
+- **La solution retenue** : une nouvelle section dans l'outil (**section 6 — "Ajouter une couverture trouvée ailleurs (manuel)"**). Christophe cherche lui-même l'image sur le site de son choix, l'enregistre sur son ordinateur (clic droit → Enregistrer l'image sous), puis la dépose dans cette section avec le nom exact de l'auteur et du titre — l'outil l'envoie directement dans le bucket `covers` et met à jour le livre. Ça reste un usage strictement personnel (bibliothèque privée de Christophe), pas une republication de l'image.
+
+### 4.9 Synchronisation des nouveaux livres audio (quatrième retour de Christophe)
+
+Christophe a ajouté de nouveaux livres audio dans `D:\Christophe\Mes livres audio` (nouveaux auteurs : Emeric Lebreton ; nouveaux livres chez des auteurs déjà connus : Ken Follett — sagas Kingsbridge et Le Siècle au complet, plusieurs thrillers autonomes —, J.R.R. Tolkien, Olivier Norek, René Barjavel, Michel Bussi, Freida McFadden).
+
+Claude a comparé le contenu actuel du dossier au catalogue existant (`final_books.json`) pour repérer précisément ce qui est nouveau, en faisant attention à deux pièges :
+- Un dossier `Michel Bussi - Nouvelle Babel [mp3-64]2` s'est avéré être une copie en double du livre déjà présent (`Nouvelle Babel [mp3-64]`) — ignoré, pas réimporté.
+- Plusieurs livres audio ajoutés (2 Ken Follett, 3 J.R.R. Tolkien, 1 Olivier Norek, 1 René Barjavel) correspondent à des livres **déjà présents en ebook** dans la base — dans ce cas il ne faut pas créer une nouvelle fiche, juste activer `has_audio` sur la fiche existante. C'est exactement pour ce cas de figure que la section 7 de l'outil ("Mettre à jour des livres déjà en base") a été ajoutée.
+
+Trois fichiers JSON prêts à coller ont été préparés dans `data_sync_2026-09/` (à utiliser dans cet ordre) :
+1. `1_nouveaux_auteurs.json` → section 2 de l'outil (1 nouvel auteur : Emeric Lebreton).
+2. `2_nouveaux_livres.json` → section 3 de l'outil (23 nouveaux livres audio, avec couverture Open Library incluse quand elle a pu être retrouvée).
+3. `3_mise_a_jour_has_audio.json` → section 7 de l'outil (7 livres déjà en base à passer en `has_audio: true`).
+
+Points signalés à Christophe pour vérification (champ `needs_review: true` dans le JSON) :
+- *La Fraternité de l'Anneau* (Tolkien) est une traduction différente du même livre que l'ebook déjà en base *La Communauté de l'Anneau* — laissée en fiche séparée plutôt que fusionnée automatiquement.
+- *Dans les brumes de Capelans* (Olivier Norek, tome 4 Capitaine Coste) et le titre exact du t10 de Freida McFadden n'ont pas pu être confirmés sur Open Library.
+- *Les dessous de la femme de ménage* (Emeric Lebreton) : ni l'auteur ni le titre n'ont été retrouvés sur Open Library ; la nature exacte de ce contenu n'a pas pu être vérifiée par Claude.
+
+### 4.10 Synchronisation d'octobre 2026 (cinquième retour) — ebooks + audio
+
+Christophe a ajouté des fichiers **dans les deux dossiers sources** (`D:\Christophe\Mes Ebooks` et `D:\Christophe\Mes livres audio`). Claude a recalculé le delta le 2026-10-14.
+
+**Méthode employée (à reproduire pour les prochaines synchros)** — le dossier de travail de la session de septembre n'existait plus, donc la référence n'était plus `final_books.json` mais **la base Supabase elle-même**, lue en direct (1966 lignes auteur+titre+formats, via l'API REST et la clé `anon` depuis le navigateur). Côté disque, deux sources ont servi de comparaison :
+- les inventaires laissés par la session de septembre : `Mes Ebooks\_scan_output\inventaire_ebooks.jsonl` (5246 fichiers, avec métadonnées epub) et `Mes livres audio\_scan_output\inventaire_audio.jsonl` (34 dossiers) ;
+- le listage actuel des deux dossiers, comparé à ces inventaires.
+
+Les métadonnées réelles (`dc:title` / `dc:creator`) des 31 nouveaux epubs ont été relues dans les fichiers eux-mêmes, et non déduites des noms de fichiers.
+
+**Nouveautés trouvées côté ebooks**
+- Nouveau dossier `Ken Follett - Pack - 19 ebooks - (1976 à 2019) FR - epub` : 19 romans, dont 2 déjà en base en ebook (*Apocalypse sur commande*, *Code zéro*) et 3 déjà en base **en audio seulement** (*L'Arme à l'œil*, *Les Lions du Panshir*, *Paper Money*) → 14 fiches à créer + 3 `has_ebook` à activer.
+- Nouveaux sous-dossiers de dépôt `A - Pour maman\20260817` (6 fichiers) et `A - Pour maman\20260920` (7 fichiers).
+- 3 fichiers déposés à la racine de `Mes Ebooks`, dont 2 sont les mêmes fichiers que ceux du nouveau dossier `Nouveauté Septembre 2026` (doublons, importés une seule fois).
+- Le dossier `Jean Teulé` est **vide** — rien à importer.
+
+**Nouveautés trouvées côté audio**
+- 27 des 39 dossiers audio nouveaux par rapport à l'inventaire de septembre correspondent à la synchro §4.9 **déjà importée** — rien à refaire pour eux.
+- Restent 4 livres déjà en base en ebook dont il faut activer `has_audio` et 8 nouveaux livres audio, dont la trilogie *À la Croisée des Mondes* et *La trilogie de la Poussière* de Philip Pullman (seul *La Tour des anges* existait, en ebook).
+
+**Fichiers livrés (à utiliser dans cet ordre)**
+1. `1_nouveaux_auteurs_2026-10.json` → **section 2** de l'outil : 6 nouveaux auteurs (John Connolly, Jean-Christophe Rufin, Emmanuel Carrère, J.E. Rowney, Danielle Steel, Hugh Howey).
+2. `2_nouveaux_livres_2026-10.json` → **section 3** : 33 nouvelles fiches, dont 19 avec une couverture Open Library incluse.
+3. `3_mise_a_jour_formats_2026-10.json` → **section 7** : 7 fiches existantes dont il faut activer un format (3 `has_ebook`, 4 `has_audio`).
+
+**Contrôles passés avant livraison** : les 7 titres de mise à jour correspondent **exactement** (caractère par caractère, apostrophes typographiques comprises) à ceux en base ; aucune des 33 créations ne collisionne avec une fiche existante après normalisation auteur+titre ; aucun doublon interne ; les 6 nouveaux auteurs sont bien absents de la base.
+
+**Pièges rencontrés, à garder en tête**
+- *Les fleurs de l'ombre* est rattaché à l'auteur existant **« Rosnay Tatiana »** (et non à un nouvel auteur « Tatiana de Rosnay »), pour ne pas créer un doublon d'auteur. Le nom en base est mal formé ; il pourra être renommé plus tard via la section 8 de l'outil (`PATCH /authors?name=eq.Rosnay Tatiana` avec `{"name":"Tatiana de Rosnay","name_sort":"Rosnay Tatiana"}`).
+- *L'Échange* est de **J.E. Rowney** : le nom de fichier (« pour les fans de Freida McFadden ») est un argument marketing, pas l'auteur.
+- *La Route du diable* : les métadonnées de l'epub créditent **Laurent Queyssi** (le traducteur) ; l'auteur retenu est Franck Thilliez. Le livre existe en ebook **et** en audio → une seule fiche avec les deux formats.
+- *Le Dîner* (Freida McFadden, t10) est **déjà en base** sous le titre mal formé « McFadden Freida - t10 Le Dîner » (idem « McFadden Freida - t9 L'intruse »). Pas réimporté. Ces deux titres mériteraient un nettoyage via la section 7.
+- Les couvertures proposées sont souvent celles de l'**édition anglaise** (Open Library ne référence pas toujours l'édition française) : *Night Over Water*, *A Dangerous Fortune*, *The Key to Rebecca*, *Jackdaws*, *The Third Twin*, *Hornet Flight*, *Whiteout*, *Triple*, *Northern Lights*, *The Amber Spyglass*… C'est le même ouvrage, mais la jaquette ne correspondra pas à l'édition que Christophe possède. À remplacer via la section 6 s'il préfère.
+- Aucune couverture n'a été retenue quand l'auteur retrouvé sur Open Library ne correspondait pas (ex. *Liaison* de Danielle Steel, où la recherche renvoyait un livre de John Coleman). 14 fiches sur 33 partent donc sans couverture — la section 5 pourra être relancée plus tard.
+
+**Entrées marquées `needs_review: true` (6)** : *La Belle et l'oiseau*, *Les fleurs de l'ombre*, *La Folie Sainte-Hélène*, *L'Échange*, *La Route du diable*, *Liaison*.
+
+**Résultat de l'import (vérifié en base le 2026-10-14)** : les 6 auteurs créés, les 33 livres créés, les 7 mises à jour de formats appliquées. Base à **443 auteurs / 1999 livres**. 19 des 33 nouvelles fiches ont leur couverture ; les 14 sans couverture sont : *Comme un vol d'aigles*, *L'Homme de Saint-Pétersbourg*, *La Belle et l'oiseau*, *Notre-Dame*, *La Main de Dieu*, *La Maison du commandant*, *Les fleurs de l'ombre*, *La Folie Sainte-Hélène*, *V13 : chronique judiciaire*, *Code Yesterday*, *L'Échange*, *La Route du diable*, *Liaison*, *La Communauté des Esprits* — à traiter via la section 6 (dépôt manuel) si Christophe le souhaite, la section 5 ne les retrouvant pas sur Open Library.
+
+**Limite connue de cette passe** : deux dossiers n'ont pas pu être relus, et une addition qui s'y trouverait serait passée inaperçue. `Mes Ebooks\AA- Intégrale de la Team 8-1-2012` (1397 fichiers) est inaccessible aux outils de fichiers — son nom contient un caractère mal encodé sur le disque (octet `0x82` au lieu de `é`), et aucune graphie testée ne l'ouvre ; **le renommer proprement en « AA- Integrale de la Team 8-1-2012 » le rendrait lisible**. `Jovanovic_Enquête sur l'existence des Anges Gardiens` (2 fichiers) a le même problème. Les 31 autres dossiers ont été vérifiés : tous les fichiers qu'ils contiennent sont antérieurs à l'inventaire de septembre, donc inchangés.
+
+### 4.11 Refonte ergonomique et choix du thème (sixième retour : « l'app est triste et fade »)
+
+Christophe a trouvé l'application fade et a demandé une roue crantée ouvrant une page de réglages où choisir entre dix designs selon son humeur.
+
+**Ce qui rendait l'app fade** : la page d'accueil n'était qu'une liste de 443 rectangles blancs portant un nom, alors que la base contient plus de 1000 couvertures — aucune n'était visible avant d'entrer dans une fiche auteur.
+
+**Changements d'ergonomie livrés** (`js/app.js`, `css/style.css`, `index.html`)
+- **Mosaïques de couvertures sur les cartes auteur** : chaque carte montre jusqu'à 4 couvertures de l'auteur (les vraies d'abord). C'est le changement qui transforme le plus la page d'accueil.
+  - *Correction du 14/10/2026, suite à un retour de Christophe* : la mosaïque était une boîte flexible, donc chez un auteur n'ayant qu'un ou deux livres les vignettes s'étiraient sur toute la largeur de la carte en gardant une hauteur fixe — l'image se retrouvait rognée à l'horizontale et illisible. Elle est désormais une grille de **quatre colonnes égales** avec `aspect-ratio: 2/3` sur chaque vignette : la taille est identique partout (62 × 93 px sur desktop, 33 × 49 px sur mobile) et les emplacements inutilisés restent simplement vides. Les cartes gardent du même coup toutes la même hauteur. **Ne pas repasser la mosaïque en `flex`** : c'est précisément ce qui causait le problème.
+- **Jaquettes générées** pour les livres sans couverture : dégradé déterminé par un hachage du titre (donc stable d'une session et d'un appareil à l'autre), avec titre et auteur composés dessus. Les ~900 livres sans couverture ne font plus de trous.
+- **Repli automatique** : si une image de couverture ne se charge pas (objet absent du bucket, hors ligne), un écouteur en phase de capture la remplace par la jaquette générée, au lieu d'afficher une icône d'image cassée.
+- **Index A–Z collant** et séparateurs de lettre dans la grille d'auteurs : plus besoin de dérouler 443 cartes pour atteindre Tolkien. Le saut se fait par `scrollIntoView` et non par l'URL, pour ne pas polluer l'historique.
+- **Rayon « Derniers ajouts »** en défilement horizontal, trié sur `created_at` (colonne qui existait déjà en base mais n'était pas exploitée — l'`id` est un UUID, il ne reflète donc pas l'ordre d'insertion). Désactivable dans les réglages.
+- **Mémoire de la position de défilement** par page : revenir d'une fiche à la liste ne renvoie plus en haut.
+- **Page de réglages** (`#/settings`, roue crantée en haut à droite) : choix du thème, choix clair/sombre/automatique, affichage du rayon, et un récapitulatif de progression (lus, écoutés, favoris, pourcentage de la bibliothèque).
+
+**Système de thèmes**
+Dix thèmes, chacun décliné en variante claire **et** sombre, soit vingt palettes complètes : Nordique (l'ancien), Papier & Grenat, Encre & Or, Terracotta, Cuir & Laiton, Brume, Agrume, Minuit, Botanique, Rétro Pulp. Chaque thème définit ses couleurs, ses rayons d'angle et ses polices (Libre Franklin, Fraunces, Spectral, Space Grotesk ou Archivo, plus IBM Plex Mono pour les mentions techniques).
+
+Fonctionnement : `data-theme` (le thème) et `data-mode` (`auto` | `light` | `dark`) sont posés sur `<html>`. Le CSS définit `:root[data-theme="x"]` pour la variante claire, `:root[data-theme="x"][data-mode="dark"]` pour la sombre, et la même sous `@media (prefers-color-scheme: dark)` pour le mode automatique. Tout le reste de la feuille ne manipule que des variables, jamais de couleur en dur — **c'est la règle à respecter pour toute évolution** : ajouter un onzième thème ne demande que d'ajouter ses blocs de variables.
+
+Le choix est enregistré dans `localStorage` (clés `mabiblio.theme`, `mabiblio.mode`, `mabiblio.rail`), donc **par appareil** : le téléphone et le PC peuvent avoir deux ambiances différentes. Tous les accès sont encadrés par des `try/catch`, l'app fonctionnant sans si le navigateur le refuse. Un petit script en tête de `index.html` applique le thème avant le premier rendu, pour éviter un flash de la mauvaise couleur.
+
+Les blocs CSS des thèmes et les vignettes d'aperçu sont générés par un script (`themes.py` dans le dossier de travail de Claude), à partir d'un tableau de palettes — plus sûr que de les écrire à la main, mais le CSS livré est autonome et se modifie directement si besoin.
+
+**Vérifications effectuées avant livraison** : l'app a été chargée dans un navigateur réel avec des données simulées, en 1280px et en 390px, en clair et en sombre, sur les dix thèmes — aucune erreur JavaScript, aucun débordement horizontal, et la page de réglages, les mosaïques, l'index A–Z, la recherche et les filtres fonctionnent. Le repli des couvertures cassées et le plafonnement du texte des jaquettes dans les mosaïques ont été corrigés à la suite de ces tests.
+
+**À savoir** : `index.html` charge désormais six familles Google Fonts (une seule requête, `display=swap`). C'est plus lourd qu'avant, mais nécessaire pour que les thèmes aient des personnalités typographiques distinctes ; les polices sont mises en cache après la première visite.
+
+### 4.12 Recherche de couvertures beaucoup plus souple (septième retour)
+
+Christophe a remarqué qu'il retrouvait lui-même sur Open Library des livres que l'outil déclarait introuvables, et que ces fiches portaient souvent un titre **anglais**. Diagnostic confirmé, et la cause était ailleurs que prévu.
+
+**Mesure avant de corriger.** Sur un échantillon de 50 livres sans couverture tirés de la base, plusieurs stratégies ont été comparées en conditions réelles :
+
+| Stratégie | Trouvés sur 50 |
+|---|---|
+| `q = titre + auteur`, 5 résultats (**l'ancienne**) | 6 |
+| `q = titre nettoyé + auteur`, 5 résultats | 7 |
+| `q = titre nettoyé seul`, 20 résultats, auteur vérifié ensuite | 16 |
+| idem + rapprochement par **nom de famille** | **22** |
+| Google Books (toutes requêtes) | 0 — **HTTP 429 sur 100 % des appels** |
+
+Deux enseignements :
+1. **Ajouter l'auteur à la requête dégrade le résultat.** Open Library classe moins bien quand la requête mélange un titre français et un nom d'auteur. Il vaut mieux chercher le titre seul, ramener 20 résultats, et vérifier l'auteur dans les réponses.
+2. **Le rapprochement d'auteur était trop strict.** Les fiches donnent souvent une autre forme du nom (« A. E. van Vogt » pour « Alfred E Van Vogt ») : accepter une correspondance sur le seul nom de famille fait passer de 16 à 22.
+
+Google Books est désormais écarté pour de bon, avec une mesure à l'appui : 429 sur les 50 requêtes, sans clé il n'y a rien à en tirer. Cela confirme le constat de §4.4 et clôt la question.
+
+**Ce qui a changé dans la section 5 de l'outil**
+- Jusqu'à trois requêtes par livre, dans l'ordre : titre nettoyé seul (20 résultats), titre brut si différent (20), puis titre + auteur (10) en dernier recours. Arrêt anticipé dès qu'une correspondance parfaite est trouvée, pour ne pas surcharger Open Library.
+- **Nettoyage du titre** avant recherche : mentions de tome, crochets, parenthèses, années, et sous-titre après un tiret. « Graal tome 07 » devient « Graal ». Le nom de l'auteur est aussi retiré du titre quand il s'y trouve : « McFadden Freida - t10 Le Dîner » devient « Le Dîner » — sans cette précaution la recherche portait sur le nom de l'auteur.
+- **Trois niveaux de confiance** au lieu de deux, parce qu'une édition anglaise ne peut pas être vérifiée sur le titre :
+  - **fiable** — même auteur et titre qui se recoupe (édition française retrouvée) : pré-coché, comme avant ;
+  - **probable** — même auteur, trouvé en tête d'une recherche sur le titre seul. C'est très probablement le même ouvrage dans une autre langue, mais seul l'œil peut trancher : affiché avec sa vignette et le titre trouvé, **laissé décoché** ;
+  - **incertain** — rapprochement faible, affiché et décoché.
+- Nouveau bouton **« Cocher aussi les probables »**, à côté de « Cocher les correspondances fiables ».
+- **Loupe sur les vignettes** : les miniatures passent de 40 à 58 px de large et un clic ouvre la couverture en grand (version `-L.jpg` d'Open Library) avec, en légende, le titre du livre et celui de la fiche trouvée. Fermeture par la croix, par un clic à côté ou par Échap. Indispensable pour trancher sur le niveau « probable », qu'on ne peut juger qu'à l'œil. Le mécanisme est générique : toute image portant un attribut `data-zoom` devient cliquable.
+- Concurrence abaissée de 5 à 4 livres en parallèle (chaque livre déclenche désormais jusqu'à 3 requêtes), et reprise automatique après une réponse 429.
+
+**Résultat attendu sur les 906 livres sans couverture** : environ **360 propositions** (contre une centaine avec l'ancienne méthode), dont la grande majorité au niveau « probable ». Les ~550 restants ne sont réellement pas dans Open Library — pour ceux-là, il reste la section 6 (dépôt manuel d'une image).
+
+**Honnêteté sur ce chiffre** : les 40 % mesurent « une fiche au bon auteur a été trouvée », pas « la couverture est à coup sûr celle de ce livre-là ». C'est précisément pour ça que le niveau « probable » reste décoché. Sur l'échantillon vérifié à l'œil, les rapprochements étaient pourtant bons : *Tout commence mal…* → *The Bad Beginning*, *Le Gouffre de l'Absolution* → *Absolution Gap*, *Le miroir du mort* → *Dead Man's Mirror*, *Tombeau ouvert* → *Grave Peril*.
+
+**Vérifications** : le fichier modifié a été chargé dans un navigateur réel (aucune erreur JavaScript), le moteur de recherche testé avec des réponses simulées sur quatre cas (édition française trouvée, édition anglaise avec nom d'auteur sous une autre forme, titre avec numéro de tome, aucun résultat), puis la logique livrée a été exécutée contre le vrai Open Library sur 40 livres de la base.
+
+### 4.13 Supprimer un doublon et corriger un titre depuis l'app (huitième retour)
+
+Christophe a constaté des doublons et des fautes de frappe dans les titres, et posé la bonne question : comment les corriger depuis l'app **sans que la synchronisation suivante les réintroduise** ?
+
+**Le piège.** La synchro rapproche les fichiers du disque et la base sur le couple auteur + titre. Supprimer une fiche ne suffit donc pas : le fichier est toujours sur le disque, la synchro ne retrouve plus la fiche et la recrée. Corriger un titre est pire : le disque garde l'ancienne orthographe, la synchro crée une **seconde** fiche, et le doublon revient par la porte d'à côté.
+
+**La solution retenue : deux colonnes, aucune table nouvelle.**
+
+- **`is_hidden`** — « supprimer » depuis l'app ne détruit rien, la ligne est marquée masquée. L'app ne l'affiche plus, mais elle reste en base et sert de **pierre tombale** : la synchro la retrouve, conclut que le livre est déjà connu, et n'insère rien.
+- **`source_title`** — garde l'orthographe du titre telle qu'elle est sur le disque, pendant que `title` devient ce qui s'affiche. Les imports cherchent sur les deux. Corriger « Germinall » en « Germinal » ne casse donc plus le rapprochement.
+
+L'intérêt décisif est pratique : masquer et renommer sont de simples mises à jour de ligne, et la politique RLS autorise déjà la mise à jour publique de `books`. **Aucun droit à ouvrir, aucune table à créer, la clé `service_role` reste inutile côté app.** C'est ce qui a fait écarter l'alternative (une table de décisions séparée) : plus propre sur le papier, mais deux sources de vérité à tenir et une table de plus en écriture publique, pour un résultat identique.
+
+**Migration** : `migration_2026-10_masquage_et_titres.sql`, à exécuter une fois dans Supabase Studio → SQL Editor. Idempotente, elle crée les deux colonnes, leurs commentaires et deux index.
+
+**Côté application** (`js/app.js`, `css/style.css`)
+- Fiche livre : « Corriger le titre » (formulaire en ligne) et « Masquer ce livre » (avec confirmation expliquant que rien n'est effacé).
+- Quand un titre a été corrigé, la fiche rappelle discrètement l'orthographe du disque.
+- `source_title` n'est figé qu'à la **première** correction : les suivantes ne l'écrasent pas, sinon le lien avec le disque serait perdu.
+- Collision détectée avant l'envoi : renommer vers un titre que l'auteur possède déjà est refusé avec une explication, parce que la contrainte d'unicité auteur + titre rejetterait l'écriture. Le message oriente vers le masquage, qui est le bon geste dans ce cas.
+- Réglages : section « Livres masqués », avec restauration en un clic.
+- Les fiches masquées sont exclues de l'accueil, des recherches, des mosaïques et des comptages.
+
+**Côté outil d'import**
+- Section 3 : l'index des livres existants inclut désormais `source_title` **et les fiches masquées** — c'est le cœur de la garantie. Le journal distingue les deux cas (« correspondant à une fiche masquée », « retrouvé grâce au titre d'origine »).
+- Section 5 : ne cherche plus de couverture pour une fiche masquée.
+- Sections 6 et 7 : résolvent aussi par `source_title`, pour qu'un titre corrigé reste joignable par son orthographe d'origine.
+
+**Repli si la migration n'a pas été lancée.** L'app tente de charger les deux nouvelles colonnes ; si Supabase répond qu'elles n'existent pas, elle recharge sans elles et retire les commandes de correction et de masquage. Sans ce repli, déployer l'app avant d'exécuter le SQL l'aurait rendue totalement vide. **L'ordre reste : SQL d'abord, déploiement ensuite.**
+
+**Vérifications** : 20 contrôles automatisés dans un vrai navigateur. Côté app — correction de titre, conservation de l'orthographe d'origine, non-réécriture à la deuxième correction, refus d'un titre déjà pris, gestion d'une panne réseau, masquage, listage, restauration, absence de débordement sur mobile, et le chemin de repli complet. Côté outil — un scénario avec une fiche masquée, une fiche au titre corrigé et une vraie nouveauté : **seule la nouveauté est insérée**, la fiche masquée n'est pas recréée et le titre corrigé est retrouvé par son orthographe d'origine.
+
+**Reste à faire, non demandé pour l'instant** : la fusion de deux fiches (quand le doublon porte l'ebook et l'autre l'audio, masquer l'une perd un format) et un écran listant les doublons probables. La détection a été testée : elle trouve de vrais doublons — six chez Patricia Cornwell avec un préfixe de numérotation (`13-2004-Signe Suspect` / `Signe suspect`), et `LappeldelAnge` / `L'Appel de l'ange` chez Musso — mais produit aussi du bruit, les tomes d'une même série se ressemblant beaucoup. Ce serait donc un écran de relecture, jamais un nettoyage automatique.
+
+### 4.14 Recherche insensible aux accents (neuvième retour)
+
+**Le défaut.** La recherche comparait les chaînes brutes en minuscules : `(titre + auteur).toLowerCase().includes(saisie)`. Taper « etrange », « menage » ou « brules » sans accent ne trouvait donc rien. **633 des 1999 titres de la base contiennent au moins un accent** — le défaut se rencontrait en permanence sans forcément être identifié comme tel.
+
+**La correction** (`js/app.js`). Une fonction `fold()` met les textes à plat avant comparaison :
+- décomposition Unicode NFD puis retrait des diacritiques (« Brûlés » → « brules ») ;
+- ligatures `œ` et `æ` traitées à part, car NFD ne les décompose pas (« cœur » → « coeur ») ;
+- apostrophes (`’ ‘ \` ´ '`) remplacées par une **espace**, et non supprimées. C'est délibéré : avec une suppression, « Les cavernes d'acier » deviendrait « dacier » et une recherche sur « acier » échouerait. Avec une espace, les deux fonctionnent ;
+- tirets longs ramenés au tiret simple, espaces multiples réduites.
+
+**Recherche par mots.** La saisie est découpée en mots, tous devant être présents, sans contrainte d'ordre : « piliers terre », « follett piliers » ou « dicker enigme » trouvent le bon livre. Auparavant seule une sous-chaîne contiguë fonctionnait.
+
+**Index pré-calculé.** Chaque livre porte un champ `search` calculé une fois au chargement, qui joint le titre, l'auteur **et `source_title`** — un livre dont le titre a été corrigé reste donc trouvable par son orthographe d'origine. L'index est recalculé après une correction de titre.
+
+**Vérifications** : 18 cas de recherche dans un vrai navigateur, dont « menage », « MÉNAGE », « coeur », « cœur », « brules », « l'enigme », « d'acier », « chambre 622 », « cavernes asimov », « follett piliers », plus une recherche sans résultat et le retour à la liste des auteurs quand le champ est vidé. Les suites de non-régression (thèmes, masquage/correction, mosaïque, repli sans migration) repassent toutes.
+
+### 4.15 Mode propriétaire (dixième retour)
+
+**Le contexte, découvert tardivement.** L'application ne sert pas qu'à Christophe : **ses proches la consultent pour voir quels livres il possède et lui en demander une copie** (ce sont des epubs qu'il donne, il n'y a pas de prêt). Cela change la nature du produit — c'est un catalogue public, pas un outil personnel — et cela a rendu visible un problème introduit par §4.13.
+
+**Le problème.** L'app est publiée sur GitHub Pages, la clé `anon` est dans le source, et la politique RLS autorise la mise à jour publique de `books` — c'est ce qui fait fonctionner les cases de statut sans authentification. Les boutons « Corriger le titre » et « Masquer ce livre » ajoutés en §4.13 étaient donc **offerts à tous les visiteurs**. Une fausse manœuvre suffisait à faire disparaître une fiche du catalogue sans que Christophe sache laquelle.
+
+**Ce qui a été fait.** Un mode propriétaire, activé par un code, mémorisé par appareil dans `localStorage`. Sans lui, l'app est en lecture seule : pas de boutons de correction ni de masquage, pas de cases de statut, pas de section « Livres masqués », pas de statistiques personnelles. Les thèmes, la recherche et les filtres restent accessibles à tous.
+
+Pour un visiteur, les statuts deviennent de simples étiquettes affichées uniquement quand elles sont vraies, et « Favori » se lit « ★ Coup de cœur ».
+
+**Le code n'est pas stocké en clair.** `config.js` ne contient que l'empreinte `SHA-256("mabiblio:" + code)`. La page de réglages sait générer cette empreinte à partir d'un code saisi, de sorte que le code lui-même n'a à être écrit nulle part — ni dans le dépôt, ni dans une conversation.
+
+**Mise en service, en deux déploiements** (la première version déployée est en lecture seule pour tout le monde, y compris Christophe) :
+1. déployer, ouvrir les réglages → « Mode propriétaire » → saisir un code → « Générer l'empreinte » ;
+2. recopier la ligne `ownerHash: "…"` dans `js/config.js`, redéployer, puis saisir le code pour déverrouiller.
+
+L'empreinte peut aussi être calculée hors de l'app avec n'importe quel outil SHA-256, la chaîne hachée étant `mabiblio:<code>`.
+
+**Limite assumée, écrite dans le code et dans l'interface.** Ce n'est **pas une serrure**, c'est un garde-fou contre les fausses manœuvres. La clé `anon` et les droits d'écriture restent publics : quelqu'un de déterminé qui lirait le source pourrait appeler l'API directement. La seule fermeture réelle serait de retirer le droit d'écriture publique sur `books` et de passer par une authentification Supabase — plus lourd, et non retenu pour un usage familial.
+
+**Choix de conception** : tant qu'`ownerHash` est vide, l'app est en lecture seule plutôt qu'ouverte à tous. Un défaut fermé vaut mieux qu'un défaut ouvert sur une page publique.
+
+**Vérifications** : 19 contrôles en navigateur — état non configuré (aucune commande visible, sections privées masquées, thèmes toujours accessibles), code refusé, code accepté, persistance après rechargement, sortie du mode, et le générateur d'empreinte (empreinte correcte, code absent de l'affichage, code trop court refusé). Les cinq suites de non-régression repassent.
+
+### 4.16 Gestion des séries (onzième retour)
+
+**Le problème.** La page d'un auteur était une liste alphabétique. Chez G.J. Arnaud, 43 titres dont **40 forment une seule saga**, *La Compagnie des Glaces* : le tome 1 se retrouvait coincé entre le tome 8 et un livre sans rapport. Impossible de savoir par où commencer ni quel tome suit lequel — ce qui compte d'autant plus que l'app sert à des visiteurs qui découvrent la bibliothèque.
+
+**D'où vient l'information.** Des noms de dossiers et de fichiers déjà enregistrés dans `source_note`, où la saga et le tome figurent entre crochets : `Arnaud,G.J.-[La Compagnie des Glaces-7]Le Gnome halluciné`. **Aucune recherche extérieure, aucune déduction** — on ne lit que ce qui est écrit.
+
+**Résultat de l'extraction** : 1084 livres portent un marqueur de série, regroupés en **199 séries couvrant 1051 livres** sur 1999. Les 948 autres restent affichés comme avant.
+
+Règles appliquées, et pourquoi :
+- **Les séries sont rattachées à un auteur.** « Juge Ti » de Robert Van Gulik et « Juge Ti NE » de Frédéric Lenormand restent donc deux séries distinctes, ce qui est correct.
+- **Une série dont un seul tome est présent est écartée** (33 cas) : regrouper un livre seul n'apporte rien. La règle est appliquée deux fois — à l'extraction, et à l'affichage, car un masquage ultérieur peut ramener une série à un seul tome.
+- **Les marqueurs de qualité audio sont exclus.** Les dossiers de livres audio portent `[mp3-64]`, que le motif capturait comme une série « mp3 » au tome 64. Trois faux positifs écartés.
+- **Le nom affiché est la graphie la plus fréquente** parmi les fichiers de la série.
+
+**Côté base** : `migration_2026-10_series.sql` ajoute `series` (texte) et `series_index` (entier), plus un index `(author_id, series, series_index)`. Les valeurs sont posées par `4_series_2026-10.json` (1051 entrées) via la **section 7** de l'outil, celle qui met à jour des champs sur des livres existants — aucun outillage nouveau. Chaque entrée a été vérifiée : son couple auteur + titre est unique en base, donc aucune ambiguïté de résolution.
+
+**Côté application**
+- Page auteur : un bloc par saga, dans l'ordre des tomes, les sagas les plus fournies d'abord, puis une section « Hors série ». Le numéro de tome précède le titre.
+- Fiche livre : un bandeau donnant la saga, le numéro du tome et des liens vers le tome précédent et suivant.
+- **Le total affiché est celui des tomes possédés, pas celui de la saga.** Bob Morane est numéroté jusqu'à 105 et Christophe en a 32 : afficher « tome 7 sur 105 » serait trompeur, et la navigation ne propose jamais un tome absent de la bibliothèque.
+
+**Repli indépendant.** Le chargement demande séparément les colonnes des deux migrations d'octobre. Sans la migration « séries », l'app retombe sur une liste alphabétique **tout en gardant** les commandes de correction et de masquage — et réciproquement. Le repli groupé initial aurait désactivé le mode propriétaire à cause d'une colonne de série absente ; c'est précisément le cas testé.
+
+**Document de relecture** : `series-detectees.xlsx` liste les 199 séries (tomes, bornes, numéros absents, alertes) et, sur un second onglet, chacun des 1051 livres avec son numéro. Christophe peut écarter une série en écrivant « non » dans la première colonne avant l'import.
+
+**Deux numéros en double**, signalés dans le classeur : chez Charlaine Harris deux livres portent le n°11, ce qui est exact (un recueil s'intercale) ; chez Anthony E. Zuiker, deux fiches portent le n°1 — ce sont deux exemplaires de *Level 26*, un doublon à masquer.
+
+**Vérifications** : 15 contrôles d'affichage (ordre des tomes, section hors série, série à un tome retombant en hors série, bandeau, navigation, bornes de début et de fin, livre sans série, mobile) et 7 sur le repli sans migration. Les six autres suites repassent. Deux échecs apparus en cours de route venaient du banc d'essai — le faux Supabase renvoyait des colonnes non demandées, là où PostgREST ne renvoie que celles du `select` — et non de l'application.
+
+### 4.17 Passer d'un auteur au suivant sans repasser par la grille (douzième retour)
+
+**Le problème.** Avec 443 auteurs, feuilleter la bibliothèque demandait un aller-retour permanent : ouvrir Coben, revenir à la grille, retrouver sa place, ouvrir Connelly. Christophe a proposé deux flèches, gauche et droite, dans les marges de la page auteur — en précisant que ce devait être propre sur iPad et iPhone aussi.
+
+**L'ordre est celui de la grille.** Les flèches et la page d'accueil partagent désormais la même liste ordonnée (`AUTHOR_ORDER`, construite une fois avec les auteurs). Avancer d'une flèche revient donc toujours à prendre le voisin qu'on voyait dans la grille : les deux ne peuvent plus diverger, même après un masquage qui fait disparaître un auteur.
+
+**Deux présentations pour deux largeurs, un seul code.** Les deux liens ne sont écrits qu'une fois dans la page ; c'est la feuille de style qui les place :
+- **Au-delà de 1400px** (le cas de son écran) : pastilles rondes fixes, centrées verticalement, calées dans les marges à l'extérieur du contenu — exactement les carrés rouges de son croquis. Le nom de l'auteur visé apparaît au survol.
+- **En deçà** (iPhone, iPad dans les deux sens, petit portable) : une barre normale sous le titre, `← Michel Bussi` à gauche et `Isaac Asimov →` à droite. Le nom est visible, pas seulement la direction.
+
+**Pourquoi pas de bouton flottant sur téléphone.** Deux raisons, et la seconde est la vraie : il n'y a aucune marge où le poser sans recouvrir les livres ; et sur iPhone le bord gauche de l'écran appartient déjà au geste « retour » du système, de sorte qu'un bouton posé là est à la fois difficile à atteindre et gênant. La barre dans le flux ne pose aucun de ces deux problèmes, et elle en dit plus.
+
+**Pourquoi pas de balayage horizontal non plus.** Même conflit avec le geste « retour » de Safari, et un balayage ne dit jamais où l'on va atterrir alors que la pastille affiche le nom.
+
+**Au clavier**, ← et → font la même chose. Les touches sont neutralisées dès qu'on tape dans la zone de recherche (sinon on ne pourrait plus y déplacer le curseur), quand la loupe est ouverte, et partout ailleurs que sur une page auteur.
+
+**Détails de finition** : cible tactile de 44px minimum partout, le minimum recommandé par Apple ; un nom à rallonge est tronqué au lieu de pousser la mise en page ; au premier auteur seule la flèche droite existe, au dernier seule la gauche.
+
+**Vérifications** : 33 contrôles automatisés — ordre identique à la grille, cibles des deux liens, position réelle des pastilles mesurée à l'écran (dans les marges, sans mordre sur les livres, entièrement visibles, centrées), clic, clavier, bornes, neutralisation pendant la saisie et loupe ouverte, puis le rendu sur iPhone (390×844), iPad portrait (1024×1366) et iPad paysage (1366×1024) : aucun bouton en surimpression, aucun débordement horizontal, les deux liens côte à côte, nom lisible. Les sept autres suites repassent.
+
+**Au passage**, un test qui dépendait de ce qu'un autre avait laissé dans `test/js/config.js` écrit désormais lui-même la configuration dont il a besoin : les suites peuvent être lancées dans n'importe quel ordre.
+
+### 4.18 Les six entrées « needs_review » et les auteurs fantômes
+
+**Ce qu'est `needs_review`.** Lors de la synchronisation d'octobre, six fichiers ne permettaient pas de déduire l'auteur ou le titre avec certitude — métadonnées de l'epub contredisant le nom du dossier, titre noyé dans une accroche commerciale, fichier rangé sous un pack au nom d'un autre auteur. Plutôt que de trancher au hasard, l'entrée a été importée avec la meilleure hypothèse **et** le drapeau `needs_review: true`, pour relecture ultérieure.
+
+**Relecture faite le 16/10/2026**, en vérifiant chaque titre auprès de sources extérieures :
+- *La Folie Sainte-Hélène*, Jean-Christophe Rufin — **correct**, c'est le tome 7 des énigmes d'Aurel le Consul (2026). Un seul Rufin en bibliothèque, donc pas de série à créer.
+- *La Route du diable*, Franck Thilliez — **correct**. Les métadonnées de l'epub créditaient Laurent Queyssi ; c'est bien Thilliez.
+- *L'Échange*, J.E. Rowney — **correct**. Le nom de fichier portait « pour les fans de Freida McFadden », simple argument de vente ; l'auteur réel est bien Rowney.
+- *Liaison*, Danielle Steel — **correct**.
+- *Les fleurs de l'ombre*, Tatiana de Rosnay — livre **correct**, seul le nom de l'auteur était inversé (corrigé, voir plus bas).
+- *La Belle et l'oiseau*, Ken Follett — **faux**. Ce titre n'existe dans aucune bibliographie de Follett, et Open Library n'en a aucune trace : la recherche la plus proche renvoie *La Belle et la Bête suivi de L'Oiseau bleu*, de Jeanne-Marie Leprince de Beaumont. La couverture actuellement attachée à cette fiche est donc très probablement celle d'un tout autre livre. Le fichier vient d'un dossier « Ken Follett - Pack - 19 ebooks » ; il faut l'ouvrir pour savoir ce qu'il contient réellement.
+
+**Quatre fiches où l'auteur et le titre avaient été intervertis.** Une requête sur les auteurs dont le nom commence par une minuscule en a sorti trois d'un coup, plus une quatrième au nom inversé :
+
+| Enregistré comme | Réalité | Opération |
+|---|---|---|
+| auteur « le complot Romanov », titre « modèle » | Steve Berry, *Le Complot Romanov* | fusion avec le Steve Berry existant |
+| auteur « la conspiration du Temple », titre identique | Steve Berry, *La Conspiration du Temple* | fusion |
+| auteur « gilles legardinier », titre « demain , j'arrete ! » | Gilles Legardinier, *Demain j'arrête !* | renommage |
+| auteur « Rosnay Tatiana » (2 livres) | Tatiana de Rosnay | renommage |
+
+**Pourquoi un script SQL et pas l'application.** Le mode propriétaire corrige un titre et masque une fiche — deux `UPDATE` sur `books`, ouverts au rôle public. Déplacer un livre vers un autre auteur et renommer un auteur touchent à `authors`, réservé au `service_role` : cela passe donc par l'éditeur SQL de Supabase, comme les migrations. D'où `correctifs_2026-10_auteurs_et_titres.sql`, idempotent, qui ne supprime les deux fiches d'auteur inventées qu'une fois vérifié qu'aucun livre n'y est plus rattaché.
+
+**Protection contre la prochaine synchronisation.** Chaque titre corrigé reçoit dans `source_title` la graphie telle qu'elle figure sur le disque, le mécanisme déjà en place depuis §4.13. **Attention toutefois** : ce mécanisme protège un titre renommé chez un auteur donné, pas un livre déplacé d'un auteur à l'autre ni un auteur renommé. Les quatre corrections ci-dessus sont donc consignées ici pour que la prochaine synchronisation les reconnaisse au lieu de les reproposer. Les deux romans de Steve Berry sont le cas le moins risqué : leurs fichiers sont déjà rangés dans un dossier « Steve Berry », c'est la métadonnée de l'epub qui avait pris le pas sur le dossier.
+
+**Repéré au passage, non corrigé** : chez Steve Berry, *la prophétie Charlemagne* garde une minuscule initiale. C'est purement cosmétique et Christophe peut le corriger lui-même depuis l'application.
+
+### 4.19 Écran des anomalies, et fusion de deux fiches (treizième retour)
+
+**Demande initiale : deux fonctionnalités.** Fusionner la fiche ebook et la fiche audio d'un même livre, et un écran des anomalies accessible depuis la roue crantée. La mesure a ramené la première à presque rien.
+
+**La fusion ebook/audio était déjà faite — à l'import.** Sur 1999 livres, 49 sont en audio seul. En cherchant les paires restées séparées chez un même auteur, il n'en restait que **trois**, toutes chez Joël Dicker, et toutes pour la même raison : le fichier audio portait le nom de l'auteur en préfixe (« Joel DICKER Le Livre des Baltimore »), ce qui empêchait le rapprochement. Partout ailleurs la synchronisation avait déjà réuni les deux formats sur une fiche (« 2 fichier(s) fusionné(s) » dans `source_note`). « Fusionner » est donc devenu **un bouton de l'écran des anomalies**, sur les lignes « doublon probable », plutôt qu'une fonctionnalité séparée.
+
+**Six familles**, toutes calculées sur les livres déjà chargés — aucune requête de plus, aucun appel extérieur :
+
+| Famille | Sur la bibliothèque réelle | Action proposée |
+|---|---|---|
+| Doublons probables | 5 | Garder celle-ci → fusion |
+| Restes de noms de fichiers | 10 | Corriger (titre pré-rempli) |
+| Auteur et titre intervertis | 6 | Copier la liste (correction en SQL) |
+| Noms d'auteurs mal découpés | 6 | Copier la liste |
+| Détails de présentation | 7 | Corriger |
+| Auteurs sans prénom | 12 | Information seule |
+
+**Chaque règle a été élargie puis resserrée sur les vraies données**, car un écran qui crie au loup ne sert à rien. Ce qui a été écarté en chemin :
+- La similarité approximative entre titres : elle rapprochait *Les sept sœurs, tome 1* et *tome 3*, ou *Le Juge Ti à l'œuvre (Partie 2)* et *(Partie 3)*. Remplacée par une égalité stricte après nettoyage — titre débarrassé des restes de fichiers, du préfixe « Auteur - » et du nom de l'auteur. Zéro faux positif, et les trois Dicker sont bien vus.
+- La suppression des points isolés : elle abîmait *Mr. Brown*, *I.G.H.* et *Un, deux, trois…*. Désormais seul un point **entouré d'espaces** est retiré, celui que laisse la suppression d'un mot technique.
+- Le trait d'union comme signe d'un nom mal découpé : il signalait Jean-Christophe Rufin et Arturo Pérez-Reverte. Seules la virgule et la parenthèse sont retenues — elles ne sortent que de noms à quatre mains mélangés (« Philip K.-Zelazny, Roger Dick » pour Philip K. Dick et Roger Zelazny).
+- La détection d'inversion par la seule forme du titre : elle signalait Gérard De Villiers et Melissa De La Cruz parce que leur nom contient une particule. Remplacée par trois signes précis — le titre **est** le nom d'un autre auteur du catalogue ; l'auteur tient en un seul mot et le titre ressemble à un nom ; ou le titre finit par « - <nom d'un autre auteur> », la forme même des fichiers `Titre - Auteur.epub` coupés au tiret.
+
+**Ce que l'écran a trouvé du premier coup**, en plus des quatre fiches déjà corrigées en §4.18 : l'auteur **« Souviens »** avec le livre « toi - Mary Higgins Clark » (c'est *Souviens-toi*), l'auteur **« Quand reviendras »** avec « tu - Mary Higgins Clark », l'auteur **« Joyeux Noel Merry Christmas »** avec le livre « Mary Higgins Clark », l'auteur **« Divers Roman »** avec « Attentat - Amelie Nothomb », l'auteur **« Okavango »** avec le livre « Caryl Férey », et six noms d'auteurs à quatre mains mélangés.
+
+**La fusion ne touche que `books`** : la fiche gardée reçoit l'union des formats, la couverture si elle n'en avait pas, la série si elle n'en avait pas, et les deux `source_note` concaténées ; l'autre fiche est **masquée, jamais supprimée** — elle reste en base pour bloquer toute réinsertion, et reste restaurable. Deux `UPDATE`, donc aucun droit nouveau.
+
+**Ce que l'écran ne fait pas, et le dit.** Déplacer un livre vers un autre auteur et renommer un auteur touchent à la table `authors`, réservée au `service_role`. Les deux familles concernées n'affichent donc aucun bouton qui ne pourrait pas fonctionner : elles proposent « Copier la liste », à transmettre pour qu'un script SQL soit préparé.
+
+**Réservé au mode propriétaire** : un visiteur ne voit pas l'écran. C'est un outil d'entretien, et il expose les défauts de la bibliothèque.
+
+**Vérifications** : 37 contrôles sur un jeu d'essai qui contient, à côté de chaque défaut, les cas voisins qu'il ne faut **pas** signaler — tomes successifs d'une série, titres à points légitimes, auteurs à trait d'union, auteurs à particule. Plus la fusion de bout en bout (formats cumulés, fiche masquée, compteur à jour, famille qui reste dépliée), l'échec réseau, et le rendu sur iPhone. Les sept autres suites repassent — 139 contrôles au total.
+
+**Un bogue corrigé en cours de route** : la construction de la clé de rapprochement injectait le nom de l'auteur dans une expression régulière. « Richard(King, Stephen) Bachman » la rendait invalide et faisait planter toute la page des réglages. Les noms sont désormais échappés.
+
+**Ce que l'écran a donné en production, le jour même.** Christophe a fusionné les **6 doublons** proposés — les trois Joël Dicker (audio préfixé du nom de l'auteur), *Le voleur d'ombres* de Marc Levy, *Montségur et l'énigme cathare* de Jean Markale, et *Level 26* d'Anthony E. Zuiker — chaque fusion rendant au livre gardé le format que portait son double. La famille « auteur et titre intervertis » a donné les six lignes traitées par `correctifs_2026-10_inversions.sql` (§4.20).
+
+### 4.20 Les six inversions, et ce qu'elles cachaient
+
+La liste remontée par l'écran ne contenait pas six renommages mais **trois doublons, un déplacement, un échange et un faux positif** — ce que seule la lecture de la base, fiche par fiche, pouvait révéler.
+
+Le dossier « Mary Higgins Clark 30 romans epub pdf » avait été lu deux fois : le sous-dossier EPUB avait donné des fiches correctes, le sous-dossier PDF les mêmes livres avec le nom coupé au tiret (`Souviens-toi - Mary Higgins Clark.pdf` → auteur « Souviens », titre « toi - Mary Higgins Clark »). Les trois PDF ont donc rejoint les fiches existantes, qui gagnent le format PDF, et les fiches cassées sont **masquées et rattachées à Mary Higgins Clark** — conservées comme garde-fous, pas supprimées.
+
+« Okavango » était un titre pris pour un auteur et « Caryl Férey » un auteur pris pour un titre : comme Caryl Férey n'existait pas encore, un simple renommage de la fiche d'auteur a suffi. « Attentat - Amelie Nothomb » a été déplacé chez Amélie Nothomb, qui n'avait pas ce titre. Enfin « Mary Higgins Clark / *Joyeux Noël Merry Christmas* » n'était pas un défaut : cette fiche correcte n'apparaissait que parce que son jumeau cassé portait son nom comme titre.
+
+**Leçon pour la suite** : une ligne de l'écran des anomalies dit *qu'il y a un problème*, pas *lequel*. Avant d'écrire le moindre `update`, il faut regarder si l'auteur visé existe déjà, et s'il possède déjà le titre — sinon on remplace un défaut par une violation de la contrainte d'unicité auteur+titre, ou par un doublon silencieux.
+
+**Repéré, non traité** : chez Amélie Nothomb, *Catilinaires* et *Les catalinaires* sont le même roman. Les titres diffèrent trop pour que la règle des doublons les rapproche ; corriger l'un des deux depuis l'application les fera apparaître d'eux-mêmes dans la première famille.
+
+### 4.21 Les six noms d'auteurs mal découpés, et une saga recollée
+
+Les six cas venaient tous du même mécanisme, lisible dans `source_note` : ces lots nomment **deux auteurs à la suite**, chacun sous la forme « Nom,Prénom », séparés par un tiret —
+
+```
+Clarke,Arthur C.-Lee,Gentry-[Rama-3]Les jardins de Rama(…)
+```
+
+Le découpage d'origine a pris **le nom du premier et le prénom du second**, d'où « Arthur C.-Lee, Gentry Clarke ». Dans les six cas le premier nommé est l'auteur principal.
+
+| Enregistré comme | Réalité | Opération |
+|---|---|---|
+| Arthur C.-Lee, Gentry Clarke | Arthur C. Clarke & Gentry Lee | 3 livres déplacés |
+| Philip K.-Zelazny, Roger Dick | Philip K. Dick & Roger Zelazny | 1 livre déplacé |
+| Robert-Haber, Karen Silverberg | Robert Silverberg & Karen Haber | 1 livre déplacé |
+| Richard(King, Stephen) Bachman | pseudonyme de Stephen King | 1 livre déplacé |
+| P.C.-Cast, Kristin Cast | P.C. Cast & Kristin Cast | renommage seul |
+| Jerome(feat Hug, Nathalie) Camut | Jérôme Camut & Nathalie Hug | renommage seul |
+
+Quatre auteurs principaux existaient déjà : les livres les rejoignent et la fiche inventée disparaît. Les deux autres n'existaient pas : un renommage suffit, sans rien déplacer. Roger Zelazny et Karen Haber existaient déjà séparément, avec leurs propres livres — rien à y faire. *Running man* rejoint Stephen King par cohérence avec *Marche ou crève* et *Rage*, deux autres titres Bachman déjà classés sous King.
+
+**Une saga recollée au passage.** Les trois Rama déplacés portaient déjà `series = 'Rama'`, tomes 2, 3 et 4. Mais *Rendez-vous avec Rama*, rangé chez le vrai Arthur C. Clarke, n'avait aucune saga : son tome 1 était **seul chez lui**, et la règle « une série d'un seul tome est écartée » (§4.16) l'avait donc rejeté — à l'extraction comme à l'affichage. Le mauvais découpage d'un nom d'auteur avait coupé une saga en deux sans que rien ne le signale. Les quatre réunis, elle s'affiche enfin.
+
+C'est l'argument le plus net en faveur de cet écran : il ne corrige pas seulement des noms, il révèle des conséquences invisibles depuis l'interface.
+
 
 ## 5. Prochaines étapes (dans l'ordre)
 
@@ -148,7 +544,23 @@ Christophe doit coller sa clé `service_role` directement dans la page (jamais s
 4. ~~Claude construit l'application web selon le design choisi.~~ **Fait.**
 5. ~~Claude propose 10 logos pour l'icône d'écran d'accueil.~~ **Fait — logo 05 "Livre courbe".**
 6. **Christophe télécharge `ma-bibliotheque-webapp.zip`, en extrait le contenu, et le pousse sur son propre dépôt GitHub (Pages activé sur la branche/dossier choisi).** Claude ne pousse jamais directement sur GitHub.
-7. Christophe ouvre l'app une fois en ligne et vérifie que tout s'affiche correctement (auteurs, recherche, filtres, couvertures, cases lu/écouté/favori) — remonter tout souci à Claude pour correction.
+7. ~~Christophe ouvre l'app une fois en ligne et vérifie que tout s'affiche correctement.~~ **Fait — deux retours : bug de pagination (corrigé, §4.5) et couvertures manquantes chez certains auteurs comme Isaac Asimov (§4.7).**
+8. Christophe redéploie `ma-bibliotheque-webapp.zip` (fichier `js/app.js` corrigé) sur son dépôt GitHub et revérifie que les 1944 livres/436 auteurs/795 couvertures s'affichent bien, ainsi que Ken Follett.
+9. ~~Christophe ouvre `supabase_import_tool.html`, section 5, pour lancer la recherche automatique de couvertures manquantes.~~ **Fait — la base est passée de 795 à 1093 couvertures. La recherche a depuis été assouplie, voir l'étape 12 et §4.12.**
+10. ~~Christophe importe la synchronisation des nouveaux livres audio (§4.9) dans l'outil, dans l'ordre : section 2 avec `1_nouveaux_auteurs.json`, section 3 avec `2_nouveaux_livres.json`, puis section 7 avec `3_mise_a_jour_has_audio.json`.~~ **Fait — base à 437 auteurs / 1966 livres.**
+11. ~~Christophe importe la synchronisation d'octobre 2026 (§4.10) dans l'outil : section 2, puis section 3, puis section 7.~~ **Fait le 2026-10-14 — base à 443 auteurs / 1999 livres, import vérifié.** Reste à relire les 6 entrées marquées `needs_review: true`.
+12. **Christophe relance la section 5 de l'outil** avec la recherche assouplie (§4.12) : elle devrait proposer ~360 couvertures sur les 906 manquantes. Il clique « Cocher les correspondances fiables », parcourt les propositions « probables » (titres souvent en anglais, vignette à l'appui), décoche ce qui ne va pas, puis téléverse.
+13. Pour les couvertures encore manquantes après la recherche automatique, Christophe peut utiliser la section 6 (manuel) pour déposer une image trouvée lui-même sur un autre site.
+14. Facultatif, nettoyages repérés au passage (sections 7 et 8 de l'outil) : renommer l'auteur « Rosnay Tatiana » en « Tatiana de Rosnay » ; renommer les titres « McFadden Freida - t9 L'intruse » et « McFadden Freida - t10 Le Dîner » ; une fiche Freida McFadden porte le titre « Unknown » ; et quelques doublons de traduction subsistent chez elle (*La femme de ménage voit tout* / *La femme de ménage T3 : La femme de ménage voit tout*, *Les secrets de la femme de ménage* / *La femme de ménage 2 - Les Secrets de la femme de ménage*).
+15. Renommer sur le disque `Mes Ebooks\AA- Intégrale de la Team 8-1-2012` (caractère mal encodé) pour que les prochaines synchros puissent lire ce dossier — voir la limite signalée en fin de §4.10.
+16. **Christophe exécute `migration_2026-10_masquage_et_titres.sql`** dans Supabase Studio → SQL Editor (§4.13). **À faire avant le redéploiement de l'app.**
+17. **Christophe redéploie l'app sur GitHub** avec les fichiers refondus (`index.html`, `css/style.css`, `js/app.js` — voir §4.11, §4.13, §4.16 et §4.17), puis ouvre la roue crantée pour choisir son thème. Les autres fichiers du dossier (`js/config.js`, `manifest.json`, `icons/`) sont inchangés.
+18. **Christophe exécute `migration_2026-10_series.sql`** dans Supabase (§4.16), relit `series-detectees.xlsx`, puis importe `4_series_2026-10.json` avec la **section 7** de l'outil. Attendu : 1051 livres mis à jour.
+19. ~~**Christophe exécute `correctifs_2026-10_auteurs_et_titres.sql`** dans Supabase → SQL Editor (§4.18) : il répare les quatre fiches dont l'auteur et le titre avaient été intervertis. Le script affiche en fin d'exécution deux contrôles — le second doit ne renvoyer aucune ligne.~~ **Fait le 16/10/2026 — vérifié : 441 auteurs, zéro nom en minuscule, Steve Berry passé de 6 à 8 livres.**
+20. Ouvrir le fichier de *La Belle et l'oiseau* (dossier « Ken Follett - Pack - 19 ebooks ») pour savoir de quel livre il s'agit : ce titre n'existe pas chez Follett et sa couverture actuelle est vraisemblablement fausse (§4.18).
+21. ~~**Christophe redéploie `js/app.js` et `css/style.css`** (flèches entre auteurs, §4.17 ; écran des anomalies, §4.19), puis ouvre les réglages et parcourt les six familles.~~ **Fait le 16/10/2026.**
+22. ~~Transmettre à Claude les listes des familles « Auteur et titre intervertis » et « Noms d'auteurs mal découpés ».~~ **Fait — `correctifs_2026-10_inversions.sql` puis `correctifs_2026-10_coauteurs.sql` exécutés le 16/10/2026. Vérifié : 433 auteurs, cinq des six familles vides.**
+23. Remonter à Claude tout nouveau souci précis (nom du livre concerné) pour correction.
 
 ## 6. Notes pour une reprise future du projet
 

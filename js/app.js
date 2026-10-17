@@ -103,6 +103,19 @@ async function hashCode(code) {
 function setOwner(on) {
   OWNER = !!on;
   try { localStorage.setItem('mabiblio.owner', OWNER ? '1' : '0'); } catch (e) {}
+  syncStatusFilterVisibility();
+}
+
+// Le filtre « Statut » ne sert qu'à retrouver SES lus/écoutés/favoris :
+// un visiteur n'a aucune raison d'en avoir besoin, et le proposer
+// laisserait deviner ce que le propriétaire a lu ou aimé.
+function syncStatusFilterVisibility() {
+  if (!el.filterStatus) return;
+  el.filterStatus.hidden = !OWNER;
+  if (!OWNER && el.filterStatus.value) {
+    el.filterStatus.value = '';
+    el.filterStatus.dispatchEvent(new Event('input'));
+  }
 }
 
 let ALL_BOOKS = [];      // liste plate des livres visibles
@@ -303,9 +316,13 @@ function formatBadges(book) {
   if (book.has_ebook) out += `<span class="badge">Ebook</span>`;
   if (book.has_pdf) out += `<span class="badge">PDF</span>`;
   if (book.has_audio) out += `<span class="badge">Audio</span>`;
-  if (book.is_favorite) out += `<span class="badge fav">★ Favori</span>`;
-  if (book.is_read) out += `<span class="badge status">Lu</span>`;
-  if (book.is_listened) out += `<span class="badge status">Écouté</span>`;
+  // Lu / Écouté / Favori relèvent de l'usage personnel du propriétaire :
+  // un visiteur ne doit pas pouvoir les découvrir en parcourant la liste.
+  if (OWNER) {
+    if (book.is_favorite) out += `<span class="badge fav">★ Favori</span>`;
+    if (book.is_read) out += `<span class="badge status">Lu</span>`;
+    if (book.is_listened) out += `<span class="badge status">Écouté</span>`;
+  }
   return out;
 }
 
@@ -734,14 +751,12 @@ function seriesStrip(book) {
     </div>`;
 }
 
-// Pour un visiteur, les statuts ne sont pas modifiables : on n'affiche que
-// ceux qui sont vrais, et seulement s'il y en a.
+// Un visiteur ne doit pas pouvoir découvrir ce que le propriétaire a lu,
+// écouté ou mis en favori : cette fonction n'affiche donc plus rien.
+// (Gardée pour ne pas changer l'appel en ligne 598 ; purement par
+// cohérence avec formatBadges(), qui applique la même règle.)
 function readOnlyStatuses(book) {
-  const out = [];
-  if (book.is_favorite) out.push('<span class="badge fav">★ Coup de cœur</span>');
-  if (book.is_read) out.push('<span class="badge status">Lu</span>');
-  if (book.is_listened) out.push('<span class="badge status">Écouté</span>');
-  return out.length ? `<div class="badges ro-status">${out.join('')}</div>` : '';
+  return '';
 }
 
 function showFormError(node, msg) {
@@ -1437,7 +1452,9 @@ const AIDE_SECTIONS = [
     corps: `
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         Trois cases cliquables sous le titre — Lu sur liseuse, Écouté en audio, Favori — qui
-        s'enregistrent tout de suite, sans valider.</p>
+        s'enregistrent tout de suite, sans valider. Ces cases, le filtre « Statut » et les
+        badges correspondants n'apparaissent qu'en mode propriétaire : un visiteur ne peut
+        jamais voir ce que tu as lu, écouté ou mis en favori.</p>
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         <strong>Corriger le titre</strong> : le nouveau texte devient le titre affiché ;
         l'orthographe du fichier d'origine reste conservée en coulisses, pour que la prochaine
@@ -1703,6 +1720,8 @@ el.settingsBtn.addEventListener('click', () => { location.hash = '#/settings'; }
 // ---------------------------------------------------------------
 // Démarrage
 // ---------------------------------------------------------------
+syncStatusFilterVisibility();
+
 (async function init() {
   const ok = await loadLibrary();
   if (ok) route();
