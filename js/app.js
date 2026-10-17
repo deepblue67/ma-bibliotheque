@@ -1482,15 +1482,92 @@ const AIDE_SECTIONS = [
         terminées, de favoris — pour suivre l'avancement, sans rien à cliquer.</p>`,
   },
   {
+    id: 'alimenter',
+    titre: 'Alimenter la base : ajouter de nouveaux livres',
+    corps: `
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        L'application elle-même ne sait qu'afficher et corriger ce qui existe déjà : ajouter des
+        livres se fait à part, avec un deuxième outil, en dehors de l'application. Le principe en
+        trois temps :</p>
+      <p class="hint-sm" style="margin:0 0 0.5rem;">
+        <strong>1.</strong> Les fichiers (epub, mp3…) arrivent dans les dossiers habituels
+        (Mes Ebooks, Mes livres audio).</p>
+      <p class="hint-sm" style="margin:0 0 0.5rem;">
+        <strong>2.</strong> Il faut comparer ce qui est nouveau à ce qui est déjà en base, pour ne
+        rien importer en double et retrouver, pour chaque livre, s'il faut créer une fiche ou juste
+        activer un format sur une fiche existante — typiquement la version audio d'un livre déjà
+        présent en ebook. C'est l'étape où passer par Claude fait gagner du temps : repérer les
+        nouveautés, résoudre les cas particuliers (traductions, pseudonymes, noms mal
+        orthographiés) et préparer les fichiers JSON prêts à l'emploi.</p>
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        <strong>3.</strong> Ces fichiers JSON se collent ensuite dans l'outil d'import Supabase
+        (section suivante) — la seule étape qui écrit réellement dans la base, et qui se fait sur
+        cet ordinateur, sans Claude.</p>
+      <p class="hint-sm" style="margin:0;">
+        Rien n'empêche d'écrire ce JSON à la main : le format exact de chaque bloc est rappelé
+        directement dans l'outil. Mais la comparaison avec l'existant est le plus souvent plus
+        rapide à faire avec Claude.</p>`,
+  },
+  {
+    id: 'outil',
+    titre: "L'outil d'import Supabase",
+    corps: `
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        <code>supabase_import_tool.html</code>, dans le dossier « Claude outputs » : un fichier
+        autonome, qu'un double-clic ouvre dans le navigateur. Il tourne entièrement sur cet
+        ordinateur et ne parle qu'au projet Supabase — jamais à Claude.</p>
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        Avant toute chose, l'outil demande la clé <code>service_role</code> — à distinguer de la
+        clé <code>anon</code> qu'utilise l'application : <code>service_role</code> donne un accès
+        total à la base, sans restriction. Elle se retrouve dans Supabase Studio → Project
+        Settings → API → service_role (secret). Claude ne la détient pas et ne doit jamais la
+        détenir. Dans l'outil, elle reste uniquement en mémoire de la page tant qu'elle est
+        ouverte.</p>
+      <p class="hint-sm" style="margin:0 0 0.4rem;"><strong>1. Connexion</strong> — URL du projet
+        (pré-remplie) et clé service_role, puis « Tester la connexion ».</p>
+      <p class="hint-sm" style="margin:0 0 0.4rem;"><strong>2. Importer des auteurs</strong> —
+        un tableau JSON <code>[{"name": "...", "name_sort": "..."}]</code>. Un auteur déjà présent
+        (même nom) est fusionné, jamais dupliqué.</p>
+      <p class="hint-sm" style="margin:0 0 0.4rem;"><strong>3. Importer des livres</strong> —
+        l'auteur doit déjà exister (étape 2 d'abord). Un livre déjà présent (même auteur + même
+        titre) est ignoré sans erreur : relancer un import ne crée jamais de doublon. Un
+        <code>cover_i</code> Open Library fourni déclenche le téléversement automatique de la
+        couverture.</p>
+      <p class="hint-sm" style="margin:0 0 0.4rem;"><strong>4. Couvertures seules</strong> —
+        ajouter ou remplacer une couverture sur un livre déjà en base, à partir d'un
+        <code>cover_i</code>.</p>
+      <p class="hint-sm" style="margin:0 0 0.4rem;"><strong>5. Recherche automatique des
+        couvertures manquantes</strong> — une vignette proposée pour chaque livre sans couverture,
+        avec un niveau de confiance (fiable / probable / incertain) ; rien n'est envoyé tant que
+        rien n'est coché puis validé par « Téléverser la sélection ».</p>
+      <p class="hint-sm" style="margin:0 0 0.4rem;"><strong>6. Ajouter une couverture trouvée
+        ailleurs</strong> — pour les livres qu'Open Library ne connaît pas :
+        (1) trouver l'image ailleurs (Fnac, Amazon, Babelio…) et l'enregistrer sur l'ordinateur ;
+        (2) saisir l'auteur et le titre exactement comme dans l'application ;
+        (3) choisir le fichier image et « Téléverser cette couverture » ;
+        (4) elle apparaît dans l'application au prochain chargement, rien à redéployer. Pour une
+        bibliothèque strictement personnelle, pas pour republier l'image ailleurs.</p>
+      <p class="hint-sm" style="margin:0 0 0.4rem;"><strong>7. Mettre à jour des livres
+        existants</strong> — changer un ou plusieurs champs sans toucher au reste, par exemple
+        activer <code>has_audio</code> : <code>[{"author_name": "...", "title": "...",
+        "fields": {"has_audio": true}}]</code>.</p>
+      <p class="hint-sm" style="margin:0;"><strong>8. Requête personnalisée (avancé)</strong> —
+        pour parler directement à l'API Supabase avec les pleins pouvoirs de service_role : c'est
+        par ce chemin qu'un auteur peut par exemple être renommé, ce que l'écran des anomalies se
+        contente de signaler. Utilisable directement si l'idée est confortable ; sinon, transmettre
+        à Claude ce que l'écran des anomalies a copié, pour recevoir la commande exacte ou un
+        script équivalent pour Supabase Studio.</p>`,
+  },
+  {
     id: 'limites',
-    titre: "Ce que l'application ne fait pas",
+    titre: 'Ce qui reste utile de transmettre à Claude',
     corps: `
       <p class="hint-sm" style="margin:0;">
-        Déplacer un livre vers un autre auteur, renommer ou supprimer un auteur, ajouter des
-        livres en masse, retrouver des couvertures manquantes : ces opérations touchent des tables
-        que l'application, volontairement, ne peut pas modifier. Elles passent par un script
-        préparé à la demande, à exécuter une seule fois dans Supabase, ou par un outil séparé — un
-        nom collé depuis l'écran des anomalies suffit pour les lancer.</p>`,
+        Au quotidien : statuts, corrections de titre, masquage et couvertures se font sans Claude,
+        depuis l'application ou l'outil. Ce qui reste plus sûr à vérifier ensemble : l'arrivée d'un
+        gros lot de nouveaux fichiers (éviter les doublons demande de comparer au disque), et les
+        cas ambigus que l'écran des anomalies se contente de signaler sans les corriger. Un nom
+        collé depuis cet écran suffit pour que Claude s'en occupe.</p>`,
   },
 ];
 
