@@ -1123,6 +1123,11 @@ function renderSettings() {
         <div class="section-title">Livres masqués <span class="rule"></span></div>
         ${renderHiddenBlock()}
       </div>` : ''}
+
+      ${OWNER ? `<div class="set-block">
+        <div class="section-title">Aide <span class="rule"></span></div>
+        ${renderAideProprietaire()}
+      </div>` : ''}
     </div>`;
 
   el.app.querySelectorAll('#theme-grid .theme-card').forEach(card => {
@@ -1140,6 +1145,7 @@ function renderSettings() {
   });
   wireOwnerBlock();
   wireAnomalies();
+  wireAide();
   el.app.querySelectorAll('.hidden-row button').forEach(b => {
     b.addEventListener('click', () => {
       const book = HIDDEN_BOOKS.find(x => x.id === b.dataset.id);
@@ -1383,6 +1389,137 @@ function renderHiddenBlock() {
           <button type="button" class="linkish" data-id="${b.id}">Restaurer</button>
         </div>`).join('')}
     </div>`;
+}
+
+// ---------------------------------------------------------------
+// Aide — mode d'emploi propriétaire
+//
+// Réservée à OWNER (pas EDITABLE : même si la base manque d'une colonne,
+// Christophe doit pouvoir relire comment les choses fonctionnent). Le
+// contenu reprend, en plus court, le PDF remis à part ; les deux sont tenus
+// à jour ensemble.
+// ---------------------------------------------------------------
+const AIDE_OUVERTES = new Set();
+
+const AIDE_FAMILLES = [
+  { nom: 'Doublons probables', repere: 'deux fiches du même auteur pour le même livre (souvent ebook + audio importés séparément)',
+    action: '« Garder celle-ci » : la fiche choisie hérite des formats de l\'autre, qui est masquée.' },
+  { nom: 'Restes de noms de fichiers', repere: 'une année entre parenthèses, une extension, un préfixe technique resté dans le titre',
+    action: 'Titre nettoyé proposé, modifiable avant d\'Enregistrer.' },
+  { nom: 'Détails de présentation', repere: 'une minuscule au début du titre, ou un titre tout en capitales',
+    action: 'Pareil — à corriger si l\'envie t\'en prend, à laisser sinon.' },
+  { nom: 'Auteur et titre probablement intervertis', repere: 'le titre ressemble à un nom d\'auteur du catalogue, et inversement',
+    action: 'Copier la liste, à transmettre.' },
+  { nom: 'Noms d\'auteurs mal découpés', repere: 'une virgule ou une parenthèse dans un nom d\'auteur — presque toujours deux auteurs mélangés',
+    action: 'Pareil — Copier la liste, à transmettre.' },
+  { nom: 'Auteurs sans prénom', repere: 'un seul mot en guise de nom (parfois légitime : Ayerdhal, Collectif)',
+    action: 'À parcourir des yeux, rien de plus.' },
+];
+
+const AIDE_SECTIONS = [
+  {
+    id: 'activer',
+    titre: 'Activer le mode propriétaire',
+    corps: `
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        Dans <strong>Réglages</strong> (cette page), la rubrique « Mode propriétaire » plus haut
+        demande ton code. Une fois déverrouillé, il reste actif sur cet appareil jusqu'à ce que tu
+        cliques sur « Quitter le mode propriétaire » — y compris si tu fermes l'onglet ou éteins
+        l'appareil. Chaque appareil mémorise son propre état.</p>
+      <p class="hint-sm" style="margin:0;">
+        Ce code est un garde-fou contre une fausse manœuvre d'un visiteur, pas un coffre-fort :
+        l'application étant publique, quelqu'un de déterminé pourrait toujours écrire dans la base
+        sans passer par elle.</p>`,
+  },
+  {
+    id: 'fiche',
+    titre: "Sur la fiche d'un livre",
+    corps: `
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        Trois cases cliquables sous le titre — Lu sur liseuse, Écouté en audio, Favori — qui
+        s'enregistrent tout de suite, sans valider.</p>
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        <strong>Corriger le titre</strong> : le nouveau texte devient le titre affiché ;
+        l'orthographe du fichier d'origine reste conservée en coulisses, pour que la prochaine
+        synchronisation retrouve ce livre et ne le recrée pas en double. Si l'auteur a déjà un
+        livre portant ce titre, c'est signalé au lieu d'être enregistré — masque plutôt la fiche
+        en trop.</p>
+      <p class="hint-sm" style="margin:0;">
+        <strong>Masquer ce livre</strong> : la fiche disparaît de la bibliothèque sans être
+        effacée de la base, ce qui empêche toute recréation par une synchronisation future. Elle
+        se restaure à tout moment (section suivante).</p>`,
+  },
+  {
+    id: 'masques',
+    titre: 'Les livres masqués',
+    corps: `
+      <p class="hint-sm" style="margin:0;">
+        Juste au-dessus : la liste de tout ce qui a été masqué, avec un bouton Restaurer sur
+        chaque ligne. Rien ne se perd jamais.</p>`,
+  },
+  {
+    id: 'anomalies',
+    titre: "L'écran des anomalies",
+    corps: `
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        Six familles, recalculées à chaque ouverture de cette page, à partir des livres déjà
+        chargés — rien n'est envoyé nulle part tant qu'aucun bouton n'est cliqué.</p>
+      ${AIDE_FAMILLES.map(f => `
+        <p class="hint-sm" style="margin:0 0 0.6rem;">
+          <strong>${escapeHtml(f.nom)}</strong> — ${escapeHtml(f.repere)}<br>
+          <em>${escapeHtml(f.action)}</em></p>`).join('')}
+      <p class="hint-sm" style="margin:0.4rem 0 0;">
+        Les trois premières s'enregistrent directement ici. Les trois dernières touchent à la
+        liste des auteurs elle-même, réservée au rôle technique « service_role » : Copier la
+        liste, puis la transmettre pour qu'un script soit préparé.</p>`,
+  },
+  {
+    id: 'stats',
+    titre: "Où j'en suis",
+    corps: `
+      <p class="hint-sm" style="margin:0;">
+        Un peu plus haut dans ces réglages : nombre de livres, d'auteurs, de lectures et d'écoutes
+        terminées, de favoris — pour suivre l'avancement, sans rien à cliquer.</p>`,
+  },
+  {
+    id: 'limites',
+    titre: "Ce que l'application ne fait pas",
+    corps: `
+      <p class="hint-sm" style="margin:0;">
+        Déplacer un livre vers un autre auteur, renommer ou supprimer un auteur, ajouter des
+        livres en masse, retrouver des couvertures manquantes : ces opérations touchent des tables
+        que l'application, volontairement, ne peut pas modifier. Elles passent par un script
+        préparé à la demande, à exécuter une seule fois dans Supabase, ou par un outil séparé — un
+        nom collé depuis l'écran des anomalies suffit pour les lancer.</p>`,
+  },
+];
+
+function renderAideProprietaire() {
+  return `
+    <p class="lede" style="margin:0 0 1.2rem; font-size:0.85rem;">
+      Ce que permet le mode propriétaire, et où s'arrête ce que l'application sait faire seule.
+      La version complète existe aussi en PDF, remise à part.</p>
+    ${AIDE_SECTIONS.map(s => `
+      <div class="aide-fam">
+        <button type="button" class="aide-head" data-aide="${s.id}"
+                aria-expanded="${AIDE_OUVERTES.has(s.id) ? 'true' : 'false'}">
+          <span class="t">${escapeHtml(s.titre)}</span>
+        </button>
+        <div class="aide-body" ${AIDE_OUVERTES.has(s.id) ? '' : 'hidden'}>${s.corps}</div>
+      </div>`).join('')}`;
+}
+
+function wireAide() {
+  el.app.querySelectorAll('.aide-head').forEach(h => {
+    h.addEventListener('click', () => {
+      const id = h.dataset.aide;
+      const corps = h.nextElementSibling;
+      const ouvert = h.getAttribute('aria-expanded') === 'true';
+      h.setAttribute('aria-expanded', ouvert ? 'false' : 'true');
+      corps.hidden = ouvert;
+      if (ouvert) AIDE_OUVERTES.delete(id); else AIDE_OUVERTES.add(id);
+    });
+  });
 }
 
 // Vignette d'un thème : une interface miniature peinte avec les couleurs

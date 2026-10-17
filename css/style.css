@@ -997,6 +997,27 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   .ano-opts{grid-template-columns:1fr;}
 }
 
+/* ---------- aide propriétaire (même habillage que les anomalies) ---------- */
+.aide-fam{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:0.7rem; overflow:hidden;}
+.aide-head{
+  display:flex; align-items:center; gap:0.7rem; width:100%;
+  min-height:52px; padding:0.7rem 1rem; text-align:left;
+  background:var(--card); border:0; color:var(--ink); cursor:pointer;
+  font-family:inherit; font-size:0.92rem;
+}
+.aide-head:hover{background:var(--chip);}
+.aide-head .t{flex:1; min-width:0;}
+.aide-head::after{
+  content:''; flex:none; width:8px; height:8px; margin-left:0.2rem;
+  border-right:2px solid var(--sub); border-bottom:2px solid var(--sub);
+  transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s ease;
+}
+.aide-head[aria-expanded="true"]::after{transform:rotate(-135deg) translate(-2px,-2px);}
+.aide-body{padding:1rem; border-top:1px solid var(--line);}
+@media (max-width:760px){
+  .aide-body{padding:0.8rem;}
+}
+
 /* ---------- auteur précédent / suivant ----------
    Deux liens, deux présentations selon la place disponible :
    - jusqu'à 1400px (téléphone, iPad, petit portable) : une barre normale sous
