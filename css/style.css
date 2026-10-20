@@ -1137,6 +1137,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .btn-main{
   border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink);
   border-radius:999px; padding:0.5em 1.1em; font-size:0.82rem; font-weight:600;
+  display:inline-block; text-decoration:none;
 }
 .btn-main.danger{background:var(--danger, #b2685a); border-color:var(--danger, #b2685a); color:#fff;}
 .inline-form{

@@ -1140,6 +1140,14 @@ function renderSettings() {
       </div>` : ''}
 
       ${OWNER ? `<div class="set-block">
+        <div class="section-title">Outil d'administration <span class="rule"></span></div>
+        <p class="lede" style="margin:0 0 0.8rem; font-size:0.85rem;">
+          Pour ajouter des livres, des auteurs ou des couvertures directement dans la base Supabase.
+          Détail de son fonctionnement dans la rubrique Aide ci-dessous.</p>
+        <a class="btn-main" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>
+      </div>` : ''}
+
+      ${OWNER ? `<div class="set-block">
         <div class="section-title">Aide <span class="rule"></span></div>
         ${renderAideProprietaire()}
       </div>` : ''}
@@ -1530,9 +1538,11 @@ const AIDE_SECTIONS = [
     titre: "L'outil d'import Supabase",
     corps: `
       <p class="hint-sm" style="margin:0 0 0.8rem;">
-        <code>supabase_import_tool.html</code>, dans le dossier « Claude outputs » : un fichier
-        autonome, qu'un double-clic ouvre dans le navigateur. Il tourne entièrement sur cet
-        ordinateur et ne parle qu'au projet Supabase — jamais à Claude.</p>
+        <code>supabase_import_tool.html</code> : un outil autonome, accessible par le bouton
+        « Ouvrir l'outil d'import Supabase » un peu plus haut dans ces réglages (visible seulement
+        en mode propriétaire). Il reste aussi ouvrable directement depuis le fichier conservé dans
+        le dossier « Claude outputs », par un double-clic. Dans les deux cas il tourne entièrement
+        dans le navigateur et ne parle qu'au projet Supabase — jamais à Claude.</p>
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         Avant toute chose, l'outil demande la clé <code>service_role</code> — à distinguer de la
         clé <code>anon</code> qu'utilise l'application : <code>service_role</code> donne un accès
@@ -1568,12 +1578,16 @@ const AIDE_SECTIONS = [
         existants</strong> — changer un ou plusieurs champs sans toucher au reste, par exemple
         activer <code>has_audio</code> : <code>[{"author_name": "...", "title": "...",
         "fields": {"has_audio": true}}]</code>.</p>
-      <p class="hint-sm" style="margin:0;"><strong>8. Requête personnalisée (avancé)</strong> —
+      <p class="hint-sm" style="margin:0 0 0.4rem;"><strong>8. Requête personnalisée (avancé)</strong> —
         pour parler directement à l'API Supabase avec les pleins pouvoirs de service_role : c'est
         par ce chemin qu'un auteur peut par exemple être renommé, ce que l'écran des anomalies se
         contente de signaler. Utilisable directement si l'idée est confortable ; sinon, transmettre
         à Claude ce que l'écran des anomalies a copié, pour recevoir la commande exacte ou un
-        script équivalent pour Supabase Studio.</p>`,
+        script équivalent pour Supabase Studio.</p>
+      <p class="hint-sm" style="margin:0;"><strong>9. Importer un lot de couvertures</strong> —
+        pour déposer plusieurs images d'un coup plutôt qu'une par une avec l'étape 6 : chaque
+        fichier doit être nommé avec l'identifiant du livre (<code>&lt;id&gt;.jpg</code>), que
+        l'outil reconnaît et associe automatiquement à la bonne fiche.</p>`,
   },
   {
     id: 'limites',

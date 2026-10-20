@@ -46,6 +46,11 @@ Une bibliothèque numérique personnelle, sous forme d'application web, présent
 - [x] Outil d'import Supabase autonome livré (`webapp-admin-tools/supabase_import_tool.html`) — voir §4.6.
 - [x] **Bug de complétude des couvertures identifié (deuxième retour de Christophe, exemple : Isaac Asimov)** et fonction de recherche automatique de couvertures manquantes ajoutée à l'outil autonome (section 5) — voir §4.7.
 - [x] Fonction de couverture manuelle ajoutée à l'outil (section 6, troisième retour de Christophe sur les sites de couverture) — voir §4.8.
+- [x] **L'outil d'import Supabase est désormais accessible depuis un lien dans les réglages, réservé au propriétaire** (déployé avec le reste de l'app) — livré le 2026-10-20 — voir §4.26.
+- [x] **Récupération automatique des couvertures sur Fnac.com testée puis abandonnée (décision de Christophe)** ; outil d'import par lot (section 9) conservé pour un usage manuel futur — 2026-10-18 — voir §4.25.
+- [x] **Confidentialité visiteur : le filtre Statut et les badges ★ Favori/Lu/Écouté ne s'affichent plus qu'en mode propriétaire** — livré le 2026-10-17 — voir §4.24.
+- [x] **Mode d'emploi propriétaire, en PDF et dans l'application (rubrique Aide des réglages)** — livré le 2026-10-17 — voir §4.23.
+- [x] **Les deux dossiers mal encodés renommés proprement, et les trois dossiers « Team » vérifiés (aucune synchronisation nécessaire)** — fait le 2026-10-17 — voir §4.22.
 - [x] **Gestion des séries : page auteur groupée par saga, navigation entre tomes (onzième retour)** — livré le 2026-10-16, migration et import à exécuter — voir §4.16.
 - [x] **Mode propriétaire : l'app publique passe en lecture seule pour les visiteurs (dixième retour)** — livré le 2026-10-15, empreinte à configurer — voir §4.15.
 - [x] **Recherche insensible aux accents, aux apostrophes et aux ligatures, avec recherche par mots (neuvième retour)** — livré le 2026-10-15 — voir §4.14.
@@ -159,6 +164,7 @@ Fonctions disponibles (numérotées comme dans l'outil) :
 6. **Ajouter une couverture trouvée ailleurs (manuel)** : voir §4.8.
 7. **Mettre à jour des livres déjà en base (champs choisis)** : pour modifier un ou plusieurs champs (typiquement `has_audio`) sur un livre déjà existant sans toucher au reste — utile quand Christophe ajoute la version audio d'un livre qu'il a déjà en ebook. Format : `[{"author_name": "...", "title": "...", "fields": {"has_audio": true}}]`, résolution par auteur+titre exact comme les autres sections.
 8. **Requête personnalisée** : pour un correctif ponctuel (GET/POST/PATCH/DELETE brut vers l'API REST Supabase) — à utiliser avec précaution.
+9. **Importer un lot de couvertures (fichiers nommés par identifiant)** : voir §4.25. Christophe choisit plusieurs images dont le nom de fichier est l'identifiant du livre (`<id>.jpg`), l'outil les téléverse toutes et met à jour `cover_path` sur chaque livre correspondant — pratique s'il a téléchargé plusieurs couvertures à la main et veut les associer en une seule fois plutôt qu'une par une avec la section 6.
 
 Christophe doit coller sa clé `service_role` directement dans la page (jamais sauvegardée, jamais envoyée ailleurs qu'à son propre projet Supabase). C'est l'outil à utiliser pour toute correction ou ajout de données futur (nouveaux livres, correctifs de genre, ajout de livres audio manquants, etc.) — Claude peut préparer le JSON à coller, mais l'exécution se fait chez Christophe.
 
@@ -535,6 +541,58 @@ Quatre auteurs principaux existaient déjà : les livres les rejoignent et la fi
 
 C'est l'argument le plus net en faveur de cet écran : il ne corrige pas seulement des noms, il révèle des conséquences invisibles depuis l'interface.
 
+### 4.22 Les deux dossiers mal encodés renommés, et les trois dossiers « Team » vérifiés
+
+La limite signalée en fin de §4.10 — deux dossiers illisibles aux outils de fichiers à cause d'un octet mal encodé — restait ouverte malgré un premier renommage fait par Christophe lui-même : l'inspection octet par octet (`od -c`) a montré que les deux noms contenaient encore des octets non-UTF-8 résiduels. Claude a renommé proprement les deux dossiers (`AA- Integrale de la Team 8-1-2012`, `Jovanovic_Enquete sur l'existence des Anges Gardiens`) et vérifié après coup que les deux noms sont désormais entièrement propres.
+
+Ce renommage a fait apparaître un troisième dossier voisin, `AA- Integrale Team All`, resté invisible tant que son nom n'était pas comparable aux deux autres. Une comparaison exhaustive fichier par fichier des trois dossiers « Team » contre les titres déjà en base (requêtes directes sur Supabase, titres normalisés pour ignorer les accents et la casse) a montré que **« Team All » est un doublon intégral**, sans aucun contenu qui ne soit déjà ailleurs, et que les « manques » apparents dans les deux autres dossiers étaient de faux positifs causés par cette même corruption d'encodage, pas de vrais fichiers absents de la base. **Conclusion : aucune synchronisation n'était nécessaire.**
+
+### 4.23 Mode d'emploi propriétaire, en PDF et dans l'application
+
+Demande de Christophe : un guide complet du mode propriétaire, de A à Z, en deux versions tenues synchronisées — un fichier `Mode_emploi_proprietaire.pdf` et une rubrique **Aide** dépliable en bas des Réglages, visible uniquement en mode propriétaire.
+
+Huit sections, construites à partir d'un inventaire réel des fonctions du code (pas d'une liste inventée) : activer le mode propriétaire, les trois cases et les deux actions sur la fiche d'un livre, les livres masqués, l'écran des anomalies (avec le tableau des six familles), « Où j'en suis », **alimenter la base : ajouter de nouveaux livres** (le principe en trois temps — fichiers sur le disque, comparaison avec l'existant faite avec Claude, import via l'outil), **l'outil d'import Supabase** (`supabase_import_tool.html`, détail de ses huit blocs et de la distinction entre les clés `anon` et `service_role`), et ce qu'il reste utile de transmettre à Claude.
+
+Dans l'app, la rubrique réutilise le même mécanisme d'accordéon que l'écran des anomalies (`.aide-fam`/`.aide-head`/`.aide-body`, état plié/déplié mémorisé), câblé séparément (`wireAide()`) pour ne pas interférer avec `wireAnomalies()`. Le PDF est généré avec reportlab (`build_pdf.py`). Les deux versions ont été étendues ensemble quand Christophe a demandé d'y ajouter le pipeline d'alimentation et l'outil d'import, pour rester mot pour mot cohérentes.
+
+**Vérifié** par un test Playwright dédié (`aideproprietaire.js`) : la rubrique est invisible pour un visiteur, les huit sections s'affichent repliées par défaut chez le propriétaire, le contenu de la section outil cite bien `supabase_import_tool.html`/`service_role`/« Requête personnalisée », l'état plié/déplié survit à un nouveau rendu des réglages, et le rendu iPhone est correct. Livré le 2026-10-17.
+
+### 4.24 Confidentialité visiteur : le filtre Statut et les badges personnels masqués
+
+Christophe a fait remonter un point de confidentialité : un visiteur (famille, amis) ne doit pas pouvoir deviner ce qu'il a personnellement lu, écouté ou mis en favori. Sa proposition initiale portait sur le filtre « Statut » de la barre de recherche, mais l'examen du code a montré que ce filtre n'était que la moitié du problème : les badges `★ Favori` / `Lu` / `Écouté` (`formatBadges()`, utilisée sur les vignettes des pages auteur et des résultats de recherche, et `readOnlyStatuses()`, utilisée sur la fiche d'un livre pour un visiteur) s'affichaient à tout le monde, propriétaire ou pas — masquer seulement le filtre n'aurait rien empêché de voir sur une fiche ouverte directement.
+
+**Correctif appliqué** : le filtre Statut (`#filter-status`) est désormais masqué pour les visiteurs — `syncStatusFilterVisibility()`, appelée au chargement et à chaque bascule du mode propriétaire (`setOwner()`), le cache et réinitialise sa valeur si besoin ; `formatBadges()` n'affiche plus les trois badges personnels qu'en mode propriétaire ; `readOnlyStatuses()` ne renvoie plus rien. Les badges de format (`Ebook`/`PDF`/`Audio`) et le genre restent visibles pour tous, puisqu'ils ne révèlent rien sur l'usage personnel de Christophe.
+
+**Vérifié** par un script Playwright dédié (visiteur : filtre caché, aucun badge personnel sur la page auteur ni sur la fiche d'un livre, badges de format toujours visibles ; propriétaire : filtre visible et fonctionnel) et par le repassage des suites anomalies et aide-propriétaire — aucune régression. Livré le 2026-10-17.
+
+
+### 4.25 Tentative de récupération automatique des couvertures sur Fnac.com — abandonnée
+
+Christophe a demandé si Claude pouvait aller chercher automatiquement, sur fnac.com, les couvertures des **668 livres** qui n'en ont encore aucune, et les associer directement aux fiches (ce qui demanderait la clé `service_role`, que Claude ne détient jamais — voir §4.3) ou au minimum récupérer les images pour que Christophe les associe lui-même.
+
+**Méthode testée** : navigation vers la page de résultats Fnac, extraction de l'URL de l'image par script dans la page, puis **navigation directe vers cette URL d'image** (pour éviter les soucis CORS/canvas qu'aurait une capture depuis la page de résultats elle-même), capture via `<canvas>` + `toDataURL()`, puis décodage en fichier `.jpg` nommé par l'identifiant du livre. Sur un **lot test de 20 livres**, la méthode a fonctionné mais s'est révélée lente et coûteuse en tokens, avec deux complications :
+- **Un défaut visuel** (fin liseré noir en haut et en bas de l'image) sur les 20 premières captures, causé par un canevas non redimensionné pour chaque image — corrigé pour 11 des 20 images, les 9 autres sont restées affectées.
+- **Une tentative de déléguer la suite à un agent moins coûteux (Claude Haiku, à la demande de Christophe pour limiter la consommation de tokens)** a échoué intégralement (0 couverture récupérée sur 9) : l'agent a rapporté que le site bloquait ses requêtes, un diagnostic que Claude a pu **vérifier comme faux** en accédant sans problème aux mêmes images juste après. La cause réelle est probablement un blocage technique similaire à celui rencontré par Claude lui-même sur une étape de décodage d'image (`img.decode()`, qui peut rester bloqué plusieurs dizaines de secondes dans cet environnement) — mais l'agent a fourni une explication incorrecte plutôt que de signaler l'échec tel qu'il était.
+
+**Décision de Christophe (18/10/2026) : abandonner la récupération automatique**, le temps de traitement constaté (plusieurs dizaines de minutes et plusieurs centaines de milliers de tokens pour moins de 20 couvertures) étant disproportionné par rapport au gain. **Les 668 livres sans couverture le restent** ; l'app affiche pour eux une jaquette générée (voir §4.11), ce qui est un comportement normal et déjà prévu.
+
+**Ce qui reste utilisable** : la fonction de dépôt manuel (section 6 de l'outil, voir §4.8) pour une couverture trouvée et enregistrée à la main par Christophe, et la nouvelle **section 9** (voir §4.6) qui permet d'en déposer **plusieurs à la fois** si leur nom de fichier est l'identifiant du livre — pensée pour ce cas précis, au cas où Christophe voudrait un jour en récupérer quelques-unes lui-même sans repasser une par une dans la section 6.
+
+**Leçon pour une tentative future** (si la question revient) : un script déterministe (recherche → extraction d'URL → téléchargement → redimensionnement), sans agent conversationnel pour l'exécution mécanique, serait probablement plus rapide et moins coûteux en tokens qu'une délégation à un agent — IA réservée aux seuls cas ambigus (titre introuvable, plusieurs éditions, série).
+
+### 4.26 Lien vers l'outil d'import depuis les réglages (quinzième retour)
+
+Christophe a demandé que `supabase_import_tool.html` soit accessible depuis un lien dans la page de réglages (roue crantée), réservé au propriétaire — plutôt que seulement par un double-clic sur le fichier local.
+
+**Ce qui change concrètement** : le fichier est désormais **déployé avec le reste de l'application** (copié à la racine de `webapp/`, au même niveau qu'`index.html`), et un bouton « Ouvrir l'outil d'import Supabase » apparaît dans les réglages — juste avant la rubrique Aide, qui en documente l'usage — mais **seulement en mode propriétaire** (`${OWNER ? ... : ''}`, le même garde déjà utilisé pour les autres rubriques privées). Le lien ouvre le fichier dans un nouvel onglet (`target="_blank" rel="noopener"`).
+
+**Ce que ça ne change pas côté sécurité réelle.** Une fois déployé sur GitHub Pages, le fichier `supabase_import_tool.html` est un fichier public comme un autre : masquer son lien n'empêche pas quelqu'un de déterminé de deviner ou de trouver son adresse directement. Mais ce n'était déjà pas un problème avant (voir §4.15 et §4.23) : l'outil ne fait rien tant que sa clé `service_role` n'est pas collée dedans, et cette clé n'est écrite nulle part, ni sur le disque ni dans le dépôt — seul Christophe la connaît. Le lien réservé au propriétaire est donc, comme le code du mode propriétaire, **un garde-fou de confort, pas une serrure** : il évite qu'un visiteur curieux tombe sur l'outil en explorant les réglages, rien de plus, et c'est suffisant puisque rien d'utile ne peut en être fait sans la clé.
+
+**Le fichier conservé dans le dossier « Claude outputs »** reste aussi utilisable directement par double-clic (c'est la même page, juste une seconde copie) — pratique si Christophe préfère ne pas dépendre d'une connexion pour s'en servir.
+
+**Mis à jour en même temps, pour rester synchronisés** : le texte de la rubrique Aide (mention du nouveau bouton) et `Mode_emploi_proprietaire.pdf`/`mode_emploi.md` (section 7 renommée, et un neuvième bloc ajouté — « Importer un lot de couvertures », §4.25 — qui n'avait jamais été documenté dans l'aide malgré sa présence dans l'outil depuis le 17/10/2026).
+
+**Vérifié** par un test Playwright dédié : un visiteur ne voit ni la rubrique ni le lien ; le propriétaire voit la rubrique, le lien pointe vers `supabase_import_tool.html`, s'ouvre dans un nouvel onglet avec `rel="noopener"`, et la rubrique Aide reste présente juste après. Les sept autres suites repassent sans régression. Livré le 2026-10-20.
 
 ## 5. Prochaines étapes (dans l'ordre)
 
@@ -552,7 +610,7 @@ C'est l'argument le plus net en faveur de cet écran : il ne corrige pas seuleme
 12. **Christophe relance la section 5 de l'outil** avec la recherche assouplie (§4.12) : elle devrait proposer ~360 couvertures sur les 906 manquantes. Il clique « Cocher les correspondances fiables », parcourt les propositions « probables » (titres souvent en anglais, vignette à l'appui), décoche ce qui ne va pas, puis téléverse.
 13. Pour les couvertures encore manquantes après la recherche automatique, Christophe peut utiliser la section 6 (manuel) pour déposer une image trouvée lui-même sur un autre site.
 14. Facultatif, nettoyages repérés au passage (sections 7 et 8 de l'outil) : renommer l'auteur « Rosnay Tatiana » en « Tatiana de Rosnay » ; renommer les titres « McFadden Freida - t9 L'intruse » et « McFadden Freida - t10 Le Dîner » ; une fiche Freida McFadden porte le titre « Unknown » ; et quelques doublons de traduction subsistent chez elle (*La femme de ménage voit tout* / *La femme de ménage T3 : La femme de ménage voit tout*, *Les secrets de la femme de ménage* / *La femme de ménage 2 - Les Secrets de la femme de ménage*).
-15. Renommer sur le disque `Mes Ebooks\AA- Intégrale de la Team 8-1-2012` (caractère mal encodé) pour que les prochaines synchros puissent lire ce dossier — voir la limite signalée en fin de §4.10.
+15. ~~Renommer sur le disque `Mes Ebooks\AA- Intégrale de la Team 8-1-2012` (caractère mal encodé) pour que les prochaines synchros puissent lire ce dossier — voir la limite signalée en fin de §4.10.~~ **Fait le 2026-10-17 — voir §4.22. Les trois dossiers « Team » vérifiés, aucune synchronisation nécessaire.**
 16. **Christophe exécute `migration_2026-10_masquage_et_titres.sql`** dans Supabase Studio → SQL Editor (§4.13). **À faire avant le redéploiement de l'app.**
 17. **Christophe redéploie l'app sur GitHub** avec les fichiers refondus (`index.html`, `css/style.css`, `js/app.js` — voir §4.11, §4.13, §4.16 et §4.17), puis ouvre la roue crantée pour choisir son thème. Les autres fichiers du dossier (`js/config.js`, `manifest.json`, `icons/`) sont inchangés.
 18. **Christophe exécute `migration_2026-10_series.sql`** dans Supabase (§4.16), relit `series-detectees.xlsx`, puis importe `4_series_2026-10.json` avec la **section 7** de l'outil. Attendu : 1051 livres mis à jour.
@@ -561,6 +619,10 @@ C'est l'argument le plus net en faveur de cet écran : il ne corrige pas seuleme
 21. ~~**Christophe redéploie `js/app.js` et `css/style.css`** (flèches entre auteurs, §4.17 ; écran des anomalies, §4.19), puis ouvre les réglages et parcourt les six familles.~~ **Fait le 16/10/2026.**
 22. ~~Transmettre à Claude les listes des familles « Auteur et titre intervertis » et « Noms d'auteurs mal découpés ».~~ **Fait — `correctifs_2026-10_inversions.sql` puis `correctifs_2026-10_coauteurs.sql` exécutés le 16/10/2026. Vérifié : 433 auteurs, cinq des six familles vides.**
 23. Remonter à Claude tout nouveau souci précis (nom du livre concerné) pour correction.
+24. ~~**Mode d'emploi propriétaire, en PDF et dans l'application (rubrique Aide des réglages)** — voir §4.23.~~ **Fait le 2026-10-17.**
+25. ~~**Christophe redéploie `js/app.js`** (filtre Statut et badges personnels masqués pour les visiteurs — voir §4.24).~~ **Fait le 2026-10-17.**
+26. ~~Récupérer automatiquement les couvertures manquantes sur Fnac.com.~~ **Abandonné le 2026-10-18 — voir §4.25.** Les 668 livres sans couverture le restent (jaquette générée). Option qui demeure : dépôt manuel via la section 6, ou import par lot via la section 9 de l'outil.
+27. **Christophe redéploie `js/app.js`, `css/style.css` et `supabase_import_tool.html`** (ce dernier à la racine de `webapp/`, au même niveau qu'`index.html` — les trois fichiers sont déjà déposés sur le disque dans ce dossier) sur son dépôt GitHub, pour que le lien d'import apparaisse dans les réglages — voir §4.26.
 
 ## 6. Notes pour une reprise future du projet
 

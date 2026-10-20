@@ -70,7 +70,7 @@
 <body>
 <div class="wrap">
   <h1>Ma Bibliothèque — Outil d'import Supabase</h1>
-  <p class="subtitle">Outil autonome à ouvrir directement dans ton navigateur (double-clic sur le fichier). Il tourne entièrement en local et ne communique qu'avec ton propre projet Supabase — jamais avec Claude.</p>
+  <p class="subtitle">Outil autonome — accessible depuis les réglages de l'application (mode propriétaire), ou directement par un double-clic sur ce fichier. Il tourne entièrement dans ton navigateur et ne communique qu'avec ton propre projet Supabase — jamais avec Claude.</p>
 
   <div class="warn">
     ⚠️ La clé <strong>service_role</strong> donne un accès total à ta base (lecture/écriture/suppression, sans aucune restriction). Ne la partage avec personne d'autre que toi-même, et ne colle jamais ce fichier rempli quelque part en ligne. Elle reste uniquement dans la mémoire de cette page — elle n'est ni sauvegardée, ni envoyée ailleurs qu'à l'adresse Supabase ci-dessous.
@@ -133,7 +133,7 @@
   <div class="card">
     <h2><span class="num">5</span>Rechercher automatiquement les couvertures manquantes</h2>
     <p class="hint">
-      Recherche sur Open Library une couverture pour chaque livre qui n'en a pas encore, en essayant une recherche plus souple que lors de l'import initial (beaucoup de couvertures existaient sur Open Library mais n'avaient pas été trouvées). Rien n'est modifié tant que tu n'as pas coché puis cliqué sur « Téléverser la sélection » — tu vois chaque couverture proposée avant de l'appliquer.
+      Recherche sur Open Library une couverture pour chaque livre qui n'en a pas encore. La recherche porte sur le titre seul, puis l'auteur est vérifié dans les résultats : sur un échantillon de 50 livres de la base, cette méthode en retrouve 22 contre 6 pour l'ancienne. Open Library étant surtout alimenté en éditions anglaises, beaucoup de propositions porteront un titre anglais : c'est le même ouvrage, mais seule la vignette permet de le confirmer, d'où le niveau « probable », affiché mais laissé décoché. Clique sur une vignette pour l'agrandir. Rien n'est modifié tant que tu n'as pas coché puis cliqué sur « Téléverser la sélection » — tu vois chaque couverture proposée avant de l'appliquer.
     </p>
     <button id="btn-find-covers">1. Chercher les livres sans couverture</button>
     <div class="hint" id="find-covers-status"></div>
@@ -141,6 +141,7 @@
     <div id="find-covers-controls" style="display:none; margin-top:1rem;">
       <div class="row" style="align-items:center;">
         <div><button id="btn-select-confident" class="secondary" type="button">Cocher les correspondances fiables</button></div>
+        <div><button id="btn-select-probable" class="secondary" type="button">Cocher aussi les probables</button></div>
         <div><button id="btn-select-none" class="secondary" type="button">Tout décocher</button></div>
         <div style="flex:none; align-self:center;"><span id="find-covers-summary" class="hint"></span></div>
       </div>
@@ -152,7 +153,37 @@
   </div>
 
   <div class="card">
-    <h2><span class="num">6</span>Requête personnalisée (avancé)</h2>
+    <h2><span class="num">6</span>Ajouter une couverture trouvée ailleurs (manuel)</h2>
+    <p class="hint">
+      Pour les livres où même la recherche élargie (étape 5) ne trouve rien sur Open Library. Trouve toi-même une image de couverture (Fnac, Amazon, Babelio, une recherche d'images…), enregistre-la sur ton ordinateur (clic droit → « Enregistrer l'image sous »), puis dépose-la ici — pour ta bibliothèque strictement personnelle, pas pour republier l'image ailleurs.
+    </p>
+    <label for="manual-cover-author">Auteur (exactement comme dans l'app)</label>
+    <input type="text" id="manual-cover-author" placeholder="ex. Isaac Asimov">
+    <label for="manual-cover-title">Titre (exactement comme dans l'app)</label>
+    <input type="text" id="manual-cover-title" placeholder="ex. Fondation et empire">
+    <label for="manual-cover-file">Image de couverture</label>
+    <input type="file" id="manual-cover-file" accept="image/*">
+    <button id="btn-manual-cover">Téléverser cette couverture</button>
+    <div class="log" id="manual-cover-log" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">7</span>Mettre à jour des livres déjà en base (champs choisis)</h2>
+    <p class="hint">
+      Pour modifier certains champs d'un livre déjà présent, sans toucher aux autres — par exemple activer <code>has_audio</code> quand tu ajoutes la version audio d'un livre que tu as déjà en ebook. Format attendu :
+      <code>[{"author_name": "...", "title": "...", "fields": {"has_audio": true}}, ...]</code> — <code>author_name</code> et <code>title</code> doivent correspondre exactement à ce qui existe déjà en base (l'outil retrouve le livre par cette combinaison exacte, comme pour les autres sections). Les entrées non trouvées sont listées sans rien modifier.
+    </p>
+    <label>Fichier .json (optionnel)</label>
+    <input type="file" id="update-fields-file" accept=".json">
+    <label>ou collé directement ici</label>
+    <textarea id="update-fields-json" placeholder='[{"author_name": "...", "title": "...", "fields": {"has_audio": true}}]'></textarea>
+    <button id="btn-update-fields">Mettre à jour</button>
+    <div class="progress" id="update-fields-progress-wrap" style="display:none;"><div id="update-fields-progress"></div></div>
+    <div class="log" id="update-fields-log" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">8</span>Requête personnalisée (avancé)</h2>
     <p class="hint">Pour un correctif ponctuel que les sections ci-dessus ne couvrent pas. Exemple : <code>PATCH /rest/v1/books?title=eq.Un+Monde+Sans+Fin</code> avec le corps <code>{"genre": "Historique"}</code>. À utiliser avec précaution — ceci parle directement à ta base avec les pleins pouvoirs.</p>
     <div class="row">
       <div>
@@ -170,6 +201,18 @@
     <textarea id="custom-body" style="min-height:80px;" placeholder='{"champ": "valeur"}'></textarea>
     <button id="btn-custom">Exécuter</button>
     <div class="log" id="custom-log" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">9</span>Importer un lot de couvertures (fichiers nommés par identifiant)</h2>
+    <p class="hint">
+      Pour associer d'un coup plusieurs couvertures trouvées ailleurs (Fnac, Amazon, Babelio…) — typiquement un lot préparé par Claude. Chaque image doit être nommée exactement <code>&lt;identifiant du livre&gt;.jpg</code> (ou <code>.png</code>/<code>.webp</code>) ; l'identifiant est donné avec le lot, pas besoin de taper l'auteur ni le titre — ça évite toute confusion entre deux livres qui se ressembleraient. Sélectionne toutes les images du lot d'un coup (Ctrl/Cmd-clic, ou glisser-déposer plusieurs fichiers dans le champ).
+    </p>
+    <label for="batch-cover-files">Images du lot</label>
+    <input type="file" id="batch-cover-files" accept="image/*" multiple>
+    <button id="btn-batch-covers">Téléverser le lot</button>
+    <div class="progress" id="batch-cover-progress-wrap" style="display:none;"><div id="batch-cover-progress"></div></div>
+    <div class="log" id="batch-cover-log" style="display:none;"></div>
   </div>
 
 </div>
@@ -290,13 +333,30 @@ document.getElementById('btn-books').addEventListener('click', async () => {
     }
 
     // Charger les livres existants (author_id+title) pour éviter les doublons
+    // On charge TOUTES les fiches, y compris celles masquées depuis l'app :
+    // une fiche masquée est une pierre tombale, elle doit continuer à bloquer
+    // la réinsertion du livre. On indexe aussi source_title, qui porte
+    // l'orthographe du disque quand le titre affiché a été corrigé — sans
+    // quoi une correction de faute de frappe ferait recréer un doublon.
     let existing = new Set();
+    let hiddenHits = 0, renamedHits = 0;
+    const hiddenKeys = new Set(), renamedKeys = new Set();
     {
       let offset = 0;
       while (true) {
-        const res = await sbFetch(`/rest/v1/books?select=author_id,title&order=id.asc&offset=${offset}&limit=1000`);
+        const res = await sbFetch(`/rest/v1/books?select=author_id,title,source_title,is_hidden&order=id.asc&offset=${offset}&limit=1000`);
         const page = await res.json();
-        for (const b of page) existing.add(b.author_id + '||' + b.title);
+        for (const b of page) {
+          const k = b.author_id + '||' + b.title;
+          existing.add(k);
+          if (b.is_hidden) hiddenKeys.add(k);
+          if (b.source_title) {
+            const ks = b.author_id + '||' + b.source_title;
+            existing.add(ks);
+            renamedKeys.add(ks);
+            if (b.is_hidden) hiddenKeys.add(ks);
+          }
+        }
         if (page.length < 1000) break;
         offset += 1000;
       }
@@ -309,7 +369,13 @@ document.getElementById('btn-books').addEventListener('click', async () => {
     for (const it of items) {
       const authorId = authorMap[it.author_name];
       if (!authorId) { missingAuthor++; continue; }
-      if (existing.has(authorId + '||' + it.title)) { skippedDup++; continue; }
+      const key = authorId + '||' + it.title;
+      if (existing.has(key)) {
+        skippedDup++;
+        if (hiddenKeys.has(key)) hiddenHits++;
+        else if (renamedKeys.has(key)) renamedHits++;
+        continue;
+      }
       toInsert.push({
         author_id: authorId,
         title: it.title,
@@ -326,6 +392,8 @@ document.getElementById('btn-books').addEventListener('click', async () => {
     }
     if (missingAuthor) logTo('books-log', `⚠️ ${missingAuthor} livre(s) ignoré(s) : auteur inconnu (importe-le d'abord à l'étape 2).`, 'err');
     if (skippedDup) logTo('books-log', `${skippedDup} livre(s) déjà présents, ignorés (pas de doublon créé).`, 'info');
+    if (hiddenHits) logTo('books-log', `dont ${hiddenHits} correspondant à une fiche masquée depuis l'app : volontairement non recréé(s).`, 'info');
+    if (renamedHits) logTo('books-log', `dont ${renamedHits} retrouvé(s) grâce au titre d'origine conservé (titre corrigé dans l'app).`, 'info');
     if (!toInsert.length) { logTo('books-log', 'Rien à insérer.', 'info'); btn.disabled = false; return; }
 
     logTo('books-log', `Insertion de ${toInsert.length} nouveau(x) livre(s)…`, 'info');
@@ -505,28 +573,106 @@ async function fetchAllPaginated(pathBuilder){
   return out;
 }
 
-async function searchOpenLibraryCandidate(title, authorName){
-  const q = `${title} ${authorName}`;
-  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=5&fields=title,cover_i,author_name,language`;
-  let json;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    json = await res.json();
-  } catch (e) {
-    return null;
-  }
-  const docs = (json && json.docs) || [];
-  let best = null;
-  for (const d of docs) {
-    if (!d.cover_i) continue;
-    const aConf = authorConfidence(authorName, d.author_name);
-    if (aConf < 0.5) continue; // l'auteur doit au moins correspondre partiellement
-    const tConf = titleConfidence(title, d.title || '');
-    const score = aConf * 0.6 + tConf * 0.4;
-    if (!best || score > best.score) {
-      best = { cover_i: d.cover_i, title: d.title, author_name: (d.author_name || []).join(', '), authorConf: aConf, titleConf: tConf, score };
+// Nettoie un titre avant la recherche : mentions de tome, crochets, parenthèses,
+// année, et sous-titre après un tiret ou deux points. « Graal tome 07 » -> « Graal ».
+function cleanTitleForSearch(t, authorName){
+  let s = (t || '');
+  // Certaines fiches portent le nom de l'auteur dans le titre
+  // (« McFadden Freida - t10 Le Dîner ») : on retire ce morceau avant tout,
+  // sinon la recherche se ferait sur le nom de l'auteur au lieu du titre.
+  if (authorName) {
+    const parts = s.split(/\s+[-–—]\s+/);
+    if (parts.length > 1) {
+      const ln = lastNameOf(authorName);
+      const kept = parts.filter(x => {
+        const w = normalizeStr(x).split(' ').filter(Boolean);
+        return !(ln && w.length <= 3 && w.indexOf(ln) !== -1);
+      });
+      if (kept.length) s = kept.join(' - ');
     }
+  }
+  s = s.replace(/\[[^\]]*\]/g, ' ').replace(/\([^)]*\)/g, ' ');
+  s = s.replace(/\b(tome|vol|volume|livre|cycle|saga|int[ée]grale|integrale)\s*\.?\s*[0-9]+\b/gi, ' ');
+  s = s.replace(/\bt\s?\d+\b/gi, ' ');
+  s = s.replace(/\b(19|20)\d{2}\b/g, ' ');
+  s = s.split(/\s+[-–—:_]\s+/)[0];
+  s = s.replace(/\s{2,}/g, ' ').trim();
+  return s || t;
+}
+
+function lastNameOf(name){
+  const w = normalizeStr(name).split(' ').filter(x => x.length > 2);
+  return w.length ? w[w.length - 1] : '';
+}
+
+// Open Library donne souvent l'auteur sous une autre forme (« A. E. van Vogt »
+// pour « Alfred E Van Vogt ») : le nom de famille seul suffit alors à rapprocher.
+function lastNameMatches(actualAuthorName, candidateAuthorNames){
+  const ln = lastNameOf(actualAuthorName);
+  if (!ln) return false;
+  return (candidateAuthorNames || []).some(c => normalizeStr(c).split(' ').indexOf(ln) !== -1);
+}
+
+async function olSearch(q, limit){
+  if (!q || !q.trim()) return [];
+  const url = 'https://openlibrary.org/search.json?q=' + encodeURIComponent(q) +
+              '&limit=' + limit + '&fields=title,cover_i,author_name,language';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (res.status === 429) { await new Promise(r => setTimeout(r, 1500)); continue; }
+      if (!res.ok) return [];
+      const json = await res.json();
+      return ((json && json.docs) || []).filter(d => d.cover_i);
+    } catch (e) { return []; }
+  }
+  return [];
+}
+
+// Cherche une couverture pour un livre.
+//
+// L'ancienne version lançait UNE requête « titre + auteur » limitée à 5 résultats :
+// mesurée sur 50 livres de la base, elle n'en retrouvait que 6. Open Library est
+// surtout alimenté en éditions anglaises, et y ajouter l'auteur dégrade le
+// classement. Chercher le TITRE SEUL sur 20 résultats puis vérifier l'auteur dans
+// les réponses en retrouve 22 sur les mêmes 50.
+async function searchOpenLibraryCandidate(title, authorName){
+  const ct = cleanTitleForSearch(title, authorName);
+  const plans = [{ q: ct, limit: 20, titleOnly: true }];
+  if (normalizeStr(ct) !== normalizeStr(title)) plans.push({ q: title, limit: 20, titleOnly: true });
+  plans.push({ q: ct + ' ' + authorName, limit: 10, titleOnly: false });
+
+  const seen = {};
+  let best = null;
+  for (const plan of plans) {
+    const docs = await olSearch(plan.q, plan.limit);
+    for (let rank = 0; rank < docs.length; rank++) {
+      const d = docs[rank];
+      if (!d.cover_i || seen[d.cover_i]) continue;
+      seen[d.cover_i] = true;
+      const aConf = authorConfidence(authorName, d.author_name);
+      const byLast = lastNameMatches(authorName, d.author_name);
+      if (aConf < 0.5 && !byLast) continue;
+      const tConf = Math.max(titleConfidence(title, d.title || ''),
+                             titleConfidence(ct, d.title || ''));
+      const aScore = Math.max(aConf, byLast ? 0.7 : 0);
+      const score = aScore * 0.55 + tConf * 0.45;
+      if (!best || score > best.score) {
+        best = {
+          cover_i: d.cover_i,
+          title: d.title,
+          author_name: (d.author_name || []).join(', '),
+          authorConf: aConf,
+          titleConf: tConf,
+          byLastName: byLast,
+          rank: rank,
+          titleOnly: plan.titleOnly,
+          score: score
+        };
+      }
+    }
+    // correspondance parfaite (même auteur, même titre) : inutile d'insister
+    if (best && best.authorConf >= 0.99 && best.titleConf >= 0.99) break;
   }
   return best;
 }
@@ -536,36 +682,57 @@ function escapeHtmlLocal(s){
 }
 
 function isConfidentCandidate(candidate){
-  return !!candidate && candidate.authorConf >= 0.99 && candidate.titleConf >= 0.5;
+  return candidateTier(candidate) === 'fiable';
+}
+
+// Trois niveaux, parce qu'une édition anglaise ne peut pas être vérifiée sur le titre :
+//  - fiable   : même auteur ET titre qui se recoupe (édition française retrouvée)
+//  - probable : même auteur, trouvé en tête d'une recherche sur le titre seul.
+//               C'est très probablement le même ouvrage dans une autre langue,
+//               mais seul l'œil peut trancher : la vignette est affichée.
+//  - incertain: rapprochement faible, laissé décoché.
+function candidateTier(c){
+  if (!c) return null;
+  if (c.authorConf >= 0.99 && c.titleConf >= 0.5) return 'fiable';
+  if ((c.authorConf >= 0.99 || c.byLastName) && c.titleOnly && c.rank <= 4) return 'probable';
+  return 'incertain';
 }
 
 function renderFoundCovers(){
   const box = document.getElementById('find-covers-results');
   box.innerHTML = '';
-  let withCandidate = 0, confident = 0, noCandidate = 0;
+  const LABEL = {
+    fiable:    { txt: '✓ correspondance fiable', col: 'var(--ok)' },
+    probable:  { txt: '≈ probable (titre dans une autre langue)', col: '#8a6d2f' },
+    incertain: { txt: '⚠ incertain', col: '#a8763f' }
+  };
+  let withCandidate = 0, nFiable = 0, nProbable = 0, noCandidate = 0;
   FOUND_COVERS.forEach((item, idx) => {
     if (!item.candidate) { noCandidate++; return; }
     withCandidate++;
-    const confident_ = isConfidentCandidate(item.candidate);
-    if (confident_) confident++;
+    const tier = candidateTier(item.candidate);
+    if (tier === 'fiable') nFiable++;
+    if (tier === 'probable') nProbable++;
+    const lab = LABEL[tier] || LABEL.incertain;
     const row = document.createElement('div');
     row.style.cssText = 'display:flex; gap:0.8rem; padding:0.7rem 0.9rem; border-bottom:1px solid var(--line); align-items:center;';
     const coverUrl = `https://covers.openlibrary.org/b/id/${item.candidate.cover_i}-M.jpg`;
+    const zoomUrl  = `https://covers.openlibrary.org/b/id/${item.candidate.cover_i}-L.jpg`;
     row.innerHTML = `
-      <input type="checkbox" data-idx="${idx}" class="cover-check" ${confident_ ? 'checked' : ''} style="width:18px; height:18px; flex:none;">
-      <img src="${coverUrl}" alt="" loading="lazy" style="width:40px; height:58px; object-fit:cover; border-radius:4px; background:var(--lin); flex:none;">
+      <input type="checkbox" data-idx="${idx}" data-tier="${tier}" class="cover-check" ${tier === 'fiable' ? 'checked' : ''} style="width:18px; height:18px; flex:none;">
+      <img src="${coverUrl}" data-zoom="${zoomUrl}" alt="Couverture proposée" title="Cliquer pour agrandir" loading="lazy" style="width:58px; height:84px; object-fit:cover; border-radius:4px; background:var(--lin); flex:none; cursor:zoom-in;">
       <div style="flex:1; min-width:0; font-size:0.82rem;">
         <div style="font-weight:600;">${escapeHtmlLocal(item.title)}</div>
         <div style="color:var(--sub);">${escapeHtmlLocal(item.author_name)}</div>
-        <div style="color:${confident_ ? 'var(--ok)' : '#a8763f'}; font-size:0.74rem; margin-top:0.15rem;">
-          ${confident_ ? '✓ correspondance fiable' : '⚠ à vérifier'} — trouvé : « ${escapeHtmlLocal(item.candidate.title || '')} » par ${escapeHtmlLocal(item.candidate.author_name || '')}
+        <div style="color:${lab.col}; font-size:0.74rem; margin-top:0.15rem;">
+          ${lab.txt} — trouvé : « ${escapeHtmlLocal(item.candidate.title || '')} » par ${escapeHtmlLocal(item.candidate.author_name || '')}
         </div>
       </div>
     `;
     box.appendChild(row);
   });
   document.getElementById('find-covers-summary').textContent =
-    `${withCandidate} correspondance(s) trouvée(s) (${confident} fiable(s)), ${noCandidate} sans résultat.`;
+    `${withCandidate} proposition(s) : ${nFiable} fiable(s), ${nProbable} probable(s). ${noCandidate} sans résultat.`;
 }
 
 document.getElementById('btn-find-covers').addEventListener('click', async () => {
@@ -578,7 +745,8 @@ document.getElementById('btn-find-covers').addEventListener('click', async () =>
     const authorById = {};
     for (const a of authorsList) authorById[a.id] = a.name;
 
-    const books = await fetchAllPaginated(offset => `/rest/v1/books?select=id,title,author_id&cover_path=is.null&order=id.asc&offset=${offset}&limit=1000`);
+    // les fiches masquées sont exclues : inutile de leur chercher une couverture
+    const books = await fetchAllPaginated(offset => `/rest/v1/books?select=id,title,author_id&cover_path=is.null&is_hidden=is.false&order=id.asc&offset=${offset}&limit=1000`);
     if (!books.length) {
       document.getElementById('find-covers-status').textContent = 'Aucun livre sans couverture — tout est déjà illustré 🎉';
       btn.disabled = false;
@@ -588,7 +756,7 @@ document.getElementById('btn-find-covers').addEventListener('click', async () =>
 
     FOUND_COVERS = books.map(b => ({ id: b.id, title: b.title, author_name: authorById[b.author_id] || '(auteur inconnu)', candidate: null }));
 
-    const CONC = 5;
+    const CONC = 4; // chaque livre déclenche jusqu'à 3 requêtes : on reste doux avec Open Library
     let processed = 0;
     for (let i = 0; i < FOUND_COVERS.length; i += CONC) {
       const chunk = FOUND_COVERS.slice(i, i + CONC);
@@ -607,6 +775,13 @@ document.getElementById('btn-find-covers').addEventListener('click', async () =>
   } finally {
     btn.disabled = false;
   }
+});
+
+document.getElementById('btn-select-probable').addEventListener('click', () => {
+  document.querySelectorAll('.cover-check').forEach(cb => {
+    const t = cb.getAttribute('data-tier');
+    if (t === 'fiable' || t === 'probable') cb.checked = true;
+  });
 });
 
 document.getElementById('btn-select-confident').addEventListener('click', () => {
@@ -640,7 +815,104 @@ document.getElementById('btn-apply-covers').addEventListener('click', async () =
   }
 });
 
-// ---------- 6. Requête personnalisée ----------
+// ---------- 6. Couverture manuelle (fichier local) ----------
+document.getElementById('btn-manual-cover').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-manual-cover');
+  const authorName = document.getElementById('manual-cover-author').value.trim();
+  const title = document.getElementById('manual-cover-title').value.trim();
+  const fileInput = document.getElementById('manual-cover-file');
+  if (!authorName || !title) { logTo('manual-cover-log', 'Renseigne l\'auteur et le titre.', 'err'); return; }
+  if (!fileInput.files || !fileInput.files[0]) { logTo('manual-cover-log', 'Choisis un fichier image.', 'err'); return; }
+  btn.disabled = true;
+  try {
+    const authorsList = await fetchAllPaginated(offset => `/rest/v1/authors?select=id,name&order=id.asc&offset=${offset}&limit=1000`);
+    const authorMap = {};
+    for (const a of authorsList) authorMap[a.name] = a.id;
+    const authorId = authorMap[authorName];
+    if (!authorId) throw new Error(`Auteur "${authorName}" introuvable (vérifie l'orthographe exacte).`);
+
+    const booksList = await fetchAllPaginated(offset => `/rest/v1/books?select=id,author_id,title,source_title&order=id.asc&offset=${offset}&limit=1000`);
+    const book = booksList.find(b => b.author_id === authorId &&
+                                     (b.title === title || b.source_title === title));
+    if (!book) throw new Error(`Livre "${title}" introuvable pour cet auteur (vérifie l'orthographe exacte).`);
+
+    const file = fileInput.files[0];
+    const ext = file.type === 'image/png' ? 'png' : (file.type === 'image/webp' ? 'webp' : 'jpg');
+    const path = `${book.id}.${ext}`;
+    const c = cfg();
+    const upRes = await fetch(`${c.url}/storage/v1/object/covers/${path}`, {
+      method: 'POST',
+      headers: { apikey: c.key, Authorization: 'Bearer ' + c.key, 'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' },
+      body: file,
+    });
+    if (!upRes.ok) throw new Error('envoi storage ' + upRes.status);
+    const patchRes = await sbFetch(`/rest/v1/books?id=eq.${book.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ cover_path: path }),
+    });
+    if (!patchRes.ok) throw new Error('mise à jour cover_path ' + patchRes.status);
+    logTo('manual-cover-log', `✓ Couverture ajoutée pour "${title}" (${authorName}).`, 'ok');
+  } catch (e) {
+    logTo('manual-cover-log', 'Erreur : ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- 7. Mise à jour de champs sur des livres existants ----------
+document.getElementById('btn-update-fields').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-update-fields');
+  btn.disabled = true;
+  try {
+    const items = await readJsonInput('update-fields-file', 'update-fields-json');
+    if (!Array.isArray(items) || !items.length) throw new Error('Le JSON doit être un tableau non vide.');
+
+    const authorsList = await fetchAllPaginated(offset => `/rest/v1/authors?select=id,name&order=id.asc&offset=${offset}&limit=1000`);
+    const authorMap = {};
+    for (const a of authorsList) authorMap[a.name] = a.id;
+
+    const booksList = await fetchAllPaginated(offset => `/rest/v1/books?select=id,author_id,title,source_title&order=id.asc&offset=${offset}&limit=1000`);
+    const bookMap = {};
+    for (const b of booksList) {
+      bookMap[b.author_id + '||' + b.title] = b.id;
+      // un titre corrigé dans l'app reste joignable par son orthographe d'origine
+      if (b.source_title) bookMap[b.author_id + '||' + b.source_title] = b.id;
+    }
+
+    let done = 0, unresolved = 0;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const authorId = authorMap[it.author_name];
+      const bookId = authorId && bookMap[authorId + '||' + it.title];
+      if (!bookId) {
+        unresolved++;
+        logTo('update-fields-log', `✗ introuvable : ${it.author_name} — ${it.title}`, 'err');
+      } else {
+        const res = await sbFetch(`/rest/v1/books?id=eq.${bookId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(it.fields || {}),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          logTo('update-fields-log', `✗ erreur sur ${it.title}: HTTP ${res.status} ${text}`, 'err');
+        } else {
+          done++;
+          logTo('update-fields-log', `✓ ${it.author_name} — ${it.title}`, 'ok');
+        }
+      }
+      setProgress('update-fields-progress-wrap', 'update-fields-progress', Math.round(((i + 1) / items.length) * 100));
+    }
+    logTo('update-fields-log', `Terminé : ${done} livre(s) mis à jour, ${unresolved} non trouvé(s).`, unresolved ? 'err' : 'ok');
+  } catch (e) {
+    logTo('update-fields-log', 'Erreur : ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- 8. Requête personnalisée ----------
 document.getElementById('btn-custom').addEventListener('click', async () => {
   const method = document.getElementById('custom-method').value;
   const path = document.getElementById('custom-path').value.trim();
@@ -657,6 +929,106 @@ document.getElementById('btn-custom').addEventListener('click', async () => {
     logTo('custom-log', 'Erreur : ' + e.message, 'err');
   }
 });
+
+// ---------- 9. Import groupé de couvertures (fichiers nommés par identifiant) ----------
+document.getElementById('btn-batch-covers').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-batch-covers');
+  const input = document.getElementById('batch-cover-files');
+  const files = Array.from(input.files || []);
+  if (!files.length) { logTo('batch-cover-log', 'Choisis au moins une image.', 'err'); return; }
+  btn.disabled = true;
+  try {
+    const booksList = await fetchAllPaginated(offset => `/rest/v1/books?select=id&order=id.asc&offset=${offset}&limit=1000`);
+    const knownIds = new Set(booksList.map(b => b.id));
+    const c = cfg();
+    let ok = 0, fail = 0;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setProgress('batch-cover-progress-wrap', 'batch-cover-progress', Math.round((i / files.length) * 100));
+      const m = file.name.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.(jpe?g|png|webp)$/i);
+      if (!m) { logTo('batch-cover-log', `✗ ${file.name} : nom de fichier inattendu (attendu <identifiant>.jpg)`, 'err'); fail++; continue; }
+      const id = m[1];
+      if (!knownIds.has(id)) { logTo('batch-cover-log', `✗ ${file.name} : aucun livre avec cet identifiant`, 'err'); fail++; continue; }
+      const extRaw = m[2].toLowerCase();
+      const ext = extRaw === 'jpeg' ? 'jpg' : extRaw;
+      const contentType = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
+      const path = `${id}.${ext}`;
+      try {
+        const upRes = await fetch(`${c.url}/storage/v1/object/covers/${path}`, {
+          method: 'POST',
+          headers: { apikey: c.key, Authorization: 'Bearer ' + c.key, 'Content-Type': contentType, 'x-upsert': 'true' },
+          body: file,
+        });
+        if (!upRes.ok) throw new Error('envoi storage ' + upRes.status);
+        const patchRes = await sbFetch(`/rest/v1/books?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ cover_path: path }),
+        });
+        if (!patchRes.ok) throw new Error('mise à jour cover_path ' + patchRes.status);
+        logTo('batch-cover-log', `✓ ${file.name}`, 'ok');
+        ok++;
+      } catch (e) {
+        logTo('batch-cover-log', `✗ ${file.name} : ${e.message}`, 'err');
+        fail++;
+      }
+    }
+    setProgress('batch-cover-progress-wrap', 'batch-cover-progress', 100);
+    logTo('batch-cover-log', `Terminé : ${ok} couverture(s) associée(s), ${fail} échec(s)/ignorée(s).`, (ok && !fail) ? 'ok' : 'info');
+  } catch (e) {
+    logTo('batch-cover-log', 'Erreur : ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+
+<!-- Loupe : agrandit n'importe quelle vignette portant un attribut data-zoom. -->
+<div id="zoom-overlay" style="display:none; position:fixed; inset:0; z-index:200;
+     background:rgba(18,16,14,0.88); align-items:center; justify-content:center; padding:2rem;">
+  <button id="zoom-close" type="button" aria-label="Fermer"
+          style="position:absolute; top:1rem; right:1rem; width:40px; height:40px; border-radius:999px;
+                 border:none; background:#fff; color:#111; font-size:1.1rem; cursor:pointer;">✕</button>
+  <figure style="margin:0; display:flex; flex-direction:column; align-items:center; gap:0.8rem; max-height:100%;">
+    <img id="zoom-img" src="" alt=""
+         style="max-width:86vw; max-height:76vh; border-radius:6px; box-shadow:0 10px 40px rgba(0,0,0,0.5); background:#fff;">
+    <figcaption id="zoom-caption" style="color:#f3efe7; font-size:0.85rem; text-align:center; max-width:70ch;"></figcaption>
+  </figure>
+</div>
+
+<script>
+// Loupe des couvertures : un clic sur une vignette affiche la grande image
+// d'Open Library, pour juger avant de cocher.
+(function(){
+  const overlay = document.getElementById('zoom-overlay');
+  const img = document.getElementById('zoom-img');
+  const cap = document.getElementById('zoom-caption');
+
+  function open(url, caption){
+    img.src = url;
+    img.alt = '';            // la légende sous l'image porte déjà le texte
+
+    cap.textContent = caption || '';
+    overlay.style.display = 'flex';
+  }
+  function close(){
+    overlay.style.display = 'none';
+    img.src = '';
+  }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('img[data-zoom]');
+    if (!t) return;
+    e.preventDefault();
+    // le libellé affiché à côté de la vignette sert de légende
+    const row = t.closest('div');
+    const txt = row ? (row.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    open(t.getAttribute('data-zoom'), txt.slice(0, 220));
+  });
+  document.getElementById('zoom-close').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+})();
 </script>
 </body>
 </html>
