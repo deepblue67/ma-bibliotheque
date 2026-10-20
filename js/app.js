@@ -1142,9 +1142,13 @@ function renderSettings() {
       ${OWNER ? `<div class="set-block">
         <div class="section-title">Outil d'administration <span class="rule"></span></div>
         <p class="lede" style="margin:0 0 0.8rem; font-size:0.85rem;">
-          Pour ajouter des livres, des auteurs ou des couvertures directement dans la base Supabase.
-          Détail de son fonctionnement dans la rubrique Aide ci-dessous.</p>
-        <a class="btn-main" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>
+          Pour ajouter des livres, des auteurs ou des couvertures directement dans la base Supabase,
+          et le mode d'emploi complet du mode propriétaire. Détail de son fonctionnement dans la
+          rubrique Aide ci-dessous.</p>
+        <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
+          <a class="btn-main" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>
+          <a class="btn-main" href="Mode_emploi_proprietaire.pdf" target="_blank" rel="noopener">Ouvrir le mode d'emploi (PDF) ↗</a>
+        </div>
       </div>` : ''}
 
       ${OWNER ? `<div class="set-block">
