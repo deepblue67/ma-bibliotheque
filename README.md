@@ -46,7 +46,9 @@ Une bibliothèque numérique personnelle, sous forme d'application web, présent
 - [x] Outil d'import Supabase autonome livré (`webapp-admin-tools/supabase_import_tool.html`) — voir §4.6.
 - [x] **Bug de complétude des couvertures identifié (deuxième retour de Christophe, exemple : Isaac Asimov)** et fonction de recherche automatique de couvertures manquantes ajoutée à l'outil autonome (section 5) — voir §4.7.
 - [x] Fonction de couverture manuelle ajoutée à l'outil (section 6, troisième retour de Christophe sur les sites de couverture) — voir §4.8.
-- [x] **L'outil d'import Supabase est désormais accessible depuis un lien dans les réglages, réservé au propriétaire** (déployé avec le reste de l'app) — livré le 2026-10-20 — voir §4.26.
+- [x] **Barre de recherche disproportionnée sur iPhone corrigée, et croix d'effacement ajoutée sur tous les appareils (dix-septième retour)** — livré le 2026-10-24 — voir §4.28.
+- [x] **Synchronisation du 24 octobre 2026 : delta des nouveaux fichiers dans `Mes Ebooks` et `Mes livres audio`** — 4 nouveaux livres et 5 mises à jour de format identifiés, 3 JSON préparés — voir §4.27.
+- [x] **L'outil d'import Supabase et le mode d'emploi (PDF) sont désormais accessibles depuis deux liens dans les réglages, réservés au propriétaire** (déployés avec le reste de l'app) — livré le 2026-10-20 — voir §4.26.
 - [x] **Récupération automatique des couvertures sur Fnac.com testée puis abandonnée (décision de Christophe)** ; outil d'import par lot (section 9) conservé pour un usage manuel futur — 2026-10-18 — voir §4.25.
 - [x] **Confidentialité visiteur : le filtre Statut et les badges ★ Favori/Lu/Écouté ne s'affichent plus qu'en mode propriétaire** — livré le 2026-10-17 — voir §4.24.
 - [x] **Mode d'emploi propriétaire, en PDF et dans l'application (rubrique Aide des réglages)** — livré le 2026-10-17 — voir §4.23.
@@ -580,19 +582,52 @@ Christophe a demandé si Claude pouvait aller chercher automatiquement, sur fnac
 
 **Leçon pour une tentative future** (si la question revient) : un script déterministe (recherche → extraction d'URL → téléchargement → redimensionnement), sans agent conversationnel pour l'exécution mécanique, serait probablement plus rapide et moins coûteux en tokens qu'une délégation à un agent — IA réservée aux seuls cas ambigus (titre introuvable, plusieurs éditions, série).
 
-### 4.26 Lien vers l'outil d'import depuis les réglages (quinzième retour)
+### 4.26 Liens vers l'outil d'import et le mode d'emploi depuis les réglages (quinzième et seizième retours)
 
-Christophe a demandé que `supabase_import_tool.html` soit accessible depuis un lien dans la page de réglages (roue crantée), réservé au propriétaire — plutôt que seulement par un double-clic sur le fichier local.
+Christophe a demandé que `supabase_import_tool.html` soit accessible depuis un lien dans la page de réglages (roue crantée), réservé au propriétaire — plutôt que seulement par un double-clic sur le fichier local. Puis, `Mode_emploi_proprietaire.pdf` étant lui aussi à la racine de son dépôt GitHub, un second lien pour l'ouvrir directement.
 
-**Ce qui change concrètement** : le fichier est désormais **déployé avec le reste de l'application** (copié à la racine de `webapp/`, au même niveau qu'`index.html`), et un bouton « Ouvrir l'outil d'import Supabase » apparaît dans les réglages — juste avant la rubrique Aide, qui en documente l'usage — mais **seulement en mode propriétaire** (`${OWNER ? ... : ''}`, le même garde déjà utilisé pour les autres rubriques privées). Le lien ouvre le fichier dans un nouvel onglet (`target="_blank" rel="noopener"`).
+**Ce qui change concrètement** : les deux fichiers sont désormais **déployés avec le reste de l'application** (copiés à la racine de `webapp/`, au même niveau qu'`index.html`), et le bloc « Outil d'administration » des réglages porte deux boutons — « Ouvrir l'outil d'import Supabase » et « Ouvrir le mode d'emploi (PDF) » — juste avant la rubrique Aide, qui documente le premier en détail. Le bloc entier n'apparaît qu'**en mode propriétaire** (`${OWNER ? ... : ''}`, le même garde déjà utilisé pour les autres rubriques privées). Les deux liens ouvrent leur fichier dans un nouvel onglet (`target="_blank" rel="noopener"`).
 
-**Ce que ça ne change pas côté sécurité réelle.** Une fois déployé sur GitHub Pages, le fichier `supabase_import_tool.html` est un fichier public comme un autre : masquer son lien n'empêche pas quelqu'un de déterminé de deviner ou de trouver son adresse directement. Mais ce n'était déjà pas un problème avant (voir §4.15 et §4.23) : l'outil ne fait rien tant que sa clé `service_role` n'est pas collée dedans, et cette clé n'est écrite nulle part, ni sur le disque ni dans le dépôt — seul Christophe la connaît. Le lien réservé au propriétaire est donc, comme le code du mode propriétaire, **un garde-fou de confort, pas une serrure** : il évite qu'un visiteur curieux tombe sur l'outil en explorant les réglages, rien de plus, et c'est suffisant puisque rien d'utile ne peut en être fait sans la clé.
+**Ce que ça ne change pas côté sécurité réelle.** Une fois déployés sur GitHub Pages, ces deux fichiers sont publics comme n'importe quel autre fichier du dépôt : masquer leurs liens n'empêche pas quelqu'un de déterminé de deviner ou de trouver leur adresse directement. Mais ce n'était déjà pas un problème pour l'outil d'import (voir §4.15 et §4.23) : il ne fait rien tant que sa clé `service_role` n'est pas collée dedans, et cette clé n'est écrite nulle part, ni sur le disque ni dans le dépôt — seul Christophe la connaît. Le mode d'emploi, de son côté, n'expose aucun secret (il explique le fonctionnement, pas une clé). Les liens réservés au propriétaire sont donc, comme le code du mode propriétaire, **un garde-fou de confort, pas une serrure** : ils évitent qu'un visiteur curieux tombe dessus en explorant les réglages, rien de plus.
 
-**Le fichier conservé dans le dossier « Claude outputs »** reste aussi utilisable directement par double-clic (c'est la même page, juste une seconde copie) — pratique si Christophe préfère ne pas dépendre d'une connexion pour s'en servir.
+**Le fichier `supabase_import_tool.html` conservé dans le dossier « Claude outputs »** reste aussi utilisable directement par double-clic (c'est la même page, juste une seconde copie) — pratique si Christophe préfère ne pas dépendre d'une connexion pour s'en servir.
 
 **Mis à jour en même temps, pour rester synchronisés** : le texte de la rubrique Aide (mention du nouveau bouton) et `Mode_emploi_proprietaire.pdf`/`mode_emploi.md` (section 7 renommée, et un neuvième bloc ajouté — « Importer un lot de couvertures », §4.25 — qui n'avait jamais été documenté dans l'aide malgré sa présence dans l'outil depuis le 17/10/2026).
 
 **Vérifié** par un test Playwright dédié : un visiteur ne voit ni la rubrique ni le lien ; le propriétaire voit la rubrique, le lien pointe vers `supabase_import_tool.html`, s'ouvre dans un nouvel onglet avec `rel="noopener"`, et la rubrique Aide reste présente juste après. Les sept autres suites repassent sans régression. Livré le 2026-10-20.
+
+### 4.27 Synchronisation du 24 octobre 2026 — delta des nouveaux fichiers dans `Mes Ebooks` et `Mes livres audio`
+
+Christophe a ajouté des fichiers dans ses deux dossiers habituels et a demandé de trouver le delta avec l'existant.
+
+**Méthode.** Le catalogue Supabase a été relu intégralement (1999 lignes, pagination directe sur l'API REST). Deux inventaires existants sur le disque de Christophe (`Mes Ebooks/_scan_output/inventaire_ebooks.jsonl`, 5246 fichiers avec métadonnées epub déjà extraites ; `Mes livres audio/_scan_output/inventaire_audio.jsonl`, 34 dossiers), tous deux datés du 02/09/2026, ont servi de base plutôt que de relire chaque fichier — seul ce qui est postérieur à cette date, ou absent de ces inventaires, a dû être vérifié directement.
+
+**Un nouveau dossier d'archive découvert : `AA - Integrale de la Team 24-11-2012`** (1489 fichiers, à ne pas confondre avec les trois dossiers « Team » déjà vérifiés au §4.22). Comme pour ces derniers, de nombreux noms de fichiers s'y sont révélés **corrompus par la perte de caractères accentués** (ex. `Un dilde robots` pour *Un défilé de robots*, `Moires mortes` pour *Mémoires mortes*), rendant la comparaison par nom de fichier trompeuse. Une première comparaison par titre normalisé a isolé 109 fichiers sans correspondance apparente ; leurs vraies métadonnées (`dc:title`/`dc:creator`) ont été lues directement dans chaque epub (et non déduites du nom de fichier) pour trancher. Résultat : **107 étaient des doublons déjà en base**, masqués par la corruption ; un était un doublon caché derrière un titre déjà pollué par un nom de fichier dans la base elle-même (*Auel, Jean M. — Le clan de l'ours des cavernes*, déjà signalé par l'écran des anomalies) ; **un seul livre était réellement nouveau : *L'Orient à feu et à sang* de Harry Sidebottom**.
+
+**Dans `Mes Ebooks` (hors ce dossier d'archive)** : sept fichiers plus récents que l'inventaire (dont trois ajoutés le 11 et le 18/09/2026 : *Code Yesterday* de Michel Bussi, *L'Échange* de J.E. Rowney, et un fichier nommé « La route du diable - Franck Thilliez ») se sont tous révélés déjà présents en base — sauf un point resté ouvert, voir ci-dessous.
+
+**Dans `Mes livres audio`** : dix-huit dossiers n'étaient pas dans l'inventaire de septembre, presque tous déjà importés depuis (vérifié titre par titre contre la base) — à l'exception de trois **vrais nouveaux livres audio** (*Je crois que je l'ai tuée* d'Andrea Mara, *Près de moi pour toujours* d'Harlan Coben et Reese Witherspoon, *Les Évadées* de Marc Levy) et de deux fiches existantes où seul le format audio manquait encore (*Le Réseau Corneille* de Ken Follett, *Chère Debbie* de Freida McFadden).
+
+**Point laissé ouvert, à transmettre à Christophe plutôt que résolu automatiquement** : le fichier `La route du diable - Franck Thilliez.epub` porte en métadonnées réelles l'auteur **Laurent Queyssi**, alors que la fiche déjà en base sous ce même titre est attribuée à **Franck Thilliez** (qui a aussi un livre audio du même titre). Impossible de savoir sans Christophe s'il s'agit du même roman (métadonnée erronée dans le fichier) ou de deux œuvres distinctes portant le même titre — aucune fiche n'a été créée ni modifiée pour ce cas.
+
+**Trois fichiers JSON préparés** dans le dossier « Claude outputs », à coller dans `supabase_import_tool.html` dans cet ordre :
+- `1_nouveaux_auteurs_2026-10-24.json` (section 2) — Harry Sidebottom, et un auteur combiné « Harlan Coben et Reese Witherspoon » (même convention que les auteurs déjà en base pour un livre à deux signatures, ex. *Arkadi et Boris Strougatski*).
+- `2_nouveaux_livres_2026-10-24.json` (section 3) — les quatre livres réellement nouveaux listés ci-dessus.
+- `3_mise_a_jour_2026-10-24.json` (section 7) — cinq mises à jour de champ `has_ebook`/`has_audio` sur des fiches déjà existantes (dont les deux de l'archive Markale, voir note suivante). **Correction en cours de route** : le titre *Le Réseau Corneille* avait été saisi avec une majuscule à « Réseau », alors que la fiche en base porte « Le réseau Corneille » (r minuscule) — l'outil fait une correspondance exacte sur le titre, pas insensible à la casse, d'où un échec signalé « introuvable » au premier import. Fichier corrigé et renvoyé.
+
+**Note sur deux des mises à jour** : les livres *Montségur et l'énigme cathare* et *Druidisme* de Jean Markale passent à `has_ebook: true`, mais le premier est actuellement une **fiche masquée** (`is_hidden: true`) — la mise à jour ne la fait pas réapparaître, Christophe devra la restaurer lui-même depuis Réglages → Livres masqués s'il le souhaite.
+
+Les 1380 autres fichiers de l'archive « Team 24-11-2012 », ainsi que l'ensemble des fichiers déjà couverts par les deux inventaires de septembre, correspondaient tous à des livres déjà en base avec le bon format déjà activé — aucune action nécessaire pour eux.
+
+### 4.28 Barre de recherche disproportionnée sur iPhone, et croix d'effacement (dix-septième retour)
+
+Christophe a signalé que sur iPhone (capture à l'appui), le champ de recherche s'affichait comme une bulle ovale démesurée, bien plus haute qu'un champ normal — très différent du rendu sur iPad — et a demandé une croix dans les champs de saisie, sur tous les appareils, pour effacer ce qui a été tapé.
+
+**Cause.** Le champ est un `<input type="search">`, sans qu'aucune règle ne neutralise l'apparence native que lui donne Safari sur iOS (`-webkit-appearance: searchfield`) : ce rendu système ignore une partie du CSS du site (rayon de bordure, hauteur) et dessine sa propre bulle, avec sa propre loupe et sa propre croix intégrées — d'où la disproportion, absente sur iPad parce que son Safari ne déclenche pas ce rendu dans les mêmes conditions de largeur d'écran.
+
+**Correctif** : `-webkit-appearance:none` (et l'équivalent standard `appearance:none`) neutralise ce rendu natif, remettant le champ sous le contrôle du CSS du site comme n'importe quel autre champ des réglages — identique sur iPhone, iPad et les autres navigateurs. Cela supprime du même coup la loupe et la croix natives d'iOS, d'où l'ajout d'une **croix personnalisée** (`#search-clear`, un bouton positionné dans le champ) qui remplace cette fonction à l'identique sur tous les appareils, pas seulement iOS : masquée tant que le champ est vide, elle apparaît dès la première lettre tapée et, au clic, vide le champ, relance la recherche et rend le focus au champ.
+
+**Vérifié** par un test Playwright dédié (croix cachée au départ, visible après saisie, la recherche continue de fonctionner, clic sur la croix = champ vidé + croix recachée + retour à la liste des auteurs) exécuté à la fois en largeur iPhone et en largeur bureau, plus une capture d'écran confirmant un champ de hauteur normale (33px, contre la bulle disproportionnée précédente). Les sept autres suites repassées sans régression. Livré le 2026-10-24.
 
 ## 5. Prochaines étapes (dans l'ordre)
 
@@ -622,7 +657,10 @@ Christophe a demandé que `supabase_import_tool.html` soit accessible depuis un 
 24. ~~**Mode d'emploi propriétaire, en PDF et dans l'application (rubrique Aide des réglages)** — voir §4.23.~~ **Fait le 2026-10-17.**
 25. ~~**Christophe redéploie `js/app.js`** (filtre Statut et badges personnels masqués pour les visiteurs — voir §4.24).~~ **Fait le 2026-10-17.**
 26. ~~Récupérer automatiquement les couvertures manquantes sur Fnac.com.~~ **Abandonné le 2026-10-18 — voir §4.25.** Les 668 livres sans couverture le restent (jaquette générée). Option qui demeure : dépôt manuel via la section 6, ou import par lot via la section 9 de l'outil.
-27. **Christophe redéploie `js/app.js`, `css/style.css` et `supabase_import_tool.html`** (ce dernier à la racine de `webapp/`, au même niveau qu'`index.html` — les trois fichiers sont déjà déposés sur le disque dans ce dossier) sur son dépôt GitHub, pour que le lien d'import apparaisse dans les réglages — voir §4.26.
+27. **Christophe redéploie `js/app.js`, `css/style.css`, `supabase_import_tool.html` et `Mode_emploi_proprietaire.pdf`** (ces deux derniers à la racine de `webapp/`, au même niveau qu'`index.html` — les quatre fichiers sont déjà déposés sur le disque dans ce dossier) sur son dépôt GitHub, pour que les deux liens apparaissent dans les réglages — voir §4.26.
+28. **Christophe importe la synchronisation du 24 octobre 2026** dans l'outil, dans l'ordre : section 2 avec `1_nouveaux_auteurs_2026-10-24.json`, section 3 avec `2_nouveaux_livres_2026-10-24.json`, puis section 7 avec `3_mise_a_jour_2026-10-24.json` — voir §4.27. Attendu après import : 435 auteurs / 2003 livres.
+29. Trancher le cas de `La route du diable` (Franck Thilliez ou Laurent Queyssi ? — voir §4.27) et le signaler à Claude pour correction si besoin.
+30. **Christophe redéploie `js/app.js`, `css/style.css` et `index.html`** (champ de recherche corrigé sur iPhone, croix d'effacement — voir §4.28).
 
 ## 6. Notes pour une reprise future du projet
 

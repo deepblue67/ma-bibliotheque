@@ -49,6 +49,7 @@ applyTheme();
 const el = {
   app: document.getElementById('app'),
   search: document.getElementById('search-input'),
+  searchClear: document.getElementById('search-clear'),
   filterFormat: document.getElementById('filter-format'),
   filterGenre: document.getElementById('filter-genre'),
   filterStatus: document.getElementById('filter-status'),
@@ -1142,13 +1143,9 @@ function renderSettings() {
       ${OWNER ? `<div class="set-block">
         <div class="section-title">Outil d'administration <span class="rule"></span></div>
         <p class="lede" style="margin:0 0 0.8rem; font-size:0.85rem;">
-          Pour ajouter des livres, des auteurs ou des couvertures directement dans la base Supabase,
-          et le mode d'emploi complet du mode propriétaire. Détail de son fonctionnement dans la
-          rubrique Aide ci-dessous.</p>
-        <div style="display:flex; gap:0.7rem; flex-wrap:wrap;">
-          <a class="btn-main" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>
-          <a class="btn-main" href="Mode_emploi_proprietaire.pdf" target="_blank" rel="noopener">Ouvrir le mode d'emploi (PDF) ↗</a>
-        </div>
+          Pour ajouter des livres, des auteurs ou des couvertures directement dans la base Supabase.
+          Détail de son fonctionnement dans la rubrique Aide ci-dessous.</p>
+        <a class="btn-main" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>
       </div>` : ''}
 
       ${OWNER ? `<div class="set-block">
@@ -1731,6 +1728,23 @@ window.addEventListener('hashchange', route);
     else renderHome();
   });
 });
+
+// Croix pour vider la recherche d'un tap/clic, sur tous les appareils (la croix native
+// de Safari iOS a été désactivée en CSS car elle causait l'affichage disproportionné).
+// Protégé par une vérification d'existence : certaines pages de test minimales n'ont pas
+// ce bouton, et il ne doit pas empêcher le reste du script de s'exécuter.
+if (el.searchClear) {
+  function syncSearchClearVisibility(){
+    el.searchClear.hidden = el.search.value.length === 0;
+  }
+  el.search.addEventListener('input', syncSearchClearVisibility);
+  el.searchClear.addEventListener('click', () => {
+    el.search.value = '';
+    el.search.dispatchEvent(new Event('input', { bubbles: true }));
+    el.search.focus();
+  });
+  syncSearchClearVisibility();
+}
 
 el.menuToggle.addEventListener('click', () => el.controls.classList.toggle('open'));
 el.settingsBtn.addEventListener('click', () => { location.hash = '#/settings'; });

@@ -47,7 +47,10 @@
   </button>
 
   <div class="controls" id="controls">
-    <input type="search" id="search-input" placeholder="Auteur ou titre…" autocomplete="off">
+    <div class="search-wrap">
+      <input type="search" id="search-input" placeholder="Auteur ou titre…" autocomplete="off">
+      <button type="button" id="search-clear" class="search-clear" aria-label="Effacer la recherche" hidden>✕</button>
+    </div>
     <select id="filter-format" aria-label="Format">
       <option value="">Tous formats</option>
       <option value="ebook">Ebook</option>
