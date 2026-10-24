@@ -1753,18 +1753,6 @@ if (el.searchClear) {
 
 el.settingsBtn.addEventListener('click', () => { location.hash = '#/settings'; });
 
-// La hauteur du bandeau varie (titre+stats, puis recherche/filtres, et parfois une
-// ligne de pastilles de statut en plus en mode propriétaire) : l'index A–Z et les
-// titres de lettre s'en servent pour rester juste sous le bandeau, jamais dessous.
-if (window.ResizeObserver && document.querySelector('.topbar')) {
-  const topbarEl = document.querySelector('.topbar');
-  const syncTopbarHeight = () => {
-    document.documentElement.style.setProperty('--topbar-h', topbarEl.offsetHeight + 'px');
-  };
-  new ResizeObserver(syncTopbarHeight).observe(topbarEl);
-  syncTopbarHeight();
-}
-
 // ---------------------------------------------------------------
 // Démarrage
 // ---------------------------------------------------------------

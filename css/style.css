@@ -698,94 +698,151 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   outline:2px solid var(--accent); outline-offset:2px;
 }
 
-/* ---------- barre du haut ---------- */
+/* ---------- barre du haut ----------
+   Reprise fidèle de l'en-tête de « Ma Bibliothèque BD » : bandeau plein dans la couleur
+   d'accent avec une trame de points, gros titre façon BD avec ombre portée, épais filet
+   en bas, champs blancs à bordure épaisse et ombre décalée, icône dans chaque champ,
+   pastilles à bordure. Les couleurs viennent du thème actif (--accent, --ink, --card,
+   --chip…) : avec « Rétro Pulp » on retrouve exactement le rendu de l'appli BD. */
+:root{
+  --hdr-line:var(--ink);          /* traits épais */
+  --hdr-shadow:var(--ink);        /* ombres décalées */
+  --hdr-bw:3px;                   /* épaisseur des traits */
+  --hdr-sub:var(--chip);          /* compteurs à côté du titre */
+}
+:root[data-mode="dark"]{ --hdr-shadow:#000; --hdr-sub:var(--accent-ink); }
+@media (prefers-color-scheme: dark){
+  :root[data-mode="auto"]{ --hdr-shadow:#000; --hdr-sub:var(--accent-ink); }
+}
+
 .topbar{
-  position:sticky; top:0; z-index:30;
-  display:flex; align-items:center; gap:0.8rem;
-  flex-wrap:wrap;
-  padding:0.8rem 1.3rem;
-  padding-top:max(0.8rem, env(safe-area-inset-top));
-  background:var(--bg);
-  border-bottom:1px solid var(--line);
+  position:relative; z-index:30;
+  background-color:var(--accent);
+  background-image:radial-gradient(rgba(0,0,0,0.16) 1.6px, transparent 1.6px);
+  background-size:11px 11px;
+  border-bottom:6px solid var(--hdr-line);
+  padding:20px 20px 22px;
+  padding-top:max(20px, env(safe-area-inset-top));
+  color:var(--accent-ink);
+}
+.topbar-inner{max-width:1240px; margin:0 auto;}
+
+.brand-row{
+  display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
 }
 .brand{
-  font-family:var(--font-display);
-  font-weight:700; font-size:1.15rem;
-  letter-spacing:-0.01em;
-  margin-right:auto;
+  font-family:'Bangers', 'Impact', var(--font-display);
+  font-weight:400; letter-spacing:1px;
+  font-size:clamp(28px, 6vw, 48px); line-height:1;
+  color:var(--accent-ink);
+  /* --ink contraste toujours avec --accent-ink (sombre en clair, clair en sombre, dans les
+     dix thèmes) : l'ombre reste lisible même quand le titre est foncé en mode sombre */
+  text-shadow:3px 3px 0 var(--ink);
+  text-transform:uppercase;
   white-space:nowrap;
 }
-.icon-btn{
-  background:var(--chip); border:1px solid var(--line); border-radius:999px;
-  width:38px; height:38px; flex:none;
-  display:inline-flex; align-items:center; justify-content:center;
-  color:var(--ink);
-  transition:background .15s ease, transform .15s ease;
+.brand-stats{
+  font-family:var(--font-body);
+  font-size:13px; font-weight:700;
+  color:var(--hdr-sub);           /* teinte « papier » comme les compteurs de l'appli BD */
 }
-.icon-btn svg{width:19px; height:19px; display:block;}
-/* :hover n'est jamais relâché par un tap sur un écran tactile (pas de souris pour en sortir), ce
-   qui laissait un rond coloré "collé" sur l'icône après usage — restreint donc ces effets aux
-   appareils avec un vrai pointeur/survol (souris, trackpad). */
+.icon-btn{
+  margin-left:auto; align-self:center;
+  width:42px; height:42px; flex:none; padding:0;
+  border-radius:50%;
+  border:var(--hdr-bw) solid var(--hdr-line);
+  background:var(--card); color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:3px 3px 0 var(--hdr-shadow);
+  cursor:pointer;
+  transition:transform .12s ease;
+}
+.icon-btn svg{width:22px; height:22px; display:block; transition:transform .4s ease;}
+.icon-btn:active{transform:scale(.94);}
+/* :hover n'est jamais relâché par un tap sur écran tactile : effet réservé à la souris */
 @media (hover:hover) and (pointer:fine){
-  .icon-btn:hover{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
-  .icon-btn.gear:hover svg{transform:rotate(40deg); transition:transform .25s ease;}
+  .icon-btn.gear:hover svg{transform:rotate(60deg);}
 }
 
 .controls{
-  display:flex; gap:0.55rem; flex-wrap:wrap; flex:1 1 auto; justify-content:flex-end;
+  display:flex; gap:12px; margin-top:18px;
+  flex-wrap:wrap; align-items:center;
 }
-.controls input, .controls select{
-  font-family:var(--font-body);
-  font-size:0.85rem;
-  padding:0.5em 0.9em;
-  border-radius:999px;
-  border:1px solid var(--line);
+.field{
+  display:flex; align-items:center; gap:10px;
   background:var(--card);
+  border:var(--hdr-bw) solid var(--hdr-line);
+  border-radius:8px;
+  padding:10px 14px;
+  flex:1 1 220px; min-width:0;
+  box-shadow:4px 4px 0 var(--hdr-shadow);
   color:var(--ink);
-  -webkit-appearance:none; appearance:none;
-  box-sizing:border-box;
-  line-height:1.3;
 }
-.controls input{min-width:170px; flex:1 1 190px;}
-.controls select{color:var(--sub);}
-.controls input:focus, .controls select:focus{border-color:var(--accent);}
-/* Safari iOS donne à type="search" une apparence native (loupe/croix intégrées, hauteur
-   différente) qui ignore une partie du CSS ci-dessus et produit une bulle disproportionnée ;
-   on la désactive complètement pour un rendu identique à iPad et aux autres navigateurs. */
-.controls input[type="search"]::-webkit-search-decoration,
-.controls input[type="search"]::-webkit-search-cancel-button,
-.controls input[type="search"]::-webkit-search-results-button,
-.controls input[type="search"]::-webkit-search-results-decoration{
+.field .icon{width:17px; height:17px; color:var(--sub); flex-shrink:0;}
+.field input, .field select{
+  border:none; outline:none; background:transparent;
+  font-family:var(--font-body); font-weight:600;
+  color:var(--ink);
+  width:100%; min-width:0; padding:0; margin:0;
   -webkit-appearance:none; appearance:none;
+  border-radius:0; line-height:1.3;
+}
+.field input{font-size:15px;}
+.field input::placeholder{color:var(--sub); opacity:1;}
+.field select{font-size:14px; cursor:pointer;}
+.field select option{background:var(--card); color:var(--ink);}
+.field-select{flex:0 1 190px;}
+.field:focus-within{outline:2px solid var(--accent-ink); outline-offset:2px;}
+
+.search-clear{
+  flex-shrink:0;
+  width:28px; height:28px; padding:0;
+  margin:-4px -4px -4px 0;            /* cible tactile confortable sans gonfler le champ */
+  border:none; border-radius:50%;
+  background:var(--sub); color:var(--card);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+}
+.search-clear[hidden]{display:none;}
+.search-clear svg{width:12px; height:12px;}
+@media (hover:hover) and (pointer:fine){
+  .search-clear:hover{background:var(--ink);}
 }
 
-.search-wrap{position:relative; min-width:170px; flex:1 1 190px;}
-.search-wrap input{width:100%; min-width:0; flex:none; padding-right:2.5em;}
-.search-clear{
-  position:absolute; top:50%; right:0.4em; transform:translateY(-50%);
-  width:28px; height:28px; padding:0; border:none; border-radius:999px;
-  background:var(--chip); color:var(--sub);
-  display:flex; align-items:center; justify-content:center;
-  font-size:0.95rem; line-height:1; cursor:pointer;
+/* ---------- pastilles de statut (Favoris / Lus / Écoutés / Non lus) ---------- */
+.status-pills{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.status-pills[hidden]{display:none;}
+.pill{
+  border:2px solid var(--hdr-line);
+  background:var(--chip); color:var(--ink);
+  font-family:var(--font-body); font-size:12.5px; font-weight:800;
+  padding:9px 14px; border-radius:999px;
+  cursor:pointer; white-space:nowrap; line-height:1.2;
+  transition:transform .08s ease;
 }
-.search-clear:hover{background:var(--accent); color:var(--accent-ink);}
-.search-clear[hidden]{display:none;}
+.pill:active{transform:scale(0.95);}
+.pill.on{background:var(--ink); color:var(--card); border-color:var(--ink);}
 
 @media (max-width:760px){
-  /* Sur petit écran (iPhone), la recherche et les filtres restent affichés directement sous
-     l'en-tête, comme sur iPad — pas de bouton loupe pour les révéler, juste un passage à la
-     ligne et un empilement vertical (toujours au clair, jamais repliés derrière une icône). */
-  /* Grille à 2 colonnes plutôt que flex : les <select> de Safari iOS ignorent parfois
-     flex-shrink/min-width:0 et refusent de rétrécir sous leur largeur de contenu, ce qui les
-     empêchait de se répartir à deux par ligne malgré flex-basis:50%. minmax(0,1fr) force la
-     colonne à la largeur de la grille quel que soit le contenu. */
+  .topbar{padding:16px 16px 18px; padding-top:max(16px, env(safe-area-inset-top));}
+  /* titre, compteurs dessous, réglages à droite : tout tient sur la hauteur du bouton */
+  .brand-row{
+    display:grid; grid-template-columns:minmax(0, 1fr) auto;
+    column-gap:12px; row-gap:6px; align-items:center;
+  }
+  .brand{grid-column:1; grid-row:1;}
+  .brand-stats{grid-column:1; grid-row:2;}
+  .icon-btn{grid-column:2; grid-row:1 / span 2; margin-left:0;}
+  /* iPhone : recherche sur toute la largeur, puis Format + Genre côte à côte (grille, et non
+     flex : Safari iOS refuse parfois de rétrécir un <select> en flex), puis les pastilles. */
   .controls{
     display:grid; grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:0.55rem; width:100%; order:3;
+    gap:12px; margin-top:14px;
   }
-  .controls select, .search-wrap{
-    width:100%; min-width:0; flex:none;
-  }
+  .field{min-width:0; padding:9px 12px;}
+  .search-wrap{grid-column:1 / -1;}
+  .status-pills{grid-column:1 / -1;}
 }
 
 /* ---------- mise en page ---------- */
@@ -838,32 +895,9 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 .cover{container-type:inline-size;}
 
-/* ---------- rayon horizontal (derniers ajouts) ---------- */
-.rail{
-  display:flex; gap:0.9rem; overflow-x:auto;
-  padding:0.2rem 0.2rem 1rem; margin:0 -0.2rem 2rem;
-  scroll-snap-type:x proximity;
-  scrollbar-width:thin;
-}
-.rail::-webkit-scrollbar{height:7px;}
-.rail::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px;}
-.rail-item{width:112px; flex:none; scroll-snap-align:start;}
-.rail-item .cover{
-  width:112px; height:166px; border-radius:var(--radius);
-  box-shadow:var(--shadow); border:1px solid var(--line);
-  transition:transform .18s ease, box-shadow .18s ease;
-}
-.rail-item:hover .cover{transform:translateY(-4px); box-shadow:var(--shadow-hi);}
-.rail-item .t{
-  font-size:0.74rem; line-height:1.3; margin-top:0.5rem; font-weight:600;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-}
-.rail-item .a{font-size:0.68rem; color:var(--sub); margin-top:0.15rem;
-  display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden;}
-
 /* ---------- index A–Z ---------- */
 .az{
-  position:sticky; top:68px; z-index:15;
+  position:sticky; top:0; z-index:15;
   display:flex; flex-wrap:wrap; gap:0.2rem;
   padding:0.55rem 0.1rem; margin-bottom:1.4rem;
   background:var(--bg);
@@ -881,7 +915,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .letter-head{
   font-family:var(--font-display); font-weight:700;
   font-size:1.5rem; color:var(--accent);
-  margin:2.2rem 0 0.9rem; scroll-margin-top:124px;
+  margin:2.2rem 0 0.9rem; scroll-margin-top:64px;
   display:flex; align-items:center; gap:0.8rem;
 }
 .letter-head::after{content:""; flex:1; height:1px; background:var(--line);}
@@ -1293,8 +1327,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 
 @media (max-width:760px){
-  .az{top:60px;}
-  .letter-head{scroll-margin-top:120px; font-size:1.3rem;}
+  .letter-head{scroll-margin-top:84px; font-size:1.3rem;}
   .fiche{padding:1.2rem; gap:1.2rem;}
   .fiche .cover{width:135px; height:198px;}
   #app{padding:1.2rem 1rem 3rem;}
