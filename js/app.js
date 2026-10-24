@@ -26,8 +26,8 @@ const DEFAULTS = {theme:"nordique", mode:"auto"};
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.2';
-const APP_VERSION_DATE = '2026-10-24';
+const APP_VERSION = '1.3';
+const APP_VERSION_DATE = '2026-10-25';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
 // l'app doit continuer à fonctionner sans, d'où les try/catch.
@@ -659,11 +659,14 @@ function renderBook(bookId) {
 
   if (!OWNER) return;   // un visiteur n'a aucune commande à brancher
 
+  // On écoute le changement de la case elle-même, pas le clic sur l'étiquette : le
+  // navigateur coche la case une seule fois, que l'on touche la case ou le texte, puis
+  // déclenche « change ». (Avant, un preventDefault() sur le clic de l'étiquette faisait
+  // que le navigateur décochait aussitôt la case quand on la touchait directement :
+  // la fiche était enregistrée comme lue, mais la case restait vide.)
   el.app.querySelectorAll('.toggle').forEach(label => {
-    label.addEventListener('click', ev => {
-      ev.preventDefault();
-      toggleField(book, label.dataset.field, label);
-    });
+    const input = label.querySelector('input');
+    input.addEventListener('change', () => toggleField(book, label.dataset.field, label, input.checked));
   });
 
   el.app.querySelectorAll('#book-actions button').forEach(b => {
@@ -841,8 +844,8 @@ async function restoreBook(book) {
   renderSettings();
 }
 
-async function toggleField(book, field, label) {
-  const newValue = !book[field];
+async function toggleField(book, field, label, checked) {
+  const newValue = !!checked;
   book[field] = newValue; // on affiche tout de suite, on corrige si ça rate
   label.classList.toggle('active', newValue);
   label.querySelector('input').checked = newValue;
