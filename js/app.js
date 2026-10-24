@@ -54,7 +54,6 @@ const el = {
   filterGenre: document.getElementById('filter-genre'),
   filterStatus: document.getElementById('filter-status'),
   controls: document.getElementById('controls'),
-  menuToggle: document.getElementById('menu-toggle'),
   settingsBtn: document.getElementById('settings-btn'),
   lightbox: document.getElementById('lightbox'),
   lightboxImg: document.getElementById('lightbox-img'),
@@ -1746,7 +1745,6 @@ if (el.searchClear) {
   syncSearchClearVisibility();
 }
 
-el.menuToggle.addEventListener('click', () => el.controls.classList.toggle('open'));
 el.settingsBtn.addEventListener('click', () => { location.hash = '#/settings'; });
 
 // ---------------------------------------------------------------

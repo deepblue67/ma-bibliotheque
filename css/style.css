@@ -722,10 +722,14 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   color:var(--ink);
   transition:background .15s ease, transform .15s ease;
 }
-.icon-btn:hover{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
 .icon-btn svg{width:19px; height:19px; display:block;}
-.icon-btn.gear:hover svg{transform:rotate(40deg); transition:transform .25s ease;}
-.menu-toggle{display:none;}
+/* :hover n'est jamais relâché par un tap sur un écran tactile (pas de souris pour en sortir), ce
+   qui laissait un rond coloré "collé" sur l'icône après usage — restreint donc ces effets aux
+   appareils avec un vrai pointeur/survol (souris, trackpad). */
+@media (hover:hover) and (pointer:fine){
+  .icon-btn:hover{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+  .icon-btn.gear:hover svg{transform:rotate(40deg); transition:transform .25s ease;}
+}
 
 .controls{
   display:flex; gap:0.55rem; flex-wrap:wrap; flex:1 1 auto; justify-content:flex-end;
@@ -768,12 +772,17 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .search-clear[hidden]{display:none;}
 
 @media (max-width:760px){
-  .menu-toggle{display:inline-flex;}
+  /* Sur petit écran (iPhone), la recherche et les filtres restent affichés directement sous
+     l'en-tête, comme sur iPad — pas de bouton loupe pour les révéler, juste un passage à la
+     ligne et un empilement vertical (toujours au clair, jamais repliés derrière une icône). */
   .controls{
-    display:none; width:100%; flex-direction:column; align-items:stretch; order:3;
+    width:100%; flex-direction:column; align-items:stretch; order:3;
   }
-  .controls.open{display:flex;}
   .controls select, .search-wrap{width:100%;}
+  /* En colonne, flex-basis s'applique à la hauteur (et non plus à la largeur comme en ligne) :
+     sans cette remise à zéro, le "190px" hérité de la disposition large étire le bloc de recherche
+     et détache la croix d'effacement du champ. */
+  .search-wrap{flex:0 0 auto;}
 }
 
 /* ---------- mise en page ---------- */

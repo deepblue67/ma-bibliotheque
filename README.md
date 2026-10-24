@@ -629,6 +629,15 @@ Christophe a signalé que sur iPhone (capture à l'appui), le champ de recherche
 
 **Vérifié** par un test Playwright dédié (croix cachée au départ, visible après saisie, la recherche continue de fonctionner, clic sur la croix = champ vidé + croix recachée + retour à la liste des auteurs) exécuté à la fois en largeur iPhone et en largeur bureau, plus une capture d'écran confirmant un champ de hauteur normale (33px, contre la bulle disproportionnée précédente). Les sept autres suites repassées sans régression. Livré le 2026-10-24.
 
+**Retour de Christophe sur cette première livraison** : la bulle disproportionnée était bien corrigée, mais deux points restaient faux : (1) l'icône loupe du menu, une fois touchée, gardait un rond vert « collé » autour d'elle, et surtout (2) la demande initiale « faire comme sur iPad » n'était pas traitée dans son ensemble — sur iPad, il n'y a pas d'icône loupe du tout : la recherche et les filtres sont **toujours affichés**, directement sous l'en-tête, sans bouton pour les révéler. Sur iPhone, ils restaient repliés derrière le bouton loupe (`#menu-toggle`), qui n'était là que pour la gérer du texte précédent.
+
+**Deuxième correctif, le même jour** :
+- **Suppression complète du bouton loupe** (`#menu-toggle`) et de son comportement de repli : la recherche et les trois filtres (`#controls`) sont désormais toujours visibles, sur tous les écrans, sans bascule. En dessous de 760px de large, `.controls` passe simplement en colonne pleine largeur juste sous l'en-tête (grâce au passage à la ligne déjà prévu par `.topbar{flex-wrap:wrap}`) — exactement le même principe qu'iPad, pas un mode dégradé séparé.
+- **Effet de bord corrigé en cours de route** : en passant `.controls` en `flex-direction:column`, le `flex:1 1 190px` du bloc de recherche (hérité de la disposition en ligne, où il réglait la *largeur*) s'est mis à régler la *hauteur* à la place — le bloc s'étirait sur ~190px et détachait visuellement la croix d'effacement du champ. Corrigé en forçant `.search-wrap{flex:0 0 auto}` dans le média-query mobile.
+- **Rond vert collé sur l'icône réglages** : cause classique sur tactile — un smartphone n'a pas de souris pour « sortir » du survol après un tap, donc la règle `:hover` reste visuellement active. Corrigé en limitant les effets `:hover` des icônes (`.icon-btn:hover`, rotation de l'engrenage) aux appareils ayant un vrai pointeur, via `@media (hover:hover) and (pointer:fine)` — un smartphone ou une tablette tactile n'en a pas, une souris ou un trackpad oui.
+
+**Vérifié** à nouveau par Playwright en largeur iPhone (390px) : aucun `#menu-toggle` dans la page, `#controls` et le champ de recherche visibles sans la moindre interaction, recherche toujours fonctionnelle, capture d'écran à l'appui (en-tête, champ de recherche avec sa croix bien en place, puis les deux filtres, le tout compact et sans bascule). Les sept suites de régression repassées sans échec après chacun des deux correctifs. Livré le 2026-10-24.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
