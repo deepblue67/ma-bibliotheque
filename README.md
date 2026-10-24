@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 1.2 du 24/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 1.4 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -694,6 +694,37 @@ La rubrique Aide de l'application le dit désormais dans le paragraphe « Corrig
 
 **Vérifié** : nouvelle suite `recherche.js` (14 vérifications : le nouveau titre est trouvé, seul ou avec plusieurs mots ; le mot effacé ne retrouve plus le livre ; la recherche par auteur marche toujours ; une autre fiche qui porte vraiment le mot reste trouvée ; après une fusion, les mots propres à la fiche absorbée retrouvent la fiche gardée, une seule fois ; le lien est reconstitué au chargement ; une fiche masquée sans rapport n'apporte rien) ; les huit autres suites repassent sans échec. Version 1.2.
 
+### 4.33 Cases de statut qui ne se cochaient qu'en touchant leur texte
+
+Christophe a signalé que sur iPhone comme sur ordinateur, toucher ou cliquer **la case** « Lu sur liseuse » (de même « Écouté en audio », « Favori ») ne la cochait pas : il fallait toucher le texte à côté.
+
+**Cause.** Le clic était intercepté sur toute l'étiquette (`<label class="toggle">`) avec un `preventDefault()`, puis le code cochait la case lui-même. Sur le texte, ça marchait. Mais quand on touche la case elle-même, le navigateur l'a déjà cochée au moment du clic ; le `preventDefault()` lui dit alors d'**annuler** ce changement, ce qu'il fait juste *après* le code : la fiche était bel et bien enregistrée comme lue en base, mais la case réapparaissait vide — et un second toucher inversait de nouveau la valeur enregistrée, sans que l'écran le montre.
+
+**Correctif.** Plus d'interception du clic : le code écoute l'événement `change` de la case, que le navigateur déclenche **une seule fois** quel que soit l'endroit touché (case ou texte), et aussi au clavier (barre d'espace). `toggleField()` reçoit l'état réel de la case au lieu d'inverser la valeur en mémoire. Les trois cases de la fiche livre étaient les seules concernées dans l'application.
+
+**Vérifié** : nouvelle suite `statuts.js` (16 vérifications), à la souris en largeur bureau et au doigt (écran tactile simulé) en largeur iPhone : case touchée, texte touché, alternance des deux, barre d'espace ; à chaque fois la case affichée, la couleur de l'étiquette, la valeur en mémoire et l'unique mise à jour envoyée à la base concordent ; l'état est toujours là en revenant sur la fiche. Le défaut avait d'abord été reproduit (base : lu, case : vide). Les neuf autres suites repassent sans échec. Version 1.3.
+
+### 4.34 Nouveau statut « En cours »
+
+Christophe a demandé un statut « En cours » en plus de Lus / Écoutés / Non lus, utilisable en recherche et sous forme de pastille sur la page d'accueil.
+
+**Base de données** : nouvelle colonne `books.is_in_progress` (booléen, faux par défaut), ajoutée par **`migration_2026-10_en_cours.sql`** — à exécuter une fois dans Supabase Studio → SQL Editor → Run (idempotent). Aucun changement de droits : la politique RLS autorise déjà la mise à jour de `books`, comme pour les cases Lu / Écouté / Favori. **Tant que la migration n'a pas été exécutée, l'app fonctionne comme avant** : elle détecte la colonne absente au chargement (`PROGRESS_READY`, même mécanisme de repli que `SERIES_READY` et `EDITABLE`) et n'affiche ni la case, ni la pastille, ni le badge.
+
+**Dans l'application** (tout réservé au mode propriétaire, comme les autres statuts — §4.24) :
+- **fiche livre** : une quatrième case, « En cours », en tête des trois autres ;
+- **bandeau (page d'accueil et recherche)** : une pastille « En cours » parmi Lus, Écoutés, En cours, Non lus, ★ Favoris ; elle filtre la liste comme les autres et se combine avec la recherche texte, le format et le genre ;
+- **cartes de livres** (résultats de recherche, page d'un auteur) : badge « En cours » ;
+- **Réglages → Où j'en suis** : compteur « en cours ».
+
+**Règles choisies** (à revoir si Christophe le souhaite) :
+- cocher **Lu** ou **Écouté** décoche automatiquement **En cours**, dans la même mise à jour en base : le livre est terminé (comme dans l'appli BD, où une série entièrement lue n'est plus « en cours ») ; l'inverse n'est pas automatique — on peut remettre « En cours » sur un livre déjà lu (relecture) ;
+- **« Non lus »** = pas encore commencés : un livre en cours n'y figure plus (avant : « Non lus » = non cochés « Lu ») ;
+- si l'enregistrement échoue, les deux cases reviennent à leur état précédent.
+
+La rubrique Aide de l'application décrit ces règles. *Le PDF du mode d'emploi n'a pas été régénéré : il ne parle pas encore d'« En cours ».*
+
+**Vérifié** : nouvelle suite `encours.js` (24 vérifications : réservé au propriétaire, ordre des pastilles, 4 cases sur la fiche, mise à jour envoyée, filtre par pastille, badge, combinaison avec la recherche texte, « Non lus » sans les livres en cours, une seule pastille active, « Lu » décoche « En cours », retour arrière en cas de panne, compteur des statistiques, iPhone sans débordement, et base sans la colonne : chargement normal, pastille et case masquées, édition et séries intactes). `owner.js` attend désormais 4 cases au lieu de 3. Les onze autres suites repassent sans échec. Version 1.4.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -729,7 +760,10 @@ La rubrique Aide de l'application le dit désormais dans le paragraphe « Corrig
 31. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble** (en-tête façon appli BD, suppression des « Derniers ajouts » — voir §4.29).
 32. ~~**Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.0** (réglages repliables, numéro de version — voir §4.30).~~ **Fait — vérifié en ligne le 24/10/2026.**
 33. ~~**Christophe redéploie … — version 1.1** (lien vers le mode d'emploi PDF — voir §4.31).~~ Remplacé par l'étape 34 (la 1.2 contient la 1.1).
-34. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.2** (recherche limitée au titre affiché — voir §4.32 ; inclut le lien PDF de la 1.1). Vérifier ensuite « version 1.2 » en bas des Réglages.
+34. ~~**Christophe redéploie … — version 1.2** (recherche limitée au titre affiché — voir §4.32).~~ Remplacé par l'étape 35 (la 1.3 contient la 1.2 et la 1.1).
+35. ~~**Christophe redéploie … — version 1.3** (cases de statut — voir §4.33).~~ Remplacé par l'étape 37 (la 1.4 contient les 1.1 à 1.3).
+36. **Christophe exécute `migration_2026-10_en_cours.sql`** dans Supabase → SQL Editor → Run (§4.34). La vérification en fin de script doit afficher la colonne `is_in_progress`. Peut se faire avant ou après l'étape 37 : sans la colonne, l'app masque simplement « En cours ».
+37. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.4** (statut « En cours » — voir §4.34 ; inclut les 1.1 à 1.3). Vérifier ensuite « version 1.4 » en bas des Réglages, puis la pastille « En cours » en mode propriétaire.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -755,5 +789,7 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 1.0 | 24/10/2026 | Premier numéro de version. Réglages repliables (état mémorisé), numéro de version affiché dans les Réglages et utilisé pour forcer le rechargement des fichiers. Inclut aussi les livraisons du même jour : en-tête repris de l'appli BD, suppression des « Derniers ajouts », pastilles de statut, recherche iPhone corrigée et croix d'effacement. | §4.28, §4.29, §4.30 |
 | 1.1 | 24/10/2026 | Lien « Ouvrir le mode d'emploi (PDF) » rétabli dans les Réglages (section Outil d'administration et mode d'emploi, et rubrique Aide), réservé au propriétaire. | §4.31 |
 | 1.2 | 24/10/2026 | La recherche ne porte plus que sur le titre affiché et l'auteur : un mot effacé lors d'une correction de titre ne retrouve plus le livre. Exception : une fiche fusionnée reste trouvable sous le titre de la fiche absorbée. Aide mise à jour. | §4.32 |
+| 1.3 | 25/10/2026 | Les cases « Lu sur liseuse », « Écouté en audio » et « Favori » se cochent en touchant la case elle-même, plus seulement son texte (iPhone et ordinateur). | §4.33 |
+| 1.4 | 25/10/2026 | Nouveau statut « En cours » : case sur la fiche, pastille de recherche dans le bandeau, badge sur les cartes, compteur dans « Où j'en suis ». Cocher Lu ou Écouté décoche En cours ; « Non lus » exclut les livres en cours. Nécessite `migration_2026-10_en_cours.sql` (sinon fonction masquée). | §4.34 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.
