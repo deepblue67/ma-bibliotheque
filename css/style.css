@@ -760,13 +760,13 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 
 .search-wrap{position:relative; min-width:170px; flex:1 1 190px;}
-.search-wrap input{width:100%; min-width:0; flex:none; padding-right:2.1em;}
+.search-wrap input{width:100%; min-width:0; flex:none; padding-right:2.5em;}
 .search-clear{
-  position:absolute; top:50%; right:0.45em; transform:translateY(-50%);
-  width:22px; height:22px; padding:0; border:none; border-radius:999px;
+  position:absolute; top:50%; right:0.4em; transform:translateY(-50%);
+  width:28px; height:28px; padding:0; border:none; border-radius:999px;
   background:var(--chip); color:var(--sub);
   display:flex; align-items:center; justify-content:center;
-  font-size:0.72rem; line-height:1; cursor:pointer;
+  font-size:0.95rem; line-height:1; cursor:pointer;
 }
 .search-clear:hover{background:var(--accent); color:var(--accent-ink);}
 .search-clear[hidden]{display:none;}
@@ -775,14 +775,17 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   /* Sur petit écran (iPhone), la recherche et les filtres restent affichés directement sous
      l'en-tête, comme sur iPad — pas de bouton loupe pour les révéler, juste un passage à la
      ligne et un empilement vertical (toujours au clair, jamais repliés derrière une icône). */
+  /* Grille à 2 colonnes plutôt que flex : les <select> de Safari iOS ignorent parfois
+     flex-shrink/min-width:0 et refusent de rétrécir sous leur largeur de contenu, ce qui les
+     empêchait de se répartir à deux par ligne malgré flex-basis:50%. minmax(0,1fr) force la
+     colonne à la largeur de la grille quel que soit le contenu. */
   .controls{
-    width:100%; flex-direction:column; align-items:stretch; order:3;
+    display:grid; grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:0.55rem; width:100%; order:3;
   }
-  .controls select, .search-wrap{width:100%;}
-  /* En colonne, flex-basis s'applique à la hauteur (et non plus à la largeur comme en ligne) :
-     sans cette remise à zéro, le "190px" hérité de la disposition large étire le bloc de recherche
-     et détache la croix d'effacement du champ. */
-  .search-wrap{flex:0 0 auto;}
+  .controls select, .search-wrap{
+    width:100%; min-width:0; flex:none;
+  }
 }
 
 /* ---------- mise en page ---------- */

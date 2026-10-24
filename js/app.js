@@ -22,7 +22,7 @@ const THEMES = [
   {id:"botanique", label:"Botanique", desc:"Vert profond et papier végétal"},
   {id:"pulp", label:"Rétro Pulp", desc:"Crème jauni, rouge d'affiche, angles vifs"},
 ];
-const DEFAULTS = {theme:"nordique", mode:"auto", rail:"on"};
+const DEFAULTS = {theme:"nordique", mode:"auto"};
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
 // l'app doit continuer à fonctionner sans, d'où les try/catch.
@@ -52,9 +52,10 @@ const el = {
   searchClear: document.getElementById('search-clear'),
   filterFormat: document.getElementById('filter-format'),
   filterGenre: document.getElementById('filter-genre'),
-  filterStatus: document.getElementById('filter-status'),
+  statusPills: document.getElementById('status-pills'),
   controls: document.getElementById('controls'),
   settingsBtn: document.getElementById('settings-btn'),
+  brandStats: document.getElementById('brand-stats'),
   lightbox: document.getElementById('lightbox'),
   lightboxImg: document.getElementById('lightbox-img'),
   lightboxClose: document.getElementById('lightbox-close'),
@@ -109,13 +110,23 @@ function setOwner(on) {
 // Le filtre « Statut » ne sert qu'à retrouver SES lus/écoutés/favoris :
 // un visiteur n'a aucune raison d'en avoir besoin, et le proposer
 // laisserait deviner ce que le propriétaire a lu ou aimé.
+let statusValue = '';
 function syncStatusFilterVisibility() {
-  if (!el.filterStatus) return;
-  el.filterStatus.hidden = !OWNER;
-  if (!OWNER && el.filterStatus.value) {
-    el.filterStatus.value = '';
-    el.filterStatus.dispatchEvent(new Event('input'));
+  if (!el.statusPills) return;
+  el.statusPills.hidden = !OWNER;
+  if (!OWNER && statusValue) {
+    statusValue = '';
+    el.statusPills.querySelectorAll('.pill').forEach(b => b.classList.remove('on'));
+    triggerRefilter();
   }
+}
+
+// Repart du haut et relance le rendu de l'accueil — recherche, filtres et
+// pastilles de statut partagent tous la même logique de rafraîchissement.
+function triggerRefilter() {
+  scrollMemory.delete('#/');
+  if (location.hash !== '#/' && location.hash !== '') location.hash = '#/';
+  else renderHome();
 }
 
 let ALL_BOOKS = [];      // liste plate des livres visibles
@@ -231,6 +242,16 @@ function rebuildAuthors() {
   AUTHOR_ORDER = Array.from(AUTHORS.values())
     .sort((a, b) => (a.name_sort || a.name).localeCompare(b.name_sort || b.name, 'fr'))
     .map(a => a.id);
+  updateBrandStats();
+}
+
+// Totaux affichés dans le bandeau d'en-tête, à côté du titre — toujours les
+// chiffres globaux de la bibliothèque, pas ceux d'une recherche en cours.
+function updateBrandStats() {
+  if (!el.brandStats) return;
+  const nAuth = AUTHORS.size, nBooks = ALL_BOOKS.length;
+  el.brandStats.textContent =
+    `${nAuth} auteur${nAuth > 1 ? 's' : ''} · ${nBooks} livre${nBooks > 1 ? 's' : ''}`;
 }
 
 function populateGenreFilter() {
@@ -334,7 +355,7 @@ function currentFilters() {
     terms: q ? q.split(' ').filter(Boolean) : [],
     format: el.filterFormat.value,
     genre: el.filterGenre.value,
-    status: el.filterStatus.value,
+    status: statusValue,
   };
 }
 function filtersActive(f) { return !!(f.terms.length || f.format || f.genre || f.status); }
@@ -405,8 +426,6 @@ function renderHome() {
   `).join('');
 
   el.app.innerHTML = `
-    ${prefGet('rail') === 'on' ? recentRail() : ''}
-    <div class="section-title">${authors.length} auteurs · ${ALL_BOOKS.length} livres <span class="rule"></span></div>
     <nav class="az" aria-label="Aller à une lettre">${az}</nav>
     ${sections}
   `;
@@ -434,23 +453,6 @@ function authorCard(a) {
         <span class="count">${a.books.length}</span>
       </div>
     </a>`;
-}
-
-function recentRail() {
-  const recent = ALL_BOOKS.filter(b => b.created_at)
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    .slice(0, 18);
-  if (recent.length < 4) return '';
-  return `
-    <div class="section-title">Derniers ajouts <span class="rule"></span></div>
-    <div class="rail">
-      ${recent.map(b => `
-        <a class="rail-item" href="#/book/${b.id}">
-          ${coverTile(b)}
-          <div class="t">${escapeHtml(b.title)}</div>
-          <div class="a">${escapeHtml(b.author_name)}</div>
-        </a>`).join('')}
-    </div>`;
 }
 
 function renderBookResults(results) {
@@ -1103,14 +1105,6 @@ function renderSettings() {
       </div>
 
       <div class="set-block">
-        <div class="section-title">Page d'accueil <span class="rule"></span></div>
-        <div class="segmented" id="rail-seg">
-          <button data-rail="on" class="${prefGet('rail')==='on'?'on':''}">Avec « Derniers ajouts »</button>
-          <button data-rail="off" class="${prefGet('rail')==='off'?'on':''}">Sans</button>
-        </div>
-      </div>
-
-      <div class="set-block">
         <div class="section-title">Mode propriétaire <span class="rule"></span></div>
         ${renderOwnerBlock()}
       </div>
@@ -1162,9 +1156,6 @@ function renderSettings() {
   });
   el.app.querySelectorAll('#mode-seg button').forEach(b => {
     b.addEventListener('click', () => { prefSet('mode', b.dataset.mode); applyTheme(); renderSettings(); });
-  });
-  el.app.querySelectorAll('#rail-seg button').forEach(b => {
-    b.addEventListener('click', () => { prefSet('rail', b.dataset.rail); renderSettings(); });
   });
   wireOwnerBlock();
   wireAnomalies();
@@ -1720,13 +1711,28 @@ function route() {
 
 window.addEventListener('hashchange', route);
 
-[el.search, el.filterFormat, el.filterGenre, el.filterStatus].forEach(input => {
-  input.addEventListener('input', () => {
-    scrollMemory.delete('#/');            // nouvelle recherche = on repart du haut
-    if (location.hash !== '#/' && location.hash !== '') location.hash = '#/';
-    else renderHome();
-  });
+[el.search, el.filterFormat, el.filterGenre].forEach(input => {
+  input.addEventListener('input', triggerRefilter);
 });
+
+// Pastilles de statut (Favoris / Lus / Écoutés / Non lus) : un seul choix actif à la
+// fois — cliquer sur la pastille déjà active l'annule, comme un menu déroulant qu'on
+// remettrait sur « Tous statuts ».
+if (el.statusPills) {
+  el.statusPills.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.status;
+      if (statusValue === val) {
+        statusValue = '';
+        btn.classList.remove('on');
+      } else {
+        statusValue = val;
+        el.statusPills.querySelectorAll('.pill').forEach(b => b.classList.toggle('on', b === btn));
+      }
+      triggerRefilter();
+    });
+  });
+}
 
 // Croix pour vider la recherche d'un tap/clic, sur tous les appareils (la croix native
 // de Safari iOS a été désactivée en CSS car elle causait l'affichage disproportionné).
@@ -1746,6 +1752,18 @@ if (el.searchClear) {
 }
 
 el.settingsBtn.addEventListener('click', () => { location.hash = '#/settings'; });
+
+// La hauteur du bandeau varie (titre+stats, puis recherche/filtres, et parfois une
+// ligne de pastilles de statut en plus en mode propriétaire) : l'index A–Z et les
+// titres de lettre s'en servent pour rester juste sous le bandeau, jamais dessous.
+if (window.ResizeObserver && document.querySelector('.topbar')) {
+  const topbarEl = document.querySelector('.topbar');
+  const syncTopbarHeight = () => {
+    document.documentElement.style.setProperty('--topbar-h', topbarEl.offsetHeight + 'px');
+  };
+  new ResizeObserver(syncTopbarHeight).observe(topbarEl);
+  syncTopbarHeight();
+}
 
 // ---------------------------------------------------------------
 // Démarrage
