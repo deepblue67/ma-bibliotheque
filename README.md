@@ -8,6 +8,8 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
+**Version actuellement livrée : 1.0 du 24/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+
 ---
 
 ## 1. Objectif du projet
@@ -638,6 +640,38 @@ Christophe a signalé que sur iPhone (capture à l'appui), le champ de recherche
 
 **Vérifié** à nouveau par Playwright en largeur iPhone (390px) : aucun `#menu-toggle` dans la page, `#controls` et le champ de recherche visibles sans la moindre interaction, recherche toujours fonctionnelle, capture d'écran à l'appui (en-tête, champ de recherche avec sa croix bien en place, puis les deux filtres, le tout compact et sans bascule). Les sept suites de régression repassées sans échec après chacun des deux correctifs. Livré le 2026-10-24.
 
+**Troisième retouche, le même jour** : croix d'effacement agrandie (22 → 28 px) et, en portrait iPhone, champs répartis sur 2 lignes au lieu de 4. Un premier essai en flexbox marchait dans les tests (Chromium) mais pas sur l'iPhone réel — Safari iOS refuse parfois de rétrécir un `<select>` en flex malgré `min-width:0`. **Remplacé par une grille CSS** (`grid-template-columns:repeat(2, minmax(0,1fr))`), qui impose la largeur des colonnes quel que soit le contenu. Livré le 2026-10-24.
+
+### 4.29 Suppression des « Derniers ajouts » et en-tête repris de l'appli BD
+
+Christophe a demandé de retirer la section « Derniers ajouts » et de reprendre, pour le haut de page, l'en-tête de son autre application « Ma Bibliothèque BD ». Une première version (simple bandeau coloré à bords doux) ne lui ressemblait pas ; la version livrée reprend directement le code de l'en-tête BD (`ma-bibliotheque-bd/index.html` et `style.css`, lus sur son PC, sans rien y modifier).
+
+**« Derniers ajouts » supprimé entièrement** : fonction `recentRail()`, son appel dans `renderHome()`, le réglage « Page d'accueil : avec/sans » (sans objet désormais) et le CSS `.rail`. Le compteur « X auteurs · Y livres » qui suivait a été déplacé dans l'en-tête.
+
+**En-tête façon BD** (mêmes mesures que l'appli BD) :
+- bandeau plein dans la couleur d'accent du thème, avec la trame de points de l'appli BD, et un filet de 6 px en bas ;
+- titre en police **Bangers**, en capitales, avec ombre portée décalée ; compteurs juste à côté (teinte « papier ») ; bouton réglages rond à bordure épaisse et ombre décalée, à droite ;
+- champs blancs à bordure de 3 px, coins de 8 px et ombre décalée de 4 px, avec une icône dans chacun (loupe, livre ouvert pour le format, page pour le genre) ; croix d'effacement ronde intégrée au champ de recherche ;
+- le menu « Statut » remplacé par des **pastilles** à bordure (Lus, Écoutés, Non lus, ★ Favoris), un seul choix actif (re-cliquer l'annule), toujours réservées au mode propriétaire (§4.24) ;
+- l'en-tête n'est plus collant en haut de l'écran (comme dans l'appli BD) ; c'est l'index A–Z qui reste accroché en haut en défilant ;
+- iPhone : titre + compteurs à gauche, réglages à droite ; recherche sur toute la largeur, puis Format + Genre côte à côte, puis les pastilles.
+
+Les couleurs viennent du thème actif : avec **Rétro Pulp** le rendu est celui de l'appli BD (rouge, papier crème, traits noirs) ; les neuf autres thèmes gardent la même construction dans leurs propres couleurs. En mode sombre, l'ombre du titre utilise `--ink` (clair en sombre, foncé en clair), pour rester lisible dans les dix thèmes.
+
+**Le champ de recherche est passé en `type="text"`** (avec `enterkeyhint="search"`), comme dans l'appli BD : plus aucun rendu natif de Safari iOS à neutraliser.
+
+**Vérifié** : sept suites Playwright sans échec (celle de l'aide a été adaptée : elle utilisait le réglage « Derniers ajouts », supprimé, pour forcer un nouveau rendu). Captures bureau et iPhone en Rétro Pulp avec la vraie police Bangers, comparées à la capture de l'appli BD, et contrôle de trois autres thèmes en clair et en sombre.
+
+**Incident de livraison** : l'outil qui dépose les fichiers sur le PC de Christophe renvoyait parfois une *ancienne* copie d'un fichier déjà envoyé sous le même nom, tout en annonçant un succès — d'où un `index.html` resté ancien sur GitHub malgré ses redéploiements. Contournement : envoyer depuis un nouveau dossier à chaque livraison, puis relire les fichiers sur le PC et comparer leur empreinte (md5) à la version testée. Livré le 2026-10-24.
+
+### 4.30 Réglages repliables et numéro de version
+
+**Sections repliables.** Chaque partie de la page Réglages se replie et se déplie d'un clic sur son titre (chevron à droite) : Clair ou sombre, Thème, Mode propriétaire, et en mode propriétaire Où j'en suis, Anomalies, Livres masqués, Outil d'administration, Aide. Deux liens en haut de page, « Tout déplier » et « Tout replier ». Ce qui est replié est **mémorisé sur l'appareil** (`localStorage`, clé `mabiblio.reglages.replies`) : la page se rouvre telle qu'on l'a laissée, et un nouveau rendu (changement de thème, de mode clair/sombre…) ne rouvre rien. Tout est déplié au tout premier affichage. Les familles d'anomalies et les rubriques d'aide, déjà repliables, le restent à l'intérieur de leur section. Code : `setBlock()`, `toggleSetBlock()`, `wireSetBlocks()` dans `js/app.js`.
+
+**Numéro de version.** Une ligne en bas des Réglages, visible par tous : « Ma Bibliothèque — version 1.0 du 24/10/2026 ». Le numéro sert aussi à forcer le rechargement des fichiers : `index.html` appelle `css/style.css?v=1.0` et `js/app.js?v=1.0`, si bien qu'à chaque nouveau numéro les navigateurs (Safari iPhone compris, réputé tenace) reprennent les nouveaux fichiers au lieu de leur copie en cache. Règle de mise à jour et historique : §7.
+
+**Vérifié** : nouvelle suite Playwright `reglages.js` (16 vérifications : sections présentes visiteur/propriétaire, repli/dépli, état conservé après rechargement et après nouveau rendu, Tout déplier/replier, version affichée, cible tactile de 44 px et aucun débordement sur iPhone) ; les sept autres suites repassent sans échec. Livré le 2026-10-24, version 1.0.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -670,9 +704,30 @@ Christophe a signalé que sur iPhone (capture à l'appui), le champ de recherche
 28. **Christophe importe la synchronisation du 24 octobre 2026** dans l'outil, dans l'ordre : section 2 avec `1_nouveaux_auteurs_2026-10-24.json`, section 3 avec `2_nouveaux_livres_2026-10-24.json`, puis section 7 avec `3_mise_a_jour_2026-10-24.json` — voir §4.27. Attendu après import : 435 auteurs / 2003 livres.
 29. Trancher le cas de `La route du diable` (Franck Thilliez ou Laurent Queyssi ? — voir §4.27) et le signaler à Claude pour correction si besoin.
 30. **Christophe redéploie `js/app.js`, `css/style.css` et `index.html`** (champ de recherche corrigé sur iPhone, croix d'effacement — voir §4.28).
+31. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble** (en-tête façon appli BD, suppression des « Derniers ajouts » — voir §4.29).
+32. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.0** (réglages repliables, numéro de version — voir §4.30). Vérifier ensuite en bas des Réglages que la ligne « version 1.0 » apparaît.
 
 ## 6. Notes pour une reprise future du projet
 
 - Le dossier de travail de Claude contient tout le pipeline de données mais n'est **pas** un dépôt git — les fichiers finaux à livrer à Christophe seront un sous-ensemble propre (l'app web + les assets nécessaires), sans les scripts de pipeline ni le `.env`.
 - Si des livres semblent mal classés (mauvais genre, mauvaise couverture, doublon manqué), la correction se fait dans `books.pkl`/`final_books.json` puis dans la base Supabase — **ne jamais modifier directement les fichiers epub/mp3 originaux**.
 - Le dédoublonnage est une zone sensible signalée explicitement par Christophe ("il risque d'y avoir des doublons... faire attention à n'en noter qu'un"). Toute nouvelle source de données (nouveaux livres ajoutés plus tard) doit repasser par la même logique de normalisation (`normalize.py`) avant d'être insérée.
+
+## 7. Versions des livraisons
+
+**Règle (à appliquer à chaque livraison de l'application, par Claude ou toute autre IA) :**
+1. Augmenter le numéro dans `js/app.js` : `APP_VERSION` (et `APP_VERSION_DATE` = date du jour, format `AAAA-MM-JJ`).
+   - `+0.1` pour une livraison ordinaire (correctif, retouche, petite fonction) : 1.0 → 1.1 → 1.2…
+   - `+1.0` pour une refonte importante (nouvel écran, changement de structure) : 1.9 → 2.0.
+2. Reporter **le même numéro** dans `index.html`, dans les deux liens `css/style.css?v=…` et `js/app.js?v=…`.
+3. Ajouter une ligne au tableau ci-dessous, et mettre à jour la ligne « Version actuellement livrée » en tête de ce fichier.
+4. Toujours livrer ensemble les trois fichiers `index.html`, `css/style.css`, `js/app.js` dès que l'un d'eux change (le numéro est dans les deux premiers et le dernier).
+5. Après dépôt sur le PC de Christophe, relire les fichiers sur le PC et comparer leur empreinte (md5) à la version testée — voir l'incident décrit en fin de §4.29.
+
+Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne change pas le numéro de l'application.
+
+| Version | Date | Contenu | Détail |
+|---|---|---|---|
+| 1.0 | 24/10/2026 | Premier numéro de version. Réglages repliables (état mémorisé), numéro de version affiché dans les Réglages et utilisé pour forcer le rechargement des fichiers. Inclut aussi les livraisons du même jour : en-tête repris de l'appli BD, suppression des « Derniers ajouts », pastilles de statut, recherche iPhone corrigée et croix d'effacement. | §4.28, §4.29, §4.30 |
+
+Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

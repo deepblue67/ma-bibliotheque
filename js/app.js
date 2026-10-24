@@ -24,6 +24,11 @@ const THEMES = [
 ];
 const DEFAULTS = {theme:"nordique", mode:"auto"};
 
+// Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
+// liens css/js dans index.html et l'historique « Versions » du README.
+const APP_VERSION = '1.0';
+const APP_VERSION_DATE = '2026-10-24';
+
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
 // l'app doit continuer à fonctionner sans, d'où les try/catch.
 function prefGet(k){
@@ -1085,8 +1090,13 @@ function renderSettings() {
       <p class="lede">Dix habillages pour la même bibliothèque. Le choix est enregistré sur cet appareil :
         ton téléphone et ton PC peuvent avoir deux ambiances différentes.</p>
 
-      <div class="set-block">
-        <div class="section-title">Clair ou sombre <span class="rule"></span></div>
+      <div class="set-all">
+        <button type="button" class="set-all-btn" data-all="open">Tout déplier</button>
+        <span aria-hidden="true">·</span>
+        <button type="button" class="set-all-btn" data-all="close">Tout replier</button>
+      </div>
+
+      ${setBlock('mode', 'Clair ou sombre', `
         <div class="segmented" id="mode-seg">
           <button data-mode="auto" class="${mode==='auto'?'on':''}">Automatique</button>
           <button data-mode="light" class="${mode==='light'?'on':''}">Clair</button>
@@ -1094,23 +1104,16 @@ function renderSettings() {
         </div>
         <p class="lede" style="margin:0.8rem 0 0; font-size:0.8rem;">
           « Automatique » suit le réglage de ton téléphone ou de ton PC. Chacun des dix thèmes
-          existe dans les deux ambiances.</p>
-      </div>
+          existe dans les deux ambiances.</p>`)}
 
-      <div class="set-block">
-        <div class="section-title">Thème <span class="rule"></span></div>
+      ${setBlock('theme', 'Thème', `
         <div class="theme-grid" id="theme-grid">
           ${THEMES.map(t => themeCard(t, t.id === cur)).join('')}
-        </div>
-      </div>
+        </div>`)}
 
-      <div class="set-block">
-        <div class="section-title">Mode propriétaire <span class="rule"></span></div>
-        ${renderOwnerBlock()}
-      </div>
+      ${setBlock('proprietaire', 'Mode propriétaire', renderOwnerBlock())}
 
-      ${OWNER ? `<div class="set-block">
-        <div class="section-title">Où j'en suis <span class="rule"></span></div>
+      ${OWNER ? setBlock('stats', "Où j'en suis", `
         <div class="stats">
           <div class="stat"><div class="n">${ALL_BOOKS.length}</div><div class="l">livres</div></div>
           <div class="stat"><div class="n">${AUTHORS.size}</div><div class="l">auteurs</div></div>
@@ -1120,31 +1123,21 @@ function renderSettings() {
         </div>
         <div class="bar" title="${done} livres sur ${ALL_BOOKS.length}"><i style="width:${(done/n*100).toFixed(1)}%"></i></div>
         <p class="lede" style="margin:0.6rem 0 0; font-size:0.8rem;">
-          ${done} livre${done>1?'s':''} lu${done>1?'s':''} ou écouté${done>1?'s':''}, soit ${(done/n*100).toFixed(1)} % de la bibliothèque.</p>
-      </div>` : ''}
+          ${done} livre${done>1?'s':''} lu${done>1?'s':''} ou écouté${done>1?'s':''}, soit ${(done/n*100).toFixed(1)} % de la bibliothèque.</p>`) : ''}
 
-      ${(EDITABLE && OWNER) ? `<div class="set-block">
-        <div class="section-title">Anomalies <span class="rule"></span></div>
-        ${renderAnomaliesBlock()}
-      </div>` : ''}
+      ${(EDITABLE && OWNER) ? setBlock('anomalies', 'Anomalies', renderAnomaliesBlock()) : ''}
 
-      ${(EDITABLE && OWNER) ? `<div class="set-block">
-        <div class="section-title">Livres masqués <span class="rule"></span></div>
-        ${renderHiddenBlock()}
-      </div>` : ''}
+      ${(EDITABLE && OWNER) ? setBlock('masques', 'Livres masqués', renderHiddenBlock()) : ''}
 
-      ${OWNER ? `<div class="set-block">
-        <div class="section-title">Outil d'administration <span class="rule"></span></div>
+      ${OWNER ? setBlock('admin', "Outil d'administration", `
         <p class="lede" style="margin:0 0 0.8rem; font-size:0.85rem;">
           Pour ajouter des livres, des auteurs ou des couvertures directement dans la base Supabase.
           Détail de son fonctionnement dans la rubrique Aide ci-dessous.</p>
-        <a class="btn-main" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>
-      </div>` : ''}
+        <a class="btn-main" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>`) : ''}
 
-      ${OWNER ? `<div class="set-block">
-        <div class="section-title">Aide <span class="rule"></span></div>
-        ${renderAideProprietaire()}
-      </div>` : ''}
+      ${OWNER ? setBlock('aide', 'Aide', renderAideProprietaire()) : ''}
+
+      <p class="app-version">Ma Bibliothèque — version ${APP_VERSION} du ${APP_VERSION_DATE.split('-').reverse().join('/')}</p>
     </div>`;
 
   el.app.querySelectorAll('#theme-grid .theme-card').forEach(card => {
@@ -1157,6 +1150,7 @@ function renderSettings() {
   el.app.querySelectorAll('#mode-seg button').forEach(b => {
     b.addEventListener('click', () => { prefSet('mode', b.dataset.mode); applyTheme(); renderSettings(); });
   });
+  wireSetBlocks();
   wireOwnerBlock();
   wireAnomalies();
   wireAide();
@@ -1166,6 +1160,44 @@ function renderSettings() {
       if (book) restoreBook(book);
     });
   });
+}
+
+// Sections des Réglages repliables (titre cliquable, comme la rubrique Aide). Ce qui est
+// replié est mémorisé sur l'appareil : la page se rouvre telle qu'on l'a laissée.
+const SET_CLOSED_KEY = 'mabiblio.reglages.replies';
+let SET_CLOSED = (() => {
+  try { return new Set(JSON.parse(localStorage.getItem(SET_CLOSED_KEY) || '[]')); }
+  catch (e) { return new Set(); }
+})();
+function saveSetClosed() {
+  try { localStorage.setItem(SET_CLOSED_KEY, JSON.stringify([...SET_CLOSED])); } catch (e) {}
+}
+function setBlock(id, titre, corps) {
+  const ouvert = !SET_CLOSED.has(id);
+  return `
+      <section class="set-block${ouvert ? '' : ' is-closed'}" data-sec="${id}">
+        <button type="button" class="section-title set-head" data-sec="${id}" aria-expanded="${ouvert}">
+          <span class="t">${titre}</span><span class="rule"></span>
+        </button>
+        <div class="set-body"${ouvert ? '' : ' hidden'}>${corps}</div>
+      </section>`;
+}
+function toggleSetBlock(head, ouvrir) {
+  const id = head.dataset.sec;
+  head.setAttribute('aria-expanded', ouvrir ? 'true' : 'false');
+  head.nextElementSibling.hidden = !ouvrir;
+  head.parentElement.classList.toggle('is-closed', !ouvrir);
+  if (ouvrir) SET_CLOSED.delete(id); else SET_CLOSED.add(id);
+}
+function wireSetBlocks() {
+  el.app.querySelectorAll('.set-head').forEach(h => h.addEventListener('click', () => {
+    toggleSetBlock(h, h.getAttribute('aria-expanded') !== 'true');
+    saveSetClosed();
+  }));
+  el.app.querySelectorAll('.set-all-btn').forEach(b => b.addEventListener('click', () => {
+    el.app.querySelectorAll('.set-head').forEach(h => toggleSetBlock(h, b.dataset.all === 'open'));
+    saveSetClosed();
+  }));
 }
 
 function renderOwnerBlock() {

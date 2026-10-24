@@ -1256,6 +1256,33 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 .settings .lede{color:var(--sub); font-size:0.9rem; margin:0 0 2.2rem; max-width:52ch; line-height:1.6;}
 .set-block{margin-bottom:2.6rem;}
+.set-block.is-closed{margin-bottom:0.6rem;}
+/* titre de section cliquable : même allure que les autres titres, plus un chevron */
+.set-head{
+  width:100%; min-height:44px; padding:0; margin:0 0 0.9rem;
+  background:none; border:0; cursor:pointer; text-align:left;
+  font-size:0.74rem; color:var(--ink);
+}
+.set-block.is-closed .set-head{margin-bottom:0;}
+.set-head::after{
+  content:''; flex:none; width:8px; height:8px; margin:0 0.3rem 0 0.1rem;
+  border-right:2px solid var(--sub); border-bottom:2px solid var(--sub);
+  transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s ease;
+}
+.set-head[aria-expanded="true"]::after{transform:rotate(-135deg) translate(-2px,-2px);}
+@media (hover:hover) and (pointer:fine){
+  .set-head:hover .t{color:var(--accent);}
+}
+.set-all{display:flex; gap:0.5rem; align-items:center; margin:-1.2rem 0 1.6rem; color:var(--sub); font-size:0.8rem;}
+.set-all-btn{
+  background:none; border:0; padding:0.4rem 0; min-height:36px; cursor:pointer;
+  color:var(--sub); font:inherit; text-decoration:underline; text-underline-offset:3px;
+}
+@media (hover:hover) and (pointer:fine){ .set-all-btn:hover{color:var(--ink);} }
+.app-version{
+  margin:2.4rem 0 0; padding-top:1rem; border-top:1px solid var(--line);
+  font-family:var(--font-mono); font-size:0.72rem; color:var(--sub);
+}
 
 .segmented{display:inline-flex; background:var(--chip); border-radius:999px; padding:3px; gap:2px; border:1px solid var(--line);}
 .segmented button{
