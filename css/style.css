@@ -813,6 +813,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 /* ---------- pastilles de statut (Favoris / Lus / Écoutés / Non lus) ---------- */
 .status-pills{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
 .status-pills[hidden]{display:none;}
+.pill[hidden]{display:none;}
 .pill{
   border:2px solid var(--hdr-line);
   background:var(--chip); color:var(--ink);
@@ -993,6 +994,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 .badge.fav{background:var(--accent); color:var(--accent-ink);}
 .badge.status{border-color:var(--sub); color:var(--sub);}
+.badge.inprogress{border-color:var(--accent); color:var(--accent); font-weight:600;}
 .badge.genre{border-color:var(--line); color:var(--sub); background:var(--chip);}
 
 /* ---------- retour / en-tête auteur ---------- */

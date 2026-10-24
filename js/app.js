@@ -26,7 +26,7 @@ const DEFAULTS = {theme:"nordique", mode:"auto"};
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.3';
+const APP_VERSION = '1.4';
 const APP_VERSION_DATE = '2026-10-25';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -75,6 +75,10 @@ let EDITABLE = true;
 // une simple liste alphabétique, comme avant.
 let SERIES_READY = true;
 
+// Idem pour la migration « en cours » (colonne is_in_progress) : sans elle, la
+// case « En cours », sa pastille et son badge n'apparaissent simplement pas.
+let PROGRESS_READY = true;
+
 // ---------------------------------------------------------------
 // Mode propriétaire
 //
@@ -119,6 +123,13 @@ let statusValue = '';
 function syncStatusFilterVisibility() {
   if (!el.statusPills) return;
   el.statusPills.hidden = !OWNER;
+  const pEnCours = el.statusPills.querySelector('.pill[data-status="inprogress"]');
+  if (pEnCours) {
+    pEnCours.hidden = !PROGRESS_READY;
+    if (!PROGRESS_READY && statusValue === 'inprogress') {
+      statusValue = ''; pEnCours.classList.remove('on');
+    }
+  }
   if (!OWNER && statusValue) {
     statusValue = '';
     el.statusPills.querySelectorAll('.pill').forEach(b => b.classList.remove('on'));
@@ -163,6 +174,7 @@ async function loadLibrary() {
   const cols = () => `id, title,`
     + (EDITABLE ? ` source_title, is_hidden,` : ``)
     + (SERIES_READY ? ` series, series_index,` : ``)
+    + (PROGRESS_READY ? ` is_in_progress,` : ``)
     + COLS_BASE.replace('id, title,', '');
 
   const PAGE_SIZE = 1000;
@@ -174,10 +186,12 @@ async function loadLibrary() {
       .order('id', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
 
-    // deux essais au plus : on retire d'abord les séries, puis l'édition
-    for (let essai = 0; error && essai < 2; essai++) {
+    // trois essais au plus : on retire d'abord les séries, puis « en cours »,
+    // puis l'édition (dont le motif « column » est le plus large : il vient en dernier)
+    for (let essai = 0; error && essai < 3; essai++) {
       const msg = error.message || '';
       if (SERIES_READY && /series/i.test(msg)) SERIES_READY = false;
+      else if (PROGRESS_READY && /in_progress/i.test(msg)) PROGRESS_READY = false;
       else if (EDITABLE && /source_title|is_hidden|column/i.test(msg)) EDITABLE = false;
       else break;
       ({ data: page, error } = await sb
@@ -210,6 +224,7 @@ async function loadLibrary() {
     author_name_sort: b.authors ? b.authors.name_sort : 'zzz',
     has_ebook: b.has_ebook, has_pdf: b.has_pdf, has_audio: b.has_audio,
     is_read: b.is_read, is_listened: b.is_listened, is_favorite: b.is_favorite,
+    is_in_progress: !!b.is_in_progress,
     genre: b.genre || 'Non classé',
     cover_path: b.cover_path,
     source_note: b.source_note,
@@ -369,6 +384,7 @@ function formatBadges(book) {
   // un visiteur ne doit pas pouvoir les découvrir en parcourant la liste.
   if (OWNER) {
     if (book.is_favorite) out += `<span class="badge fav">★ Favori</span>`;
+    if (PROGRESS_READY && book.is_in_progress) out += `<span class="badge inprogress">En cours</span>`;
     if (book.is_read) out += `<span class="badge status">Lu</span>`;
     if (book.is_listened) out += `<span class="badge status">Écouté</span>`;
   }
@@ -403,7 +419,9 @@ function matchesFilters(b, f) {
     if (f.status === 'favorite' && !b.is_favorite) return false;
     if (f.status === 'read' && !b.is_read) return false;
     if (f.status === 'listened' && !b.is_listened) return false;
-    if (f.status === 'unread' && b.is_read) return false;
+    if (f.status === 'inprogress' && !b.is_in_progress) return false;
+    // « Non lus » = pas encore commencés : un livre en cours n'en fait plus partie
+    if (f.status === 'unread' && (b.is_read || b.is_in_progress)) return false;
   }
   return true;
 }
@@ -633,6 +651,9 @@ function renderBook(bookId) {
         <div class="badges">${formats.map(f => `<span class="badge">${f}</span>`).join('')}</div>
 
         ${OWNER ? `<div class="toggles">
+          ${PROGRESS_READY ? `<label class="toggle ${book.is_in_progress ? 'active' : ''}" data-field="is_in_progress">
+            <input type="checkbox" ${book.is_in_progress ? 'checked' : ''}> En cours
+          </label>` : ''}
           <label class="toggle ${book.is_read ? 'active' : ''}" data-field="is_read">
             <input type="checkbox" ${book.is_read ? 'checked' : ''}> Lu sur liseuse
           </label>
@@ -846,15 +867,27 @@ async function restoreBook(book) {
 
 async function toggleField(book, field, label, checked) {
   const newValue = !!checked;
-  book[field] = newValue; // on affiche tout de suite, on corrige si ça rate
-  label.classList.toggle('active', newValue);
-  label.querySelector('input').checked = newValue;
+  const payload = { [field]: newValue };
+  // Cocher « Lu » ou « Écouté » termine la lecture : « En cours » se décoche tout
+  // seul, dans la même mise à jour (comme dans l'appli BD, où une série entièrement
+  // lue n'est plus « en cours »).
+  const finit = PROGRESS_READY && newValue && book.is_in_progress
+    && (field === 'is_read' || field === 'is_listened');
+  if (finit) payload.is_in_progress = false;
+  const avant = { [field]: book[field], is_in_progress: book.is_in_progress };
 
-  const { error } = await sb.from('books').update({ [field]: newValue }).eq('id', book.id);
+  const affiche = (f, v) => {
+    const lab = f === field ? label : el.app.querySelector(`.toggle[data-field="${f}"]`);
+    if (!lab) return;
+    lab.classList.toggle('active', v);
+    lab.querySelector('input').checked = v;
+  };
+  // on affiche tout de suite, on corrige si ça rate
+  for (const [f, v] of Object.entries(payload)) { book[f] = v; affiche(f, v); }
+
+  const { error } = await sb.from('books').update(payload).eq('id', book.id);
   if (error) {
-    book[field] = !newValue;
-    label.classList.toggle('active', !newValue);
-    label.querySelector('input').checked = !newValue;
+    for (const f of Object.keys(payload)) { book[f] = avant[f]; affiche(f, avant[f]); }
     alert("La mise à jour n'a pas pu être enregistrée. Vérifie ta connexion et réessaie.");
   }
 }
@@ -1107,6 +1140,7 @@ function renderSettings() {
   const read = ALL_BOOKS.filter(b => b.is_read).length;
   const listened = ALL_BOOKS.filter(b => b.is_listened).length;
   const fav = ALL_BOOKS.filter(b => b.is_favorite).length;
+  const enCours = ALL_BOOKS.filter(b => b.is_in_progress).length;
   const done = ALL_BOOKS.filter(b => b.is_read || b.is_listened).length;
 
   el.app.innerHTML = `
@@ -1145,6 +1179,7 @@ function renderSettings() {
           <div class="stat"><div class="n">${AUTHORS.size}</div><div class="l">auteurs</div></div>
           <div class="stat"><div class="n">${read}</div><div class="l">lus</div></div>
           <div class="stat"><div class="n">${listened}</div><div class="l">écoutés</div></div>
+          ${PROGRESS_READY ? `<div class="stat"><div class="n">${enCours}</div><div class="l">en cours</div></div>` : ''}
           <div class="stat"><div class="n">${fav}</div><div class="l">favoris</div></div>
         </div>
         <div class="bar" title="${done} livres sur ${ALL_BOOKS.length}"><i style="width:${(done/n*100).toFixed(1)}%"></i></div>
@@ -1511,10 +1546,13 @@ const AIDE_SECTIONS = [
     titre: "Sur la fiche d'un livre",
     corps: `
       <p class="hint-sm" style="margin:0 0 0.8rem;">
-        Trois cases cliquables sous le titre — Lu sur liseuse, Écouté en audio, Favori — qui
-        s'enregistrent tout de suite, sans valider. Ces cases, les pastilles de statut du bandeau et les
-        badges correspondants n'apparaissent qu'en mode propriétaire : un visiteur ne peut
-        jamais voir ce que tu as lu, écouté ou mis en favori.</p>
+        Quatre cases cliquables sous le titre — En cours, Lu sur liseuse, Écouté en audio,
+        Favori — qui s'enregistrent tout de suite, sans valider. Cocher « Lu » ou « Écouté »
+        décoche « En cours » automatiquement : le livre est terminé. Un livre en cours ne fait
+        plus partie des « Non lus ». Ces cases, les pastilles de statut du bandeau (Lus, Écoutés,
+        En cours, Non lus, Favoris) et les badges correspondants n'apparaissent qu'en mode
+        propriétaire : un visiteur ne peut jamais voir ce que tu lis, as lu, écouté ou mis en
+        favori.</p>
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         <strong>Corriger le titre</strong> : le nouveau texte devient le titre affiché ;
         l'orthographe du fichier d'origine reste conservée en coulisses, pour que la prochaine
@@ -1824,5 +1862,6 @@ syncStatusFilterVisibility();
 
 (async function init() {
   const ok = await loadLibrary();
+  syncStatusFilterVisibility();   // la pastille « En cours » dépend de la base chargée
   if (ok) route();
 })();
