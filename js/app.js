@@ -26,7 +26,7 @@ const DEFAULTS = {theme:"nordique", mode:"auto"};
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 const APP_VERSION_DATE = '2026-10-24';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -215,10 +215,6 @@ async function loadLibrary() {
     source_note: b.source_note,
     created_at: b.created_at || '',
   }));
-  // Texte de recherche calculé une fois pour toutes, à plat. On y joint le
-  // titre d'origine du disque : un livre renommé reste trouvable par son
-  // ancienne orthographe.
-  for (const b of all) b.search = fold(`${b.title} ${b.author_name} ${b.source_title || ''}`);
 
   // Les fiches masquées restent en base pour empêcher leur réinsertion lors
   // d'une synchronisation, mais l'application ne les montre nulle part.
@@ -247,7 +243,34 @@ function rebuildAuthors() {
   AUTHOR_ORDER = Array.from(AUTHORS.values())
     .sort((a, b) => (a.name_sort || a.name).localeCompare(b.name_sort || b.name, 'fr'))
     .map(a => a.id);
+  rebuildSearch();
   updateBrandStats();
+}
+
+// Texte de recherche de chaque livre visible : le titre AFFICHÉ et l'auteur, rien
+// d'autre. Un titre corrigé ne se retrouve donc plus par son ancienne orthographe
+// (source_title reste en base, mais ne sert plus qu'aux synchronisations).
+// Seule exception : une fiche fusionnée reste trouvable sous le titre de la fiche
+// qu'elle a absorbée. La base ne garde pas de lien explicite entre les deux ; on le
+// retrouve ici en rapprochant chaque fiche masquée de la fiche visible du même auteur
+// qui a la même clé de doublon (la règle de l'écran des anomalies, celle-là même qui
+// a proposé la fusion). Une fiche masquée qui n'est le doublon de rien n'apporte rien.
+// Appelée par rebuildAuthors(), donc au chargement et après chaque fusion, masquage,
+// restauration ; et après chaque correction de titre.
+function rebuildSearch() {
+  const absorbes = new Map();   // "auteur|clé" -> titres des fiches masquées
+  for (const h of HIDDEN_BOOKS) {
+    const k = cleDoublon(h);
+    if (!k) continue;
+    const cle = h.author_id + '|' + k;
+    if (!absorbes.has(cle)) absorbes.set(cle, []);
+    absorbes.get(cle).push(h.title);
+  }
+  for (const b of ALL_BOOKS) {
+    const k = cleDoublon(b);
+    const fusion = k ? (absorbes.get(b.author_id + '|' + k) || []) : [];
+    b.search = fold([b.title, b.author_name, ...fusion].join(' '));
+  }
 }
 
 // Totaux affichés dans le bandeau d'en-tête, à côté du titre — toujours les
@@ -717,8 +740,8 @@ async function doRename(book) {
   }
   if (!book.source_title) book.source_title = book.title;
   book.title = next;
-  // le titre corrigé entre dans l'index de recherche, l'ancien y reste
-  book.search = fold(`${book.title} ${book.author_name} ${book.source_title || ''}`);
+  // la recherche suit le titre affiché : l'ancien titre ne la nourrit plus
+  rebuildSearch();
   renderBook(book.id);
 }
 
@@ -1067,7 +1090,7 @@ async function corrigeTitre(book, next) {
   if (error) return 'erreur';
   if (!book.source_title) book.source_title = book.title;
   book.title = next;
-  book.search = fold(`${book.title} ${book.author_name} ${book.source_title || ''}`);
+  rebuildSearch();
   return 'ok';
 }
 
@@ -1486,13 +1509,15 @@ const AIDE_SECTIONS = [
     corps: `
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         Trois cases cliquables sous le titre — Lu sur liseuse, Écouté en audio, Favori — qui
-        s'enregistrent tout de suite, sans valider. Ces cases, le filtre « Statut » et les
+        s'enregistrent tout de suite, sans valider. Ces cases, les pastilles de statut du bandeau et les
         badges correspondants n'apparaissent qu'en mode propriétaire : un visiteur ne peut
         jamais voir ce que tu as lu, écouté ou mis en favori.</p>
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         <strong>Corriger le titre</strong> : le nouveau texte devient le titre affiché ;
         l'orthographe du fichier d'origine reste conservée en coulisses, pour que la prochaine
-        synchronisation retrouve ce livre et ne le recrée pas en double. Si l'auteur a déjà un
+        synchronisation retrouve ce livre et ne le recrée pas en double. La recherche, elle, ne
+        connaît plus que le nouveau titre (seule une fiche fusionnée reste aussi trouvable sous le
+        titre de celle qu'elle a absorbée). Si l'auteur a déjà un
         livre portant ce titre, c'est signalé au lieu d'être enregistré — masque plutôt la fiche
         en trop.</p>
       <p class="hint-sm" style="margin:0;">

@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 1.0 du 24/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 1.2 du 24/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -365,7 +365,7 @@ L'intérêt décisif est pratique : masquer et renommer sont de simples mises à
 
 **Recherche par mots.** La saisie est découpée en mots, tous devant être présents, sans contrainte d'ordre : « piliers terre », « follett piliers » ou « dicker enigme » trouvent le bon livre. Auparavant seule une sous-chaîne contiguë fonctionnait.
 
-**Index pré-calculé.** Chaque livre porte un champ `search` calculé une fois au chargement, qui joint le titre, l'auteur **et `source_title`** — un livre dont le titre a été corrigé reste donc trouvable par son orthographe d'origine. L'index est recalculé après une correction de titre.
+**Index pré-calculé.** Chaque livre porte un champ `search` calculé au chargement et recalculé après chaque correction de titre, fusion, masquage ou restauration. **Depuis la version 1.2 (§4.32), il ne contient que le titre affiché et l'auteur** — plus `source_title` — avec une seule exception pour les fiches fusionnées. *(Jusqu'à la 1.1, il joignait aussi `source_title`, si bien qu'un livre renommé restait trouvable par son ancienne orthographe.)*
 
 **Vérifications** : 18 cas de recherche dans un vrai navigateur, dont « menage », « MÉNAGE », « coeur », « cœur », « brules », « l'enigme », « d'acier », « chambre 622 », « cavernes asimov », « follett piliers », plus une recherche sans résultat et le retour à la liste des auteurs quand le champ est vidé. Les suites de non-régression (thèmes, masquage/correction, mosaïque, repli sans migration) repassent toutes.
 
@@ -672,6 +672,28 @@ Les couleurs viennent du thème actif : avec **Rétro Pulp** le rendu est celui 
 
 **Vérifié** : nouvelle suite Playwright `reglages.js` (16 vérifications : sections présentes visiteur/propriétaire, repli/dépli, état conservé après rechargement et après nouveau rendu, Tout déplier/replier, version affichée, cible tactile de 44 px et aucun débordement sur iPhone) ; les sept autres suites repassent sans échec. Livré le 2026-10-24, version 1.0.
 
+### 4.31 Lien vers le mode d'emploi PDF rétabli dans les Réglages
+
+Christophe a demandé que `Mode_emploi_proprietaire.pdf`, qu'il dépose à la racine de son dépôt GitHub, soit accessible depuis la page Réglages. Ce lien avait déjà été livré le 20/10 (§4.26) mais **n'était plus dans le code** : il a disparu lors d'une livraison ultérieure, sans doute à cause du même problème de copies périmées que celui décrit en fin de §4.29 (seul le bouton de l'outil d'import avait survécu).
+
+**Rétabli** dans la section « Outil d'administration et mode d'emploi » (anciennement « Outil d'administration ») : deux boutons côte à côte, « Ouvrir l'outil d'import Supabase ↗ » et « Ouvrir le mode d'emploi (PDF) ↗ » (`id="link-mode-emploi"`, `href="Mode_emploi_proprietaire.pdf"`, nouvel onglet). La phrase d'introduction de la rubrique Aide, qui mentionnait le PDF, porte maintenant aussi un lien vers lui. Comme prévu en §4.26, la section reste **réservée au mode propriétaire**. Le lien est relatif : il fonctionne tant que le PDF est à la racine du dépôt, au même niveau qu'`index.html` (vérifié le 24/10/2026 sur `deepblue67/ma-bibliotheque`).
+
+**Vérifié** : la suite `reglages.js` couvre désormais le lien (absent pour un visiteur, présent pour le propriétaire, bonne adresse, nouvel onglet, renvoi depuis l'Aide, bouton de l'outil d'import toujours présent) — 22 vérifications ; les sept autres suites repassent sans échec. Version 1.1.
+
+### 4.32 La recherche ne porte plus que sur le titre affiché (sauf fiche fusionnée)
+
+Christophe a constaté qu'après avoir corrigé le titre d'un livre, une recherche sur un mot qu'il avait **effacé** retrouvait encore le livre. Cause : l'index de recherche joignait le titre d'origine du disque (`source_title`) au titre affiché (§4.14). Décision de Christophe : **la recherche se limite à ce qui est affiché** — le titre corrigé (et l'auteur) — avec **une seule exception, qu'il garde : une fiche fusionnée**.
+
+**Ce qui change** (`rebuildSearch()` dans `js/app.js`) :
+- le texte de recherche d'un livre = son titre affiché + son auteur, rien d'autre ;
+- `source_title` reste en base et continue de servir aux synchronisations (c'est grâce à lui qu'un livre renommé n'est pas recréé en double) ; seule la recherche ne le lit plus ;
+- **exception fusion** : une fiche gardée lors d'une fusion reste trouvable sous le titre de la fiche qu'elle a absorbée. La base ne garde aucun lien explicite entre les deux ; il est reconstitué à chaque chargement en rapprochant chaque fiche masquée de la fiche visible **du même auteur ayant la même clé de doublon** (`cleDoublon()`, la règle même qui a proposé la fusion dans l'écran des anomalies). Cela couvre aussi les fusions faites avant cette version, sans migration. Une fiche simplement masquée, qui n'est le doublon d'aucune fiche visible, n'apporte rien à la recherche.
+- **Limite connue** : si la fiche gardée est ensuite renommée au point de ne plus avoir la même clé de doublon que la fiche absorbée, le rapprochement est perdu et la recherche ne suit plus que le nouveau titre — ce qui est cohérent avec la règle « on cherche ce qui est affiché ».
+
+La rubrique Aide de l'application le dit désormais dans le paragraphe « Corriger le titre » (et parle des pastilles de statut au lieu de l'ancien filtre « Statut »).
+
+**Vérifié** : nouvelle suite `recherche.js` (14 vérifications : le nouveau titre est trouvé, seul ou avec plusieurs mots ; le mot effacé ne retrouve plus le livre ; la recherche par auteur marche toujours ; une autre fiche qui porte vraiment le mot reste trouvée ; après une fusion, les mots propres à la fiche absorbée retrouvent la fiche gardée, une seule fois ; le lien est reconstitué au chargement ; une fiche masquée sans rapport n'apporte rien) ; les huit autres suites repassent sans échec. Version 1.2.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -705,7 +727,9 @@ Les couleurs viennent du thème actif : avec **Rétro Pulp** le rendu est celui 
 29. Trancher le cas de `La route du diable` (Franck Thilliez ou Laurent Queyssi ? — voir §4.27) et le signaler à Claude pour correction si besoin.
 30. **Christophe redéploie `js/app.js`, `css/style.css` et `index.html`** (champ de recherche corrigé sur iPhone, croix d'effacement — voir §4.28).
 31. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble** (en-tête façon appli BD, suppression des « Derniers ajouts » — voir §4.29).
-32. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.0** (réglages repliables, numéro de version — voir §4.30). Vérifier ensuite en bas des Réglages que la ligne « version 1.0 » apparaît.
+32. ~~**Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.0** (réglages repliables, numéro de version — voir §4.30).~~ **Fait — vérifié en ligne le 24/10/2026.**
+33. ~~**Christophe redéploie … — version 1.1** (lien vers le mode d'emploi PDF — voir §4.31).~~ Remplacé par l'étape 34 (la 1.2 contient la 1.1).
+34. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.2** (recherche limitée au titre affiché — voir §4.32 ; inclut le lien PDF de la 1.1). Vérifier ensuite « version 1.2 » en bas des Réglages.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -729,5 +753,7 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | Version | Date | Contenu | Détail |
 |---|---|---|---|
 | 1.0 | 24/10/2026 | Premier numéro de version. Réglages repliables (état mémorisé), numéro de version affiché dans les Réglages et utilisé pour forcer le rechargement des fichiers. Inclut aussi les livraisons du même jour : en-tête repris de l'appli BD, suppression des « Derniers ajouts », pastilles de statut, recherche iPhone corrigée et croix d'effacement. | §4.28, §4.29, §4.30 |
+| 1.1 | 24/10/2026 | Lien « Ouvrir le mode d'emploi (PDF) » rétabli dans les Réglages (section Outil d'administration et mode d'emploi, et rubrique Aide), réservé au propriétaire. | §4.31 |
+| 1.2 | 24/10/2026 | La recherche ne porte plus que sur le titre affiché et l'auteur : un mot effacé lors d'une correction de titre ne retrouve plus le livre. Exception : une fiche fusionnée reste trouvable sous le titre de la fiche absorbée. Aide mise à jour. | §4.32 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.
