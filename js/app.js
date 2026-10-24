@@ -26,7 +26,7 @@ const DEFAULTS = {theme:"nordique", mode:"auto"};
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.1';
 const APP_VERSION_DATE = '2026-10-24';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -1129,11 +1129,14 @@ function renderSettings() {
 
       ${(EDITABLE && OWNER) ? setBlock('masques', 'Livres masqués', renderHiddenBlock()) : ''}
 
-      ${OWNER ? setBlock('admin', "Outil d'administration", `
+      ${OWNER ? setBlock('admin', "Outil d'administration et mode d'emploi", `
         <p class="lede" style="margin:0 0 0.8rem; font-size:0.85rem;">
-          Pour ajouter des livres, des auteurs ou des couvertures directement dans la base Supabase.
-          Détail de son fonctionnement dans la rubrique Aide ci-dessous.</p>
-        <a class="btn-main" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>`) : ''}
+          L'outil d'import sert à ajouter des livres, des auteurs ou des couvertures directement dans
+          la base Supabase. Le mode d'emploi (PDF) explique tout ce que permet le mode propriétaire.</p>
+        <div class="admin-links">
+          <a class="btn-main" id="link-import-tool" href="supabase_import_tool.html" target="_blank" rel="noopener">Ouvrir l'outil d'import Supabase ↗</a>
+          <a class="btn-main" id="link-mode-emploi" href="Mode_emploi_proprietaire.pdf" target="_blank" rel="noopener">Ouvrir le mode d'emploi (PDF) ↗</a>
+        </div>`) : ''}
 
       ${OWNER ? setBlock('aide', 'Aide', renderAideProprietaire()) : ''}
 
@@ -1629,7 +1632,8 @@ function renderAideProprietaire() {
   return `
     <p class="lede" style="margin:0 0 1.2rem; font-size:0.85rem;">
       Ce que permet le mode propriétaire, et où s'arrête ce que l'application sait faire seule.
-      La version complète existe aussi en PDF, remise à part.</p>
+      La version complète existe aussi en PDF :
+      <a href="Mode_emploi_proprietaire.pdf" target="_blank" rel="noopener">ouvrir le mode d'emploi</a>.</p>
     ${AIDE_SECTIONS.map(s => `
       <div class="aide-fam">
         <button type="button" class="aide-head" data-aide="${s.id}"

@@ -1279,6 +1279,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   color:var(--sub); font:inherit; text-decoration:underline; text-underline-offset:3px;
 }
 @media (hover:hover) and (pointer:fine){ .set-all-btn:hover{color:var(--ink);} }
+.admin-links{display:flex; flex-wrap:wrap; gap:0.7rem;}
 .app-version{
   margin:2.4rem 0 0; padding-top:1rem; border-top:1px solid var(--line);
   font-family:var(--font-mono); font-size:0.72rem; color:var(--sub);
