@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 1.5 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 1.6 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -747,6 +747,26 @@ La rubrique Aide décrit le bloc. *Le PDF du mode d'emploi n'a pas été régén
 
 **Vérifié** : nouvelle suite `avis.js` (30 vérifications), dont : un visiteur ne déclenche aucune requête sur ces colonnes (le faux Supabase des tests enregistre désormais les colonnes demandées) ; apparition du bloc au cochage ; note fixée, effacée, refixée ; « Aujourd'hui », « Effacer », date choisie ; commentaire au bouton et en quittant le champ, sans envoi inutile ; texte contenant du HTML affiché tel quel, jamais exécuté ; état retrouvé en revenant sur la fiche ; retour arrière en cas de panne ; badge et statistiques ; effacement en quittant le mode propriétaire ; boutons de 44×44 px sur iPhone sans débordement ; base sans la migration. Les suites qui utilisent le mode propriétaire (`avis`, `encours`, `statuts`, `recherche`) configurent désormais elles-mêmes un code propriétaire de test, au lieu de dépendre de l'état laissé par la suite précédente. Les douze autres suites repassent sans échec. Version 1.5.
 
+### 4.36 Mon carnet de lecture
+
+Christophe voulait retrouver quelque part les notes et dates des livres lus ou écoutés, et les trier. Trois pistes lui ont été proposées (une section des Réglages, un tri dans la recherche de l'accueil, une page dédiée) ; il a retenu **la page dédiée**, les options (graphiques, répartition des notes, export Excel) étant **remises à plus tard**.
+
+**Accès** : une icône « carnet » dans le bandeau, à gauche de la roue crantée, visible **en mode propriétaire uniquement** (`#carnet-btn`, masquée par `syncStatusFilterVisibility()`). Adresse : `#/carnet`. Un visiteur qui taperait l'adresse est renvoyé à l'accueil.
+
+**Contenu de la page** (`renderCarnet()` dans `js/app.js`) :
+- **Où j'en suis** — section **déplacée depuis les Réglages** (qui ne gardent que les vrais réglages, l'administration et l'aide) : livres, auteurs, lus, écoutés, en cours, notés, note moyenne, favoris, barre d'avancement, et **lectures par année** (d'après la date de lecture ; les livres sans date sont comptés à part) ;
+- **En cours** — les livres en cours de lecture, s'il y en a ;
+- **Livres lus ou écoutés** — une ligne par livre : titre, auteur, Lu / Écouté, date, note, début du commentaire (140 caractères, affiché comme du texte). Toucher une ligne ouvre la fiche du livre.
+  - **Tri** : date de lecture (plus récente d'abord — par défaut — ou plus ancienne), note (meilleure ou moins bonne d'abord), titre, auteur. Les livres sans date (ou sans note, pour le tri par note) vont toujours en fin de liste. En tri par date, un intertitre par année, puis **« Date non renseignée »** : c'est là que se retrouvent les lectures déjà cochées avant l'arrivée des dates, à compléter peu à peu.
+  - **Filtres** : année (dont « Date non renseignée »), format (lus sur liseuse / écoutés en audio), note (notés / pas encore notés), combinables ; compteur « N livres sur M ».
+  - Le tri et les filtres choisis sont conservés pendant la visite (aller sur une fiche puis revenir ne les perd pas).
+- Sur iPhone : menus en grille, lignes empilées, aucun débordement.
+- Sans la migration « avis » (§4.35), la page fonctionne quand même : tri par titre ou auteur seulement, et un message rappelle la migration à exécuter.
+
+La rubrique Aide « Où j'en suis » devient « Mon carnet de lecture » et décrit la page.
+
+**Vérifié** : nouvelle suite `carnet.js` (36 vérifications : invisible et inaccessible pour un visiteur ; icône et ouverture ; statistiques et moyenne ; lectures par année ; section En cours ; les six tris, dont la place des sans-date et des non-notés ; intertitres d'année ; chaque filtre et leur combinaison, message si rien ne correspond ; date, note et extrait de commentaire tronqué et échappé ; ouverture de la fiche et conservation du tri au retour ; « Où j'en suis » absent des Réglages ; iPhone ; base sans migration). `reglages.js`, `avis.js` et `encours.js` vont chercher les statistiques dans le carnet au lieu des Réglages. Les treize autres suites repassent sans échec. Version 1.6.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -787,7 +807,9 @@ La rubrique Aide décrit le bloc. *Le PDF du mode d'emploi n'a pas été régén
 36. **Christophe exécute `migration_2026-10_en_cours.sql`** dans Supabase → SQL Editor → Run (§4.34). La vérification en fin de script doit afficher la colonne `is_in_progress`. Peut se faire avant ou après l'étape 37 : sans la colonne, l'app masque simplement « En cours ».
 37. ~~**Christophe redéploie … — version 1.4** (statut « En cours » — voir §4.34).~~ Remplacé par l'étape 39 (la 1.5 contient les 1.1 à 1.4).
 38. **Christophe exécute `migration_2026-10_avis.sql`** dans Supabase → SQL Editor → Run (§4.35). La vérification en fin de script doit afficher les trois colonnes `finished_on`, `rating`, `review_comment`. Comme pour l'étape 36, l'ordre avec le redéploiement est libre.
-39. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.5** (Mon avis — voir §4.35 ; inclut les 1.1 à 1.4). Vérifier ensuite « version 1.5 » en bas des Réglages, puis le bloc « Mon avis » sur un livre coché « Lu ».
+39. ~~**Christophe redéploie … — version 1.5** (Mon avis — voir §4.35).~~ Remplacé par l'étape 40 (la 1.6 contient les 1.1 à 1.5).
+40. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.6** (Mon carnet de lecture — voir §4.36 ; inclut les 1.1 à 1.5). Vérifier « version 1.6 » en bas des Réglages, puis l'icône carnet dans le bandeau en mode propriétaire. Les étapes 36 et 38 (migrations SQL « en cours » et « avis ») restent à faire si ce n'est pas déjà le cas.
+41. Plus tard, au choix de Christophe : options du carnet (graphique des lectures par mois ou par année, répartition des notes, export Excel).
 
 ## 6. Notes pour une reprise future du projet
 
@@ -816,5 +838,6 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 1.3 | 25/10/2026 | Les cases « Lu sur liseuse », « Écouté en audio » et « Favori » se cochent en touchant la case elle-même, plus seulement son texte (iPhone et ordinateur). | §4.33 |
 | 1.4 | 25/10/2026 | Nouveau statut « En cours » : case sur la fiche, pastille de recherche dans le bandeau, badge sur les cartes, compteur dans « Où j'en suis ». Cocher Lu ou Écouté décoche En cours ; « Non lus » exclut les livres en cours. Nécessite `migration_2026-10_en_cours.sql` (sinon fonction masquée). | §4.34 |
 | 1.5 | 25/10/2026 | « Mon avis » sur la fiche d'un livre lu ou écouté : note de 1 à 10, date de lecture/écoute, commentaire. Privé : visible et même téléchargé en mode propriétaire uniquement. Badge de note sur les cartes, note moyenne dans « Où j'en suis ». Nécessite `migration_2026-10_avis.sql` (sinon fonction masquée). | §4.35 |
+| 1.6 | 25/10/2026 | Nouvelle page « Mon carnet de lecture » (icône dans le bandeau, propriétaire seulement) : Où j'en suis (déplacé depuis les Réglages) avec lectures par année, livres en cours, liste des livres lus ou écoutés triable par date, note, titre, auteur et filtrable par année, format, note. | §4.36 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

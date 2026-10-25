@@ -746,8 +746,10 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   font-size:13px; font-weight:700;
   color:var(--hdr-sub);           /* teinte « papier » comme les compteurs de l'appli BD */
 }
+.hdr-btns{margin-left:auto; align-self:center; display:flex; gap:10px;}
+.icon-btn[hidden]{display:none;}
 .icon-btn{
-  margin-left:auto; align-self:center;
+  align-self:center;
   width:42px; height:42px; flex:none; padding:0;
   border-radius:50%;
   border:var(--hdr-bw) solid var(--hdr-line);
@@ -834,7 +836,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   }
   .brand{grid-column:1; grid-row:1;}
   .brand-stats{grid-column:1; grid-row:2;}
-  .icon-btn{grid-column:2; grid-row:1 / span 2; margin-left:0;}
+  .hdr-btns{grid-column:2; grid-row:1 / span 2; margin-left:0;}
   /* iPhone : recherche sur toute la largeur, puis Format + Genre côte à côte (grille, et non
      flex : Safari iOS refuse parfois de rétrécir un <select> en flex), puis les pastilles. */
   .controls{
@@ -1615,4 +1617,47 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 :root[data-mode="auto"] .tp[data-preview="pulp"] .tp-cover{background:#e0543a;}
 :root[data-mode="auto"] .tp[data-preview="pulp"] .tp-l{background:#2e2518;}
 :root[data-mode="auto"] .tp[data-preview="pulp"] .tp-chip{background:#e0543a;}
+}
+
+
+/* ---------- Mon carnet de lecture (propriétaire) ---------- */
+.carnet h1{font-family:var(--font-display); font-weight:700; font-size:1.8rem; margin:0 0 0.3rem; letter-spacing:-0.015em;}
+.carnet .lede{color:var(--sub); font-size:0.9rem; margin:0 0 2rem; max-width:60ch; line-height:1.6;}
+.carnet .carnet-lede{margin:0.6rem 0 0; font-size:0.8rem;}
+.carnet-sec{margin-bottom:2.4rem;}
+.carnet-ctrls{display:flex; flex-wrap:wrap; gap:0.7rem 1rem; margin:0 0 0.8rem;}
+.carnet-ctrls label{display:flex; flex-direction:column; gap:0.25rem; font-size:0.72rem; color:var(--sub);
+  font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.06em;}
+.carnet-ctrls select{
+  font-family:var(--font-body); font-size:0.88rem; text-transform:none; letter-spacing:0; color:var(--ink);
+  padding:0.45em 2em 0.45em 0.75em; min-height:40px; border:1px solid var(--line); border-radius:8px;
+  background:var(--card); cursor:pointer;
+}
+.carnet-count{font-size:0.8rem; color:var(--sub); margin:0 0 0.6rem;}
+.carnet-list{display:flex; flex-direction:column; gap:0.5rem;}
+.carnet-groupe{font-family:var(--font-display); font-weight:700; font-size:1.05rem; color:var(--accent); margin:1rem 0 0.2rem;}
+.carnet-groupe:first-child{margin-top:0;}
+.carnet-row{
+  display:grid; grid-template-columns:minmax(0,1fr) auto; gap:0.35rem 1rem; align-items:center;
+  padding:0.75rem 0.95rem; border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--card); color:var(--ink); text-decoration:none;
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+@media (hover:hover) and (pointer:fine){ .carnet-row:hover{border-color:var(--accent); box-shadow:var(--shadow);} }
+.c-main{display:flex; flex-direction:column; min-width:0;}
+.c-titre{font-weight:600; font-size:0.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.c-auteur{font-size:0.8rem; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.c-meta{display:flex; align-items:center; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;}
+.c-date{font-family:var(--font-mono); font-size:0.75rem; color:var(--sub); min-width:6.2em; text-align:right;}
+.c-note{font-weight:800; font-size:0.85rem; min-width:3.2em; text-align:right;}
+.c-note.vide{color:var(--line);}
+.c-com{grid-column:1 / -1; margin:0; font-size:0.82rem; color:var(--sub); font-style:italic; line-height:1.45;}
+@media (max-width:760px){
+  .carnet-ctrls{display:grid; grid-template-columns:repeat(2, minmax(0,1fr));}
+  .carnet-ctrls label:first-child{grid-column:1 / -1;}
+  .carnet-ctrls select{width:100%;}
+  .carnet-row{grid-template-columns:minmax(0,1fr); padding:0.7rem 0.8rem;}
+  .c-meta{justify-content:flex-start;}
+  .c-date{min-width:0; text-align:left;}
+  .c-note{min-width:0; text-align:left;}
 }

@@ -26,7 +26,7 @@ const DEFAULTS = {theme:"nordique", mode:"auto"};
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.5';
+const APP_VERSION = '1.6';
 const APP_VERSION_DATE = '2026-10-25';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -60,6 +60,7 @@ const el = {
   statusPills: document.getElementById('status-pills'),
   controls: document.getElementById('controls'),
   settingsBtn: document.getElementById('settings-btn'),
+  carnetBtn: document.getElementById('carnet-btn'),
   brandStats: document.getElementById('brand-stats'),
   lightbox: document.getElementById('lightbox'),
   lightboxImg: document.getElementById('lightbox-img'),
@@ -181,6 +182,7 @@ function todayIso() {
 // laisserait deviner ce que le propriétaire a lu ou aimé.
 let statusValue = '';
 function syncStatusFilterVisibility() {
+  if (el.carnetBtn) el.carnetBtn.hidden = !OWNER;   // le carnet, comme les statuts, est privé
   if (!el.statusPills) return;
   el.statusPills.hidden = !OWNER;
   const pEnCours = el.statusPills.querySelector('.pill[data-status="inprogress"]');
@@ -964,6 +966,177 @@ async function toggleField(book, field, label, checked) {
 }
 
 // ---------------------------------------------------------------
+// Mon carnet de lecture — page privée (mode propriétaire) : « Où j'en suis », les livres
+// en cours, et la liste triable/filtrable des livres lus ou écoutés.
+// ---------------------------------------------------------------
+const CARNET = { tri: 'date-desc', annee: '', format: '', note: '' };   // gardé entre deux visites
+const CARNET_TRIS = [
+  ['date-desc', 'Date de lecture, plus récente d’abord', true],
+  ['date-asc',  'Date de lecture, plus ancienne d’abord', true],
+  ['note-desc', 'Note, meilleure d’abord', true],
+  ['note-asc',  'Note, moins bonne d’abord', true],
+  ['titre',     'Titre (A → Z)', false],
+  ['auteur',    'Auteur (A → Z)', false],
+];
+
+function renderCarnet() {
+  const avis = REVIEWS_READY && REVIEWS_LOADED;
+  if (!avis && !CARNET_TRIS.some(t => t[0] === CARNET.tri && !t[2])) CARNET.tri = 'titre';
+  const finis = ALL_BOOKS.filter(b => b.is_read || b.is_listened);
+  const enCours = PROGRESS_READY ? ALL_BOOKS.filter(b => b.is_in_progress) : [];
+  const annees = [...new Set(finis.filter(b => b.finished_on).map(b => b.finished_on.slice(0, 4)))].sort().reverse();
+  if (CARNET.annee && CARNET.annee !== 'none' && !annees.includes(CARNET.annee)) CARNET.annee = '';
+
+  el.app.innerHTML = `
+    <div class="carnet">
+      <a class="back-link" href="#/">← Retour à la bibliothèque</a>
+      <h1>Mon carnet de lecture</h1>
+      <p class="lede">Ce que tu as lu ou écouté, quand, et ce que tu en as pensé — visible de toi seul.</p>
+
+      <section class="carnet-sec">
+        <div class="section-title">Où j'en suis <span class="rule"></span></div>
+        ${carnetStats(finis, annees, avis)}
+      </section>
+
+      ${enCours.length ? `<section class="carnet-sec">
+        <div class="section-title">En cours · ${enCours.length} <span class="rule"></span></div>
+        <div class="carnet-list">${enCours.sort((a, b) => a.title.localeCompare(b.title, 'fr')).map(b => carnetLigne(b, avis, true)).join('')}</div>
+      </section>` : ''}
+
+      <section class="carnet-sec">
+        <div class="section-title">Livres lus ou écoutés <span class="rule"></span></div>
+        ${!REVIEWS_READY ? `<p class="hint-sm">Les notes, dates et commentaires apparaîtront ici une fois la migration
+          <code>migration_2026-10_avis.sql</code> exécutée dans Supabase.</p>` : ''}
+        <div class="carnet-ctrls">
+          <label>Trier
+            <select id="carnet-tri">${CARNET_TRIS.filter(t => avis || !t[2]).map(([v, l]) =>
+              `<option value="${v}" ${CARNET.tri === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          </label>
+          ${avis ? `<label>Année
+            <select id="carnet-annee">
+              <option value="">Toutes</option>
+              ${annees.map(a => `<option value="${a}" ${CARNET.annee === a ? 'selected' : ''}>${a}</option>`).join('')}
+              <option value="none" ${CARNET.annee === 'none' ? 'selected' : ''}>Date non renseignée</option>
+            </select>
+          </label>` : ''}
+          <label>Format
+            <select id="carnet-format">
+              <option value="">Lus et écoutés</option>
+              <option value="read" ${CARNET.format === 'read' ? 'selected' : ''}>Lus sur liseuse</option>
+              <option value="listened" ${CARNET.format === 'listened' ? 'selected' : ''}>Écoutés en audio</option>
+            </select>
+          </label>
+          ${avis ? `<label>Note
+            <select id="carnet-note">
+              <option value="">Tous</option>
+              <option value="rated" ${CARNET.note === 'rated' ? 'selected' : ''}>Notés</option>
+              <option value="unrated" ${CARNET.note === 'unrated' ? 'selected' : ''}>Pas encore notés</option>
+            </select>
+          </label>` : ''}
+        </div>
+        <p class="carnet-count" id="carnet-count"></p>
+        <div class="carnet-list" id="carnet-list"></div>
+      </section>
+    </div>`;
+
+  const majListe = () => {
+    const liste = carnetFiltre(finis);
+    document.getElementById('carnet-count').textContent =
+      liste.length === finis.length ? `${liste.length} livre${liste.length > 1 ? 's' : ''}`
+        : `${liste.length} livre${liste.length > 1 ? 's' : ''} sur ${finis.length}`;
+    document.getElementById('carnet-list').innerHTML = liste.length
+      ? carnetGroupes(liste, avis)
+      : `<div class="empty">Aucun livre ne correspond à ces filtres.</div>`;
+  };
+  for (const [id, cle] of [['carnet-tri', 'tri'], ['carnet-annee', 'annee'], ['carnet-format', 'format'], ['carnet-note', 'note']]) {
+    const sel = document.getElementById(id);
+    if (sel) sel.addEventListener('change', () => { CARNET[cle] = sel.value; majListe(); });
+  }
+  majListe();
+}
+
+function carnetStats(finis, annees, avis) {
+  const total = ALL_BOOKS.length || 1;
+  const nb = f => ALL_BOOKS.filter(f).length;
+  const notes = ALL_BOOKS.filter(b => b.rating).map(b => b.rating);
+  const moyenne = notes.length ? (notes.reduce((a, x) => a + x, 0) / notes.length).toFixed(1).replace('.', ',') : '—';
+  const done = finis.length;
+  const parAnnee = annees.map(a => `${a} : ${finis.filter(b => (b.finished_on || '').startsWith(a)).length}`);
+  const sansDate = finis.filter(b => !b.finished_on).length;
+  if (sansDate) parAnnee.push(`date non renseignée : ${sansDate}`);
+  const stat = (n, l) => `<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  return `
+        <div class="stats">
+          ${stat(ALL_BOOKS.length, 'livres')}${stat(AUTHORS.size, 'auteurs')}
+          ${stat(nb(b => b.is_read), 'lus')}${stat(nb(b => b.is_listened), 'écoutés')}
+          ${PROGRESS_READY ? stat(nb(b => b.is_in_progress), 'en cours') : ''}
+          ${avis ? stat(notes.length, 'notés') + stat(moyenne, 'note moyenne /10') : ''}
+          ${stat(nb(b => b.is_favorite), 'favoris')}
+        </div>
+        <div class="bar" title="${done} livres sur ${ALL_BOOKS.length}"><i style="width:${(done / total * 100).toFixed(1)}%"></i></div>
+        <p class="lede carnet-lede">${done} livre${done > 1 ? 's' : ''} lu${done > 1 ? 's' : ''} ou écouté${done > 1 ? 's' : ''},
+          soit ${(done / total * 100).toFixed(1).replace('.', ',')} % de la bibliothèque.</p>
+        ${avis && done ? `<p class="lede carnet-lede" id="carnet-annees">Par année : ${parAnnee.join(' · ')}</p>` : ''}`;
+}
+
+function carnetFiltre(finis) {
+  const c = CARNET;
+  const liste = finis.filter(b => {
+    if (c.format === 'read' && !b.is_read) return false;
+    if (c.format === 'listened' && !b.is_listened) return false;
+    if (c.annee === 'none' && b.finished_on) return false;
+    if (c.annee && c.annee !== 'none' && !(b.finished_on || '').startsWith(c.annee)) return false;
+    if (c.note === 'rated' && !b.rating) return false;
+    if (c.note === 'unrated' && b.rating) return false;
+    return true;
+  });
+  const titre = (a, b) => a.title.localeCompare(b.title, 'fr');
+  const auteur = (a, b) => (a.author_name_sort || '').localeCompare(b.author_name_sort || '', 'fr') || titre(a, b);
+  // ce qui n'a pas de date (ou pas de note) va toujours en fin de liste, quel que soit le sens
+  const parDate = sens => (a, b) => (!a.finished_on - !b.finished_on)
+    || (a.finished_on && b.finished_on ? sens * a.finished_on.localeCompare(b.finished_on) : 0) || titre(a, b);
+  const parNote = sens => (a, b) => (!a.rating - !b.rating)
+    || (a.rating && b.rating ? sens * (a.rating - b.rating) : 0)
+    || ((b.finished_on || '').localeCompare(a.finished_on || '')) || titre(a, b);
+  const cmp = { 'date-desc': parDate(-1), 'date-asc': parDate(1), 'note-desc': parNote(-1),
+                'note-asc': parNote(1), titre, auteur }[c.tri] || titre;
+  return liste.sort(cmp);
+}
+
+// Tri par date : un intertitre par année, puis « Date non renseignée ».
+function carnetGroupes(liste, avis) {
+  if (!avis || !CARNET.tri.startsWith('date')) return liste.map(b => carnetLigne(b, avis)).join('');
+  let out = '', courant = null;
+  for (const b of liste) {
+    const g = b.finished_on ? b.finished_on.slice(0, 4) : 'Date non renseignée';
+    if (g !== courant) { out += `<h3 class="carnet-groupe">${g}</h3>`; courant = g; }
+    out += carnetLigne(b, avis);
+  }
+  return out;
+}
+
+// enCours : dans la section « En cours », date et note ne s'affichent que si elles existent
+function carnetLigne(b, avis, enCours) {
+  const com = avis && b.review_comment ? b.review_comment.replace(/\s+/g, ' ') : '';
+  const extrait = com.length > 140 ? com.slice(0, 140).replace(/\s+\S*$/, '') + '…' : com;
+  return `
+          <a class="carnet-row" href="#/book/${b.id}">
+            <div class="c-main">
+              <span class="c-titre">${escapeHtml(b.title)}</span>
+              <span class="c-auteur">${escapeHtml(b.author_name)}</span>
+            </div>
+            <div class="c-meta">
+              ${b.is_read ? '<span class="badge status">Lu</span>' : ''}
+              ${b.is_listened ? '<span class="badge status">Écouté</span>' : ''}
+              ${PROGRESS_READY && b.is_in_progress ? '<span class="badge inprogress">En cours</span>' : ''}
+              ${avis && !(enCours && !b.finished_on) ? `<span class="c-date">${b.finished_on ? dateFr(b.finished_on) : 'sans date'}</span>` : ''}
+              ${avis && !(enCours && !b.rating) ? `<span class="c-note${b.rating ? '' : ' vide'}">${b.rating ? b.rating + '/10' : '—'}</span>` : ''}
+            </div>
+            ${extrait ? `<p class="c-com">${escapeHtml(extrait)}</p>` : ''}
+          </a>`;
+}
+
+// ---------------------------------------------------------------
 // Mon avis : note sur 10, date de lecture/écoute, commentaire.
 // Réservé au propriétaire, jamais affiché ni même téléchargé pour un visiteur.
 // ---------------------------------------------------------------
@@ -1312,14 +1485,6 @@ async function corrigeTitre(book, next) {
 function renderSettings() {
   const cur = prefGet('theme');
   const mode = prefGet('mode');
-  const n = ALL_BOOKS.length || 1;
-  const read = ALL_BOOKS.filter(b => b.is_read).length;
-  const listened = ALL_BOOKS.filter(b => b.is_listened).length;
-  const fav = ALL_BOOKS.filter(b => b.is_favorite).length;
-  const enCours = ALL_BOOKS.filter(b => b.is_in_progress).length;
-  const notes = ALL_BOOKS.filter(b => b.rating).map(b => b.rating);
-  const moyenne = notes.length ? (notes.reduce((a, x) => a + x, 0) / notes.length) : 0;
-  const done = ALL_BOOKS.filter(b => b.is_read || b.is_listened).length;
 
   el.app.innerHTML = `
     <div class="settings">
@@ -1351,20 +1516,6 @@ function renderSettings() {
 
       ${setBlock('proprietaire', 'Mode propriétaire', renderOwnerBlock())}
 
-      ${OWNER ? setBlock('stats', "Où j'en suis", `
-        <div class="stats">
-          <div class="stat"><div class="n">${ALL_BOOKS.length}</div><div class="l">livres</div></div>
-          <div class="stat"><div class="n">${AUTHORS.size}</div><div class="l">auteurs</div></div>
-          <div class="stat"><div class="n">${read}</div><div class="l">lus</div></div>
-          <div class="stat"><div class="n">${listened}</div><div class="l">écoutés</div></div>
-          ${PROGRESS_READY ? `<div class="stat"><div class="n">${enCours}</div><div class="l">en cours</div></div>` : ''}
-          ${REVIEWS_LOADED ? `<div class="stat"><div class="n">${notes.length}</div><div class="l">notés</div></div>
-          <div class="stat"><div class="n">${notes.length ? moyenne.toFixed(1).replace('.', ',') : '—'}</div><div class="l">note moyenne /10</div></div>` : ''}
-          <div class="stat"><div class="n">${fav}</div><div class="l">favoris</div></div>
-        </div>
-        <div class="bar" title="${done} livres sur ${ALL_BOOKS.length}"><i style="width:${(done/n*100).toFixed(1)}%"></i></div>
-        <p class="lede" style="margin:0.6rem 0 0; font-size:0.8rem;">
-          ${done} livre${done>1?'s':''} lu${done>1?'s':''} ou écouté${done>1?'s':''}, soit ${(done/n*100).toFixed(1)} % de la bibliothèque.</p>`) : ''}
 
       ${(EDITABLE && OWNER) ? setBlock('anomalies', 'Anomalies', renderAnomaliesBlock()) : ''}
 
@@ -1738,7 +1889,7 @@ const AIDE_SECTIONS = [
         apparaît sous les cases — une note de 1 à 10 (toucher la note actuelle l'efface), la date
         à laquelle tu l'as lu ou écouté (bouton « Aujourd'hui »), et un commentaire libre. Tout est
         facultatif et s'enregistre aussitôt (le commentaire, au bouton ou en quittant le champ).
-        La note apparaît sur les cartes du livre, et la moyenne dans « Où j'en suis ». Rien de tout
+        La note apparaît sur les cartes du livre, et tout se retrouve dans ton carnet de lecture. Rien de tout
         cela n'est montré aux visiteurs, ni même envoyé à leur navigateur.</p>
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         <strong>Corriger le titre</strong> : le nouveau texte devient le titre affiché ;
@@ -1779,11 +1930,19 @@ const AIDE_SECTIONS = [
   },
   {
     id: 'stats',
-    titre: "Où j'en suis",
+    titre: 'Mon carnet de lecture',
     corps: `
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        L'icône en forme de carnet, à côté de la roue crantée, ouvre une page qui n'est visible
+        qu'en mode propriétaire. En haut, « Où j'en suis » : livres, auteurs, lectures et écoutes
+        terminées, en cours, notés, note moyenne, favoris, et le nombre de lectures par année.
+        Puis les livres en cours, et la liste de tous les livres lus ou écoutés, avec leur date,
+        leur note et le début de ton commentaire.</p>
       <p class="hint-sm" style="margin:0;">
-        Un peu plus haut dans ces réglages : nombre de livres, d'auteurs, de lectures et d'écoutes
-        terminées, de favoris — pour suivre l'avancement, sans rien à cliquer.</p>`,
+        La liste se trie par date de lecture (les plus récents d'abord, par défaut), par note, par
+        titre ou par auteur, et se filtre par année, par lu / écouté, et par noté / pas encore
+        noté. Les livres sans date de lecture sont regroupés en fin de liste, sous « Date non
+        renseignée » : de quoi les compléter peu à peu. Toucher une ligne ouvre la fiche du livre.</p>`,
   },
   {
     id: 'alimenter',
@@ -1988,6 +2147,11 @@ function route() {
   const bookMatch = hash.match(/^#\/book\/(.+)$/);
 
   if (hash === '#/settings') renderSettings();
+  else if (hash === '#/carnet') {
+    // réservé au propriétaire : un visiteur qui tape l'adresse revient à l'accueil
+    if (OWNER) renderCarnet();
+    else { history.replaceState(null, '', '#/'); renderHome(); }
+  }
   else if (authorMatch) renderAuthor(authorMatch[1]);
   else if (bookMatch) renderBook(bookMatch[1]);
   else renderHome();
@@ -2041,6 +2205,7 @@ if (el.searchClear) {
 }
 
 el.settingsBtn.addEventListener('click', () => { location.hash = '#/settings'; });
+if (el.carnetBtn) el.carnetBtn.addEventListener('click', () => { location.hash = '#/carnet'; });
 
 // ---------------------------------------------------------------
 // Démarrage
