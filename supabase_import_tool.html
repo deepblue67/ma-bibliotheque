@@ -81,6 +81,7 @@
 <body>
 <div class="wrap">
   <h1>Ma Bibliothèque — Outil d'import Supabase</h1>
+  <p class="hint" id="tool-version" style="margin:-0.2rem 0 0.6rem;">Version de l'outil : 25/10/2026 — tri, filtre et diagnostic des envois</p>
   <p class="subtitle">Outil autonome — accessible depuis les réglages de l'application (mode propriétaire), ou directement par un double-clic sur ce fichier. Il tourne entièrement dans ton navigateur et ne communique qu'avec ton propre projet Supabase — jamais avec Claude.</p>
 
   <div class="warn">
@@ -265,6 +266,39 @@ function setProgress(wrapId, barId, pct){
   document.getElementById(barId).style.width = pct + '%';
 }
 
+// Quel type de clé a été collé ? L'ancienne clé est un jeton dont le contenu dit son rôle
+// (« anon » = clé publique de l'application, « service_role » = clé d'administration) ;
+// les nouvelles clés Supabase commencent par sb_publishable_ ou sb_secret_.
+function keyKind(key){
+  if (!key) return 'vide';
+  if (key.startsWith('sb_secret_')) return 'admin';
+  if (key.startsWith('sb_publishable_')) return 'publique';
+  try {
+    const part = key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const role = JSON.parse(atob(part + '==='.slice((part.length + 3) % 4))).role;
+    if (role === 'service_role') return 'admin';
+    if (role === 'anon') return 'publique';
+    return 'inconnue';
+  } catch (e) { return 'inconnue'; }
+}
+const MSG_CLE_PUBLIQUE = "La clé collée en haut de la page est la clé PUBLIQUE de l'application (anon), celle de config.js. " +
+  "Elle permet de lire la base, mais pas d'envoyer des couvertures. Colle la clé service_role " +
+  "(Supabase Studio → Project Settings → API → service_role, bouton « Reveal »).";
+
+// Supabase Storage renvoie souvent « 400 » quelle que soit la cause : on lit son message pour l'expliquer.
+async function storageErrorText(res){
+  let msg = '';
+  try { const t = await res.text(); try { const j = JSON.parse(t); msg = j.message || j.error || t; } catch (e) { msg = t; } } catch (e) {}
+  msg = (msg || '').toString().slice(0, 200);
+  let aide = '';
+  if (/row-level security|unauthorized|not authorized/i.test(msg)) aide = ' → refusé par les droits de la base : la clé collée n’est sans doute pas la clé service_role.';
+  else if (/jws|jwt|signature|invalid.*key/i.test(msg)) aide = ' → la clé collée est mal reconnue : recopie la clé service_role en entier, sans espace.';
+  else if (/bucket not found/i.test(msg)) aide = ' → le dossier « covers » n’existe pas dans Storage.';
+  else if (/mime|content type/i.test(msg)) aide = ' → type de fichier refusé par le dossier « covers ».';
+  else if (/size|too large|exceeded/i.test(msg)) aide = ' → image trop lourde pour la limite du dossier « covers ».';
+  return 'envoi storage ' + res.status + (msg ? ' (' + msg + ')' : '') + aide;
+}
+
 async function sbFetch(path, opts){
   const c = cfg();
   if (!c.url || !c.key) throw new Error("Renseigne l'URL et la clé service_role en haut de la page.");
@@ -295,7 +329,9 @@ document.getElementById('btn-test').addEventListener('click', async () => {
     const res = await sbFetch('/rest/v1/authors?select=id&limit=1', { headers: { Prefer: 'count=exact' } });
     if (!res.ok) throw new Error('HTTP ' + res.status + ' — vérifie l\'URL et la clé.');
     const range = res.headers.get('content-range');
-    out.textContent = '✅ Connexion OK. Table authors accessible (' + (range || '?') + ').';
+    const kind = keyKind(cfg().key);
+    out.textContent = '✅ Connexion OK. Table authors accessible (' + (range || '?') + ').' +
+      (kind === 'publique' ? ' ⚠️ ' + MSG_CLE_PUBLIQUE : kind === 'admin' ? ' Clé service_role reconnue.' : '');
   } catch (e) {
     out.textContent = '❌ ' + e.message;
   }
@@ -510,6 +546,7 @@ document.getElementById('btn-covers').addEventListener('click', async () => {
 });
 
 async function uploadCoverQueue(queue, logId, progWrapId, progId){
+  if (keyKind(cfg().key) === 'publique') { logTo(logId, '✗ ' + MSG_CLE_PUBLIQUE, 'err'); return; }
   const CONC = 6;
   let done = 0, errors = 0;
   for (let i = 0; i < queue.length; i += CONC) {
@@ -527,7 +564,7 @@ async function uploadCoverQueue(queue, logId, progWrapId, progId){
           headers: { apikey: c.key, Authorization: 'Bearer ' + c.key, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' },
           body: blob,
         });
-        if (!upRes.ok) throw new Error('envoi storage ' + upRes.status);
+        if (!upRes.ok) throw new Error(await storageErrorText(upRes));
         const patchRes = await sbFetch(`/rest/v1/books?id=eq.${item.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -958,7 +995,7 @@ document.getElementById('btn-manual-cover').addEventListener('click', async () =
       headers: { apikey: c.key, Authorization: 'Bearer ' + c.key, 'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' },
       body: file,
     });
-    if (!upRes.ok) throw new Error('envoi storage ' + upRes.status);
+    if (!upRes.ok) throw new Error(await storageErrorText(upRes));
     const patchRes = await sbFetch(`/rest/v1/books?id=eq.${book.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
@@ -1072,7 +1109,7 @@ document.getElementById('btn-batch-covers').addEventListener('click', async () =
           headers: { apikey: c.key, Authorization: 'Bearer ' + c.key, 'Content-Type': contentType, 'x-upsert': 'true' },
           body: file,
         });
-        if (!upRes.ok) throw new Error('envoi storage ' + upRes.status);
+        if (!upRes.ok) throw new Error(await storageErrorText(upRes));
         const patchRes = await sbFetch(`/rest/v1/books?id=eq.${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
