@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 1.7 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 1.8 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -785,6 +785,27 @@ Sur iPhone, les ombres des cartes et de la fiche sont un peu réduites pour ne p
 
 **Vérifié** : captures avant/après de toutes les pages (accueil, auteur, résultats, fiche, Réglages, carnet, anomalies, aide) en Rétro Pulp, Nordique et Minuit sombre, sur ordinateur et iPhone ; les quatorze suites Playwright repassent sans échec (dont les contrôles de taille des cibles tactiles et d'absence de débordement horizontal). Aucun changement de JavaScript hors numéro de version. Version 1.7.
 
+### 4.38 Style entièrement paramétrable (Réglages → Style)
+
+Retour de Christophe sur la 1.7 : la police BD des titres ne correspond pas à l'appli ebook, et il veut **choisir lui-même** le design, aspect par aspect. Le langage BD de la 1.7 n'est donc plus imposé : chaque aspect devient une **option indépendante**, réglable dans une nouvelle section **« Style »** des Réglages (visible par tous, comme le thème : chacun règle son appareil).
+
+| Aspect | Choix | Ce qui change |
+|---|---|---|
+| **Titres** | Police du thème · BD · Classique · Moderne | nom de l'auteur, titre du livre, titres des pages, lettres A–Z, séries, sections des Réglages et du carnet, « Mon avis », chiffres des statistiques. BD = Bangers, Classique = Fraunces (serif), Moderne = Space Grotesk, Police du thème = celle prévue par chacun des dix thèmes |
+| **Titre du bandeau** | BD · Comme les titres | « Ma Bibliothèque » en haut de page : Bangers, ou la même police que les titres |
+| **Cartes et fiche** | Douces · BD · Épurées | Douces = filet fin et ombre floue (d'origine) ; BD = trait de 3 px et ombre décalée ; Épurées = à plat, sans ombre |
+| **Pastilles** | Contour · BD | Contour = filet coloré, chasse fixe (d'origine) ; BD = pleines, cerclées, en gras |
+| **Boutons, cases et champs** | Doux · BD | boutons, cases à cocher, champs de saisie, menus, boutons de note |
+| **Panneaux** | Doux · BD | statistiques, vignettes de thème, anomalies, aide, livres masqués, lignes du carnet, bandeau de saga, filets et index A–Z |
+
+**Trois préréglages** en tête de section : **Ebook (d'origine)** (l'apparence d'avant la 1.7, titre du bandeau compris), **Mixte** (par défaut : titres dans la police du thème, tout le reste façon BD — la 1.7 sans la police BD) et **Tout BD** (la 1.7). Changer un seul aspect affiche « personnalisé ». Un **aperçu en direct** (titre, carte de livre avec pastilles, bouton, case, statistique — de vrais éléments de l'application) montre l'effet immédiatement, à droite sur ordinateur, au-dessus des choix sur iPhone. Le bandeau lui-même (fond, champs de recherche, pastilles de statut) garde son style BD dans tous les cas.
+
+**Technique** : les choix sont posés en attributs sur `<html>` — `data-titres`, `data-bandeau`, `data-cartes`, `data-pastilles`, `data-commandes`, `data-panneaux` — comme `data-theme`. Ils sont mémorisés dans `localStorage` (`mabiblio.style.<aspect>`), appliqués **avant le premier affichage** par le petit script en tête d'`index.html` (pas d'éclair du mauvais style), puis par `applyTheme()` qui ramène toute valeur inconnue à la valeur par défaut. Les valeurs et préréglages sont décrits une seule fois dans `STYLE_OPTIONS` et `STYLE_PRESETS` (`js/app.js`). Dans `css/style.css`, le bloc « STYLE PARAMÉTRABLE » remplace le bloc 1.7 : chaque règle ne s'applique que sous son attribut (`:root[data-cartes="bd"] …`), la valeur d'origine correspondant aux règles plus haut dans la feuille ; la police des titres passe par une variable `--titre-font`. Ajouter une valeur = l'ajouter à `STYLE_OPTIONS` et écrire son groupe de règles.
+
+**Correctif au passage** : sur iPhone, le badge de note « 8/10 » des cartes de livres s'étirait sur toute la largeur de la carte (depuis la 1.5) — sa classe `rating` partageait le nom de la rangée de boutons de note de « Mon avis », dont la règle iPhone lui donnait `width:100%`. La règle est désormais limitée à `.review .rating`.
+
+**Vérifié** : nouvelle suite `style.js` (33 vérifications) qui mesure l'effet réel de chaque choix à l'écran (police calculée des titres pour les quatre polices ; bandeau ; épaisseur des traits et ombres des cartes, de la fiche, des pastilles, des cases, des panneaux, dans chaque variante), les préréglages, « personnalisé », la conservation après rechargement, le retour à la valeur par défaut pour une valeur inconnue, l'iPhone (pas de débordement, badge à sa taille, choix au toucher). `reglages.js` compte désormais 4 sections pour un visiteur (avec Style), `carnet.js` ignore la statistique de l'aperçu. Les quatorze autres suites repassent sans échec. Version 1.8.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -828,7 +849,8 @@ Sur iPhone, les ombres des cartes et de la fiche sont un peu réduites pour ne p
 39. ~~**Christophe redéploie … — version 1.5** (Mon avis — voir §4.35).~~ Remplacé par l'étape 40 (la 1.6 contient les 1.1 à 1.5).
 40. ~~**Christophe redéploie … — version 1.6** (Mon carnet de lecture — voir §4.36).~~ Remplacé par l'étape 42 (la 1.7 contient les 1.1 à 1.6).
 41. Plus tard, au choix de Christophe : options du carnet (graphique des lectures par mois ou par année, répartition des notes, export Excel).
-42. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.7** (design harmonisé — voir §4.37 ; inclut les 1.1 à 1.6). Vérifier « version 1.7 » en bas des Réglages. Les migrations SQL « en cours » et « avis » (étapes 36 et 38) restent à faire si ce n'est pas déjà le cas.
+42. ~~**Christophe redéploie … — version 1.7** (design harmonisé — voir §4.37).~~ Remplacé par l'étape 43 (la 1.8 contient les 1.1 à 1.7).
+43. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.8** (Réglages → Style — voir §4.38 ; inclut les 1.1 à 1.7). Vérifier « version 1.8 » en bas des Réglages, puis choisir son style dans la section Style. Les migrations SQL « en cours » et « avis » (étapes 36 et 38) restent à faire si ce n'est pas déjà le cas.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -859,5 +881,6 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 1.5 | 25/10/2026 | « Mon avis » sur la fiche d'un livre lu ou écouté : note de 1 à 10, date de lecture/écoute, commentaire. Privé : visible et même téléchargé en mode propriétaire uniquement. Badge de note sur les cartes, note moyenne dans « Où j'en suis ». Nécessite `migration_2026-10_avis.sql` (sinon fonction masquée). | §4.35 |
 | 1.6 | 25/10/2026 | Nouvelle page « Mon carnet de lecture » (icône dans le bandeau, propriétaire seulement) : Où j'en suis (déplacé depuis les Réglages) avec lectures par année, livres en cours, liste des livres lus ou écoutés triable par date, note, titre, auteur et filtrable par année, format, note. | §4.36 |
 | 1.7 | 25/10/2026 | Design harmonisé : le langage du bandeau (traits épais, ombres décalées, titres en Bangers, pastilles cerclées) appliqué à toutes les pages — cartes, fiche, Réglages, carnet, anomalies, aide —, dans les couleurs de chaque thème. | §4.37 |
+| 1.8 | 25/10/2026 | Style entièrement paramétrable dans Réglages → Style : titres (4 polices), titre du bandeau, cartes et fiche, pastilles, boutons et champs, panneaux ; préréglages Ebook (d'origine) / Mixte (défaut) / Tout BD ; aperçu en direct. Correctif : badge « 8/10 » étiré sur iPhone. | §4.38 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

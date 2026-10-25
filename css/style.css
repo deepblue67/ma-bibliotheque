@@ -1181,7 +1181,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .review-row{display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem 0.7rem;}
 .review-col{flex-direction:column; align-items:stretch;}
 .review-lab{font-size:0.8rem; color:var(--sub); min-width:7.5em;}
-.rating{display:flex; flex-wrap:wrap; gap:4px;}
+.review .rating{display:flex; flex-wrap:wrap; gap:4px;}
 .rate{
   width:34px; height:34px; padding:0; border-radius:8px;
   border:1px solid var(--line); background:var(--bg); color:var(--sub);
@@ -1210,7 +1210,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   .review-lab{min-width:0; width:100%;}
   /* sur iPhone, 10 boutons d'une ligne ne feraient que 25px de large : deux lignes de 5
      (1 à 5, puis 6 à 10), chaque bouton d'environ 55×44px, confortable au doigt */
-  .rating{display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; width:100%;}
+  .review .rating{display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; width:100%;}
   .rate{width:auto; height:44px; font-size:0.95rem;}
 }
 
@@ -1663,163 +1663,190 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 
 /* ===========================================================
-   LANGAGE « BD » POUR TOUTE L'APPLICATION (version 1.7)
-   Le bandeau reprend l'appli « Ma Bibliothèque BD » ; cette couche étend le même langage
-   au reste de l'interface, pour ne plus avoir deux styles côte à côte : traits épais de la
-   couleur d'encre du thème, ombres décalées pleines (sans flou), coins plus francs,
-   titres de page dans la police du bandeau. Les couleurs restent celles du thème actif ;
-   seuls l'épaisseur, l'ombre et l'arrondi sont communs aux dix thèmes. Placée en fin de
-   feuille, elle prend le pas sur les règles plus anciennes sans les réécrire une à une.
+   STYLE PARAMÉTRABLE (version 1.8)
+   Chaque aspect de l'interface se choisit séparément dans Réglages → Style, et le choix
+   est posé en attribut sur <html> (comme le thème) :
+     data-titres    theme | bd | classique | moderne   police des titres de page et de section
+     data-bandeau   bd | titres                        titre « Ma Bibliothèque » du bandeau
+     data-cartes    douces | bd | epurees              cartes d'auteurs et de livres, fiche
+     data-pastilles contour | bd                       Ebook, PDF, Audio, Lu, Écouté, En cours…
+     data-commandes douces | bd                        boutons, cases, champs, menus, notes
+     data-panneaux  doux | bd                          statistiques, thèmes, anomalies, aide…
+   Valeur « d'origine » (theme / douces / contour / doux) = les règles plus haut dans cette
+   feuille, sans rien ajouter. Les autres valeurs n'agissent que sous leur attribut : pour
+   supprimer une option, il suffit de supprimer son groupe. Les couleurs viennent toujours
+   du thème actif ; seuls traits, ombres, arrondis et polices changent.
    =========================================================== */
 :root{
   --bd-s:2px;                                   /* trait fin : pastilles, petits boutons */
   --bd-m:3px;                                   /* trait courant : cartes, champs */
-  --bd-r:min(var(--radius), 8px);               /* arrondi : plafonné à 8px, garde les thèmes anguleux */
+  --bd-r:min(var(--radius), 8px);               /* arrondi plafonné à 8px : les thèmes anguleux le restent */
   --bd-r-sm:min(var(--radius), 6px);
   --bd-sh-s:2px 2px 0 var(--hdr-shadow);
   --bd-sh-m:3px 3px 0 var(--hdr-shadow);
   --bd-sh-l:5px 5px 0 var(--hdr-shadow);
   --bd-sh-xl:7px 7px 0 var(--hdr-shadow);
-  --bd-font-titre:'Bangers', 'Impact', var(--font-display);
+  --titre-font:var(--font-display);             /* police des titres selon le choix */
+}
+:root[data-titres="bd"]{ --titre-font:'Bangers', 'Impact', var(--font-display); }
+:root[data-titres="classique"]{ --titre-font:'Fraunces', Georgia, serif; }
+:root[data-titres="moderne"]{ --titre-font:'Space Grotesk', system-ui, sans-serif; }
+
+.review{max-width:640px;}     /* la note « 8/10 » reste sur la ligne des 10 boutons */
+.inline-form input[type="password"]{
+  width:100%; font-family:var(--font-body); font-size:0.92rem; padding:0.55em 0.75em;
+  margin-bottom:0.8rem; box-sizing:border-box;
+  border:1px solid var(--line); border-radius:var(--radius); background:var(--card); color:var(--ink);
 }
 
-/* ---------- titres ---------- */
-.author-header h1, .fiche h1, .settings h1, .carnet h1{
-  font-family:var(--bd-font-titre); font-weight:400; letter-spacing:0.5px;
-  font-size:clamp(1.9rem, 4.5vw, 2.6rem); line-height:1.05;
+/* ---------- 1. TITRES ---------- */
+/* toutes les polices autres que celle du thème : mêmes éléments, même famille */
+:root:is([data-titres="bd"], [data-titres="classique"], [data-titres="moderne"]) :is(.author-header h1, .fiche h1, .settings h1, .carnet h1,
+  .letter-head, .serie-head .s-nom, .carnet-groupe, .stat .n, .review-head,
+  .set-head, .carnet-sec > .section-title){
+  font-family:var(--titre-font);
 }
-.letter-head{font-family:var(--bd-font-titre); font-weight:400; font-size:2rem; letter-spacing:1px;}
-.letter-head::after, .serie-head::after, .section-title .rule{height:var(--bd-s); background:var(--hdr-line); opacity:0.85;}
-.serie-head .s-nom{font-family:var(--bd-font-titre); font-weight:400; font-size:1.45rem; letter-spacing:0.5px;}
-.serie-head.hors .s-nom{font-size:1.25rem;}
-.carnet-groupe{font-family:var(--bd-font-titre); font-weight:400; font-size:1.5rem; letter-spacing:0.5px;}
-.section-title{color:var(--ink); font-weight:500;}
-.back-link{font-weight:700; color:var(--ink);}
+:root:is([data-titres="bd"], [data-titres="classique"], [data-titres="moderne"]) :is(.set-head, .carnet-sec > .section-title){
+  text-transform:none; letter-spacing:0; font-size:1.2rem; font-weight:700; color:var(--ink);
+}
+/* Bangers n'a qu'une graisse et se lit mieux un peu plus grande et espacée */
+:root[data-titres="bd"] :is(.author-header h1, .fiche h1, .settings h1, .carnet h1){
+  font-weight:400; letter-spacing:0.5px; font-size:clamp(1.9rem, 4.5vw, 2.6rem); line-height:1.05;
+}
+:root[data-titres="bd"] .letter-head{font-weight:400; font-size:2rem; letter-spacing:1px;}
+:root[data-titres="bd"] .serie-head .s-nom{font-weight:400; font-size:1.45rem; letter-spacing:0.5px;}
+:root[data-titres="bd"] .serie-head.hors .s-nom{font-size:1.25rem;}
+:root[data-titres="bd"] :is(.carnet-groupe, .review-head){font-weight:400; font-size:1.45rem; letter-spacing:0.5px;}
+:root[data-titres="bd"] .stat .n{font-weight:400; font-size:1.9rem; letter-spacing:0.5px;}
+:root[data-titres="bd"] :is(.set-head, .carnet-sec > .section-title){font-weight:400; font-size:1.35rem; letter-spacing:0.5px;}
+:root[data-titres="bd"] .c-note{font-family:var(--titre-font); font-weight:400; font-size:1.15rem; letter-spacing:0.5px;}
+@media (max-width:760px){ :root[data-titres="bd"] .letter-head{font-size:1.7rem;} }
+/* classique (serif) et moderne (grotesque) : graisse affirmée, tailles d'origine */
+:root:is([data-titres="classique"], [data-titres="moderne"]) :is(.author-header h1, .fiche h1, .settings h1, .carnet h1){
+  font-weight:700; letter-spacing:-0.01em;
+}
 
-/* ---------- cartes ---------- */
-.author-card, .book-card{
+/* titre du bandeau : la police BD (par défaut) ou la même que les titres */
+:root[data-bandeau="titres"] .brand{font-family:var(--titre-font); letter-spacing:0;}
+:root[data-bandeau="titres"]:not([data-titres="bd"]) .brand{
+  font-weight:800; font-size:clamp(24px, 4.6vw, 38px); text-shadow:2px 2px 0 var(--ink);
+}
+
+/* ---------- 2. CARTES ET FICHE ---------- */
+:root[data-cartes="bd"] :is(.author-card, .book-card){
   border:var(--bd-m) solid var(--hdr-line); border-radius:var(--bd-r);
-  box-shadow:var(--bd-sh-l);
-  transition:transform .12s ease, box-shadow .12s ease;
+  box-shadow:var(--bd-sh-l); transition:transform .12s ease, box-shadow .12s ease;
 }
-.author-card:hover, .book-card:hover{border-color:var(--hdr-line); box-shadow:var(--bd-sh-l);}
+:root[data-cartes="bd"] :is(.author-card, .book-card):hover{border-color:var(--hdr-line); box-shadow:var(--bd-sh-l); transform:none;}
 @media (hover:hover) and (pointer:fine){
-  .author-card:hover, .book-card:hover{transform:translate(-2px, -2px); box-shadow:var(--bd-sh-xl);}
+  :root[data-cartes="bd"] :is(.author-card, .book-card):hover{transform:translate(-2px, -2px); box-shadow:var(--bd-sh-xl);}
 }
-.author-card .name{font-weight:800;}
-.book-card h3{font-family:var(--font-body); font-weight:800;}
-.mosaic .cover, .book-card .cover{border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r-sm);}
-
-/* ---------- fiche livre ---------- */
-.fiche{
-  border:var(--bd-m) solid var(--hdr-line); border-radius:var(--bd-r);
-  box-shadow:var(--bd-sh-xl);
+:root[data-cartes="bd"] .author-card .name, :root[data-cartes="bd"] .book-card h3{font-weight:800;}
+:root[data-cartes="bd"] .book-card h3{font-family:var(--font-body);}
+:root[data-cartes="bd"] :is(.mosaic .cover, .book-card .cover){border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r-sm);}
+:root[data-cartes="bd"] .fiche{border:var(--bd-m) solid var(--hdr-line); border-radius:var(--bd-r); box-shadow:var(--bd-sh-xl);}
+:root[data-cartes="bd"] .fiche .cover{border:var(--bd-m) solid var(--hdr-line); border-radius:var(--bd-r-sm); box-shadow:var(--bd-sh-l);}
+:root[data-cartes="bd"] .magnify{border:var(--bd-s) solid var(--hdr-line); background:var(--card); box-shadow:var(--bd-sh-s);}
+@media (max-width:760px){
+  :root[data-cartes="bd"] :is(.author-card, .book-card){box-shadow:var(--bd-sh-m);}
+  :root[data-cartes="bd"] .fiche{box-shadow:var(--bd-sh-l);}
 }
-.fiche .cover{border:var(--bd-m) solid var(--hdr-line); border-radius:var(--bd-r-sm); box-shadow:var(--bd-sh-l);}
-.magnify{border:var(--bd-s) solid var(--hdr-line); background:var(--card); box-shadow:var(--bd-sh-s);}
+/* épurées : à plat, sans ombre, un simple filet qui prend la couleur d'accent au survol */
+:root[data-cartes="epurees"] :is(.author-card, .book-card, .fiche){box-shadow:none;}
+:root[data-cartes="epurees"] :is(.author-card, .book-card):hover{box-shadow:none; transform:none;}
+:root[data-cartes="epurees"] .fiche .cover{box-shadow:none;}
 
-/* ---------- pastilles d'information (formats, statuts, note) ---------- */
-.badge{
+/* ---------- 3. PASTILLES ---------- */
+:root[data-pastilles="bd"] .badge{
   border:var(--bd-s) solid var(--hdr-line); background:var(--chip); color:var(--ink);
   font-family:var(--font-body); font-weight:800; font-size:0.62rem; letter-spacing:0.04em;
   padding:0.22em 0.7em;
 }
-.badge.genre{background:var(--card); color:var(--sub); border-color:var(--hdr-line);}
-.badge.status{background:var(--card); color:var(--ink); border-color:var(--hdr-line);}
-.badge.fav{background:var(--accent); color:var(--accent-ink); border-color:var(--hdr-line);}
-.badge.inprogress{background:var(--accent-ink); color:var(--accent); border-color:var(--accent);}
-.badge.rating{background:var(--ink); color:var(--card); border-color:var(--ink);}
+:root[data-pastilles="bd"] .badge.genre{background:var(--card); color:var(--sub);}
+:root[data-pastilles="bd"] .badge.status{background:var(--card); color:var(--ink);}
+:root[data-pastilles="bd"] .badge.fav{background:var(--accent); color:var(--accent-ink);}
+:root[data-pastilles="bd"] .badge.inprogress{background:var(--accent-ink); color:var(--accent); border-color:var(--accent);}
+:root[data-pastilles="bd"] .badge.rating{background:var(--ink); color:var(--card); border-color:var(--ink);}
 
-/* ---------- boutons ---------- */
-.btn-main, .btn-mini{
-  border:var(--bd-s) solid var(--hdr-line); box-shadow:var(--bd-sh-m);
-  font-weight:800; cursor:pointer;
+/* ---------- 4. BOUTONS, CASES, CHAMPS ---------- */
+:root[data-commandes="bd"] :is(.btn-main, .btn-mini){
+  border:var(--bd-s) solid var(--hdr-line); box-shadow:var(--bd-sh-m); font-weight:800; cursor:pointer;
   transition:transform .08s ease, box-shadow .08s ease;
 }
-.btn-main{border-color:var(--hdr-line);}
-.btn-main:active, .btn-mini:active{transform:translate(2px, 2px); box-shadow:var(--bd-sh-s);}
-.btn-main.danger{border-color:var(--hdr-line);}
-.nav-author{border:var(--bd-s) solid var(--hdr-line); box-shadow:var(--bd-sh-m); color:var(--ink); font-weight:700;}
-@media (min-width:1400px){ .nav-author{box-shadow:var(--bd-sh-m);} }
-.lightbox-close{border:var(--bd-m) solid #111; box-shadow:3px 3px 0 #000; font-weight:800;}
-
-/* ---------- cases et commandes ---------- */
-.toggle{
-  border:var(--bd-s) solid var(--hdr-line); background:var(--card);
-  box-shadow:var(--bd-sh-m); font-weight:600;
-}
-.toggle.active{border-color:var(--hdr-line); background:var(--chip); font-weight:800;}
-.segmented{border:var(--bd-s) solid var(--hdr-line); background:var(--card); box-shadow:var(--bd-sh-m);}
-.segmented button{font-weight:700; color:var(--ink);}
-.segmented button.on{background:var(--ink); color:var(--card);}
-.rate{border:var(--bd-s) solid var(--hdr-line); background:var(--card); color:var(--ink); box-shadow:var(--bd-sh-s);}
-.rate.fill{background:var(--chip); border-color:var(--hdr-line);}
-.rate.on{background:var(--accent); color:var(--accent-ink); border-color:var(--hdr-line);}
-.rate:active{transform:translate(1px, 1px); box-shadow:none;}
-
-/* ---------- champs de saisie (hors bandeau) ---------- */
-.review input[type="date"], .review textarea, .ano-fix input, .carnet-ctrls select,
-.inline-form input[type="text"], .inline-form input[type="password"]{
+:root[data-commandes="bd"] :is(.btn-main, .btn-mini):active{transform:translate(2px, 2px); box-shadow:var(--bd-sh-s);}
+:root[data-commandes="bd"] .nav-author{border:var(--bd-s) solid var(--hdr-line); box-shadow:var(--bd-sh-m); color:var(--ink); font-weight:700;}
+:root[data-commandes="bd"] .lightbox-close{border:var(--bd-m) solid #111; box-shadow:3px 3px 0 #000; font-weight:800;}
+:root[data-commandes="bd"] .toggle{border:var(--bd-s) solid var(--hdr-line); background:var(--card); box-shadow:var(--bd-sh-m); font-weight:600;}
+:root[data-commandes="bd"] .toggle.active{border-color:var(--hdr-line); background:var(--chip); font-weight:800;}
+:root[data-commandes="bd"] .segmented{border:var(--bd-s) solid var(--hdr-line); background:var(--card); box-shadow:var(--bd-sh-m);}
+:root[data-commandes="bd"] .segmented button{font-weight:700; color:var(--ink);}
+:root[data-commandes="bd"] .segmented button.on{background:var(--ink); color:var(--card);}
+:root[data-commandes="bd"] .rate{border:var(--bd-s) solid var(--hdr-line); background:var(--card); color:var(--ink); box-shadow:var(--bd-sh-s);}
+:root[data-commandes="bd"] .rate.fill{background:var(--chip); border-color:var(--hdr-line);}
+:root[data-commandes="bd"] .rate.on{background:var(--accent); color:var(--accent-ink); border-color:var(--hdr-line);}
+:root[data-commandes="bd"] .rate:active{transform:translate(1px, 1px); box-shadow:none;}
+:root[data-commandes="bd"] :is(.review input[type="date"], .review textarea, .ano-fix input, .carnet-ctrls select,
+  .inline-form input[type="text"], .inline-form input[type="password"]){
   border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r);
   background:var(--card); color:var(--ink); box-shadow:var(--bd-sh-m);
-  font-family:var(--font-body);
 }
-.inline-form input[type="password"]{
-  width:100%; font-size:0.92rem; padding:0.55em 0.75em; margin-bottom:0.8rem; box-sizing:border-box;
-}
-.carnet-ctrls select{font-weight:600;}
+:root[data-commandes="bd"] .carnet-ctrls select{font-weight:600;}
 
-/* ---------- panneaux et blocs ---------- */
-.stat, .theme-card, .ano-fam, .aide-fam, .hidden-list, .carnet-row{
-  border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r);
-  box-shadow:var(--bd-sh-m);
+/* ---------- 5. PANNEAUX ---------- */
+:root[data-panneaux="bd"] :is(.stat, .theme-card, .ano-fam, .aide-fam, .hidden-list, .carnet-row){
+  border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r); box-shadow:var(--bd-sh-m);
 }
-.stat .n{font-family:var(--bd-font-titre); font-weight:400; font-size:1.9rem; letter-spacing:0.5px;}
-.stat .l{color:var(--ink);}
-.bar{height:12px; border:var(--bd-s) solid var(--hdr-line); background:var(--card);}
-.ano-body, .aide-body{border-top:var(--bd-s) solid var(--hdr-line);}
-.ano-head, .aide-head{font-weight:700;}
-.ano-head .n{border:var(--bd-s) solid var(--hdr-line); background:var(--chip); color:var(--ink); font-weight:700;}
-.ano-opt{border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r); background:var(--card);}
-.hidden-row{border-bottom:var(--bd-s) solid var(--hdr-line);}
-.inline-form, .review{
-  border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r); background:var(--bg);
-}
-.snippet{border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r);}
-.serie-strip{
+:root[data-panneaux="bd"] .stat .l{color:var(--ink);}
+:root[data-panneaux="bd"] .bar{height:12px; border:var(--bd-s) solid var(--hdr-line); background:var(--card);}
+:root[data-panneaux="bd"] :is(.ano-body, .aide-body){border-top:var(--bd-s) solid var(--hdr-line);}
+:root[data-panneaux="bd"] :is(.ano-head, .aide-head){font-weight:700;}
+:root[data-panneaux="bd"] .ano-head .n{border:var(--bd-s) solid var(--hdr-line); background:var(--chip); color:var(--ink); font-weight:700;}
+:root[data-panneaux="bd"] .ano-opt{border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r); background:var(--card);}
+:root[data-panneaux="bd"] .hidden-row{border-bottom:var(--bd-s) solid var(--hdr-line);}
+:root[data-panneaux="bd"] :is(.inline-form, .review){border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r); background:var(--bg);}
+:root[data-panneaux="bd"] .snippet{border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r);}
+:root[data-panneaux="bd"] .serie-strip{
   border:var(--bd-s) solid var(--hdr-line); border-left:7px solid var(--accent);
   border-radius:var(--bd-r); background:var(--card); box-shadow:var(--bd-sh-m);
 }
-.serie-strip .s-name{font-weight:800;}
-.theme-card.on{border-color:var(--hdr-line); box-shadow:0 0 0 3px var(--accent), var(--bd-sh-m);}
-.theme-card .tp-meta{border-top:var(--bd-s) solid var(--hdr-line);}
-.theme-card .tp-name{font-weight:800;}
+:root[data-panneaux="bd"] .serie-strip .s-name, :root[data-panneaux="bd"] .c-titre, :root[data-panneaux="bd"] .theme-card .tp-name{font-weight:800;}
+:root[data-panneaux="bd"] .theme-card.on{border-color:var(--hdr-line); box-shadow:0 0 0 3px var(--accent), var(--bd-sh-m);}
+:root[data-panneaux="bd"] .theme-card .tp-meta{border-top:var(--bd-s) solid var(--hdr-line);}
+:root[data-panneaux="bd"] .carnet-row{transition:transform .12s ease, box-shadow .12s ease;}
 @media (hover:hover) and (pointer:fine){
-  .theme-card:hover, .carnet-row:hover{transform:translate(-2px, -2px); box-shadow:var(--bd-sh-l); border-color:var(--hdr-line);}
-  .theme-card.on:hover{box-shadow:0 0 0 3px var(--accent), var(--bd-sh-l);}
+  :root[data-panneaux="bd"] :is(.theme-card, .carnet-row):hover{transform:translate(-2px, -2px); box-shadow:var(--bd-sh-l); border-color:var(--hdr-line);}
+  :root[data-panneaux="bd"] .theme-card.on:hover{box-shadow:0 0 0 3px var(--accent), var(--bd-sh-l);}
 }
-.carnet-row{transition:transform .12s ease, box-shadow .12s ease;}
-.c-titre{font-weight:800;}
-.c-note{font-family:var(--bd-font-titre); font-weight:400; font-size:1.15rem; letter-spacing:0.5px;}
-.c-note.vide{color:var(--sub); opacity:0.5;}
-.review-head{font-family:var(--bd-font-titre); font-weight:400; font-size:1.35rem; letter-spacing:0.5px;}
-.app-version{border-top:var(--bd-s) solid var(--hdr-line);}
-
-/* ---------- index A–Z ---------- */
-.az{border-bottom:var(--bd-s) solid var(--hdr-line);}
-.az a{font-weight:700; color:var(--ink); border:var(--bd-s) solid transparent;}
+/* filets de séparation et index A–Z, qui structurent les pages comme les panneaux */
+:root[data-panneaux="bd"] :is(.letter-head, .serie-head)::after,
+:root[data-panneaux="bd"] .section-title .rule{height:var(--bd-s); background:var(--hdr-line); opacity:0.85;}
+:root[data-panneaux="bd"] .az{border-bottom:var(--bd-s) solid var(--hdr-line);}
+:root[data-panneaux="bd"] .az a{font-weight:700; color:var(--ink); border:var(--bd-s) solid transparent;}
+:root[data-panneaux="bd"] .app-version{border-top:var(--bd-s) solid var(--hdr-line);}
+:root[data-panneaux="bd"] :is(.back-link, .section-title){color:var(--ink);}
+:root[data-panneaux="bd"] .back-link{font-weight:700;}
 @media (hover:hover) and (pointer:fine){
-  .az a:hover{background:var(--accent); color:var(--accent-ink); border-color:var(--hdr-line);}
+  :root[data-panneaux="bd"] .az a:hover{border-color:var(--hdr-line);}
 }
 
+/* ---------- section « Style » des Réglages ---------- */
+.style-grid{display:grid; grid-template-columns:minmax(0, 1fr) minmax(260px, 340px); gap:1.6rem; align-items:start;}
+.style-rows{display:flex; flex-direction:column; gap:1rem;}
+.style-row{display:flex; flex-direction:column; gap:0.4rem;}
+.style-row .style-lab{font-size:0.8rem; font-weight:700; color:var(--ink);}
+.style-row .style-hint{font-size:0.72rem; color:var(--sub); margin-top:-0.15rem;}
+.style-row .segmented{flex-wrap:wrap; border-radius:18px; align-self:flex-start; max-width:100%;}
+.style-presets{display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center; margin-bottom:1.2rem;}
+.style-presets .style-lab{font-size:0.8rem; color:var(--sub); margin-right:0.2rem;}
+.style-apercu{position:sticky; top:72px; display:flex; flex-direction:column; gap:0.9rem;}
+.style-apercu .apercu-lab{font-family:var(--font-mono); font-size:0.66rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--sub);}
+.style-apercu .apercu-titre{font-family:var(--titre-font); font-size:1.6rem; line-height:1.1; margin:0; color:var(--ink);}
+:root[data-titres="bd"] .style-apercu .apercu-titre{letter-spacing:0.5px;}
+:root:is([data-titres="classique"], [data-titres="moderne"]) .style-apercu .apercu-titre{font-weight:700;}
+.style-apercu .book-card{pointer-events:none;}
+.style-apercu .apercu-cmd{display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;}
+.style-apercu .stat{max-width:150px;}
 @media (max-width:760px){
-  .author-card, .book-card{box-shadow:var(--bd-sh-m);}   /* ombres un peu moins larges sur petit écran */
-  .fiche{box-shadow:var(--bd-sh-l);}
-  .letter-head{font-size:1.7rem;}
+  .style-grid{grid-template-columns:minmax(0, 1fr);}
+  .style-apercu{position:static; order:-1;}
 }
-/* titres de sections (Réglages, carnet) : même police que les titres de page */
-.set-head, .carnet-sec > .section-title{
-  font-family:var(--bd-font-titre); font-weight:400; text-transform:none;
-  font-size:1.35rem; letter-spacing:0.5px; color:var(--ink);
-}
-.review{max-width:640px;}     /* la note « 8/10 » reste sur la ligne des 10 boutons */

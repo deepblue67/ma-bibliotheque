@@ -22,11 +22,33 @@ const THEMES = [
   {id:"botanique", label:"Botanique", desc:"Vert profond et papier végétal"},
   {id:"pulp", label:"Rétro Pulp", desc:"Crème jauni, rouge d'affiche, angles vifs"},
 ];
+// Style de l'interface (Réglages → Style) : chaque aspect se choisit séparément, et se
+// mémorise sur l'appareil comme le thème. Valeurs par défaut = préréglage « Mixte ».
+const STYLE_OPTIONS = [
+  { cle: 'titres', lab: 'Titres', hint: "Nom de l'auteur, titre du livre, titres des pages et des sections", choix: [
+      ['theme', 'Police du thème'], ['bd', 'BD'], ['classique', 'Classique'], ['moderne', 'Moderne']] },
+  { cle: 'bandeau', lab: 'Titre du bandeau', hint: '« Ma Bibliothèque », en haut de chaque page', choix: [
+      ['bd', 'BD'], ['titres', 'Comme les titres']] },
+  { cle: 'cartes', lab: 'Cartes et fiche', hint: "Cartes d'auteurs et de livres, fiche d'un livre", choix: [
+      ['douces', 'Douces'], ['bd', 'BD'], ['epurees', 'Épurées']] },
+  { cle: 'pastilles', lab: 'Pastilles', hint: 'Ebook, PDF, Audio, Lu, Écouté, En cours, Favori, note', choix: [
+      ['contour', 'Contour'], ['bd', 'BD']] },
+  { cle: 'commandes', lab: 'Boutons, cases et champs', hint: 'Boutons, cases à cocher, champs de saisie, menus, boutons de note', choix: [
+      ['douces', 'Doux'], ['bd', 'BD']] },
+  { cle: 'panneaux', lab: 'Panneaux', hint: 'Statistiques, thèmes, anomalies, aide, livres masqués, carnet', choix: [
+      ['doux', 'Doux'], ['bd', 'BD']] },
+];
+const STYLE_PRESETS = [
+  ['ebook',  'Ebook (d’origine)', { titres: 'theme', bandeau: 'titres', cartes: 'douces', pastilles: 'contour', commandes: 'douces', panneaux: 'doux' }],
+  ['mixte',  'Mixte',             { titres: 'theme', bandeau: 'bd',     cartes: 'bd',     pastilles: 'bd',      commandes: 'bd',     panneaux: 'bd' }],
+  ['bd',     'Tout BD',           { titres: 'bd',    bandeau: 'bd',     cartes: 'bd',     pastilles: 'bd',      commandes: 'bd',     panneaux: 'bd' }],
+];
 const DEFAULTS = {theme:"nordique", mode:"auto"};
+for (const [k, v] of Object.entries(STYLE_PRESETS[1][2])) DEFAULTS['style.' + k] = v;
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 const APP_VERSION_DATE = '2026-10-25';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -38,10 +60,16 @@ function prefGet(k){
 function prefSet(k, v){
   try{ localStorage.setItem("mabiblio."+k, v); }catch(e){}
 }
+function styleGet(cle){
+  const o = STYLE_OPTIONS.find(x => x.cle === cle);
+  const v = prefGet('style.' + cle);
+  return o.choix.some(c => c[0] === v) ? v : DEFAULTS['style.' + cle];
+}
 function applyTheme(){
   const t = THEMES.some(x => x.id === prefGet("theme")) ? prefGet("theme") : DEFAULTS.theme;
   document.documentElement.setAttribute("data-theme", t);
   document.documentElement.setAttribute("data-mode", prefGet("mode"));
+  for (const o of STYLE_OPTIONS) document.documentElement.setAttribute('data-' + o.cle, styleGet(o.cle));
   // la barre d'état du téléphone suit la couleur de fond du thème
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta){
@@ -1514,6 +1542,8 @@ function renderSettings() {
           ${THEMES.map(t => themeCard(t, t.id === cur)).join('')}
         </div>`)}
 
+      ${setBlock('style', 'Style', renderStyleBlock())}
+
       ${setBlock('proprietaire', 'Mode propriétaire', renderOwnerBlock())}
 
 
@@ -1546,6 +1576,7 @@ function renderSettings() {
     b.addEventListener('click', () => { prefSet('mode', b.dataset.mode); applyTheme(); renderSettings(); });
   });
   wireSetBlocks();
+  wireStyleBlock();
   wireOwnerBlock();
   wireAnomalies();
   wireAide();
@@ -1592,6 +1623,71 @@ function wireSetBlocks() {
   el.app.querySelectorAll('.set-all-btn').forEach(b => b.addEventListener('click', () => {
     el.app.querySelectorAll('.set-head').forEach(h => toggleSetBlock(h, b.dataset.all === 'open'));
     saveSetClosed();
+  }));
+}
+
+// ---------------------------------------------------------------
+// Réglages → Style : un sélecteur par aspect, trois préréglages, et un aperçu en direct
+// (de vrais éléments de l'application, qui prennent le style choisi à l'instant).
+// ---------------------------------------------------------------
+function presetActif() {
+  const p = STYLE_PRESETS.find(([, , v]) => STYLE_OPTIONS.every(o => styleGet(o.cle) === v[o.cle]));
+  return p ? p[0] : null;
+}
+function renderStyleBlock() {
+  const actif = presetActif();
+  return `
+        <p class="lede" style="margin:0 0 1rem; font-size:0.85rem;">
+          Chaque partie de l'interface se règle séparément ; le choix est enregistré sur cet appareil,
+          comme le thème. Les couleurs restent celles du thème.</p>
+        <div class="style-presets">
+          <span class="style-lab">Préréglages :</span>
+          <div class="segmented" id="style-presets">
+            ${STYLE_PRESETS.map(([id, lab]) => `<button type="button" data-preset="${id}" class="${actif === id ? 'on' : ''}">${lab}</button>`).join('')}
+          </div>
+          ${actif ? '' : '<span class="style-lab" id="style-perso">personnalisé</span>'}
+        </div>
+        <div class="style-grid">
+          <div class="style-rows">
+            ${STYLE_OPTIONS.map(o => `
+            <div class="style-row">
+              <span class="style-lab" id="style-lab-${o.cle}">${o.lab}</span>
+              <span class="style-hint">${o.hint}</span>
+              <div class="segmented" role="group" aria-labelledby="style-lab-${o.cle}" data-style="${o.cle}">
+                ${o.choix.map(([v, l]) => `<button type="button" data-val="${v}" class="${styleGet(o.cle) === v ? 'on' : ''}"
+                   aria-pressed="${styleGet(o.cle) === v}">${l}</button>`).join('')}
+              </div>
+            </div>`).join('')}
+          </div>
+          <div class="style-apercu" aria-hidden="true">
+            <span class="apercu-lab">Aperçu</span>
+            <p class="apercu-titre">Les Piliers de la Terre</p>
+            <div class="book-card">
+              ${coverTile({ id: 'apercu', title: 'Les Piliers de la Terre', author_name: 'Ken Follett', cover_path: null })}
+              <div class="info">
+                <h3>Les Piliers de la Terre</h3>
+                <p class="by">Ken Follett</p>
+                <div class="badges"><span class="badge">Ebook</span><span class="badge">Audio</span><span class="badge fav">★ Favori</span><span class="badge rating">8/10</span></div>
+              </div>
+            </div>
+            <div class="apercu-cmd">
+              <span class="btn-main">Bouton</span>
+              <label class="toggle active"><input type="checkbox" checked tabindex="-1"> Lu sur liseuse</label>
+            </div>
+            <div class="stat"><div class="n">12</div><div class="l">lus</div></div>
+          </div>
+        </div>`;
+}
+function wireStyleBlock() {
+  const majPage = () => { applyTheme(); renderSettings(); };
+  el.app.querySelectorAll('.segmented[data-style] button').forEach(b => b.addEventListener('click', () => {
+    prefSet('style.' + b.parentElement.dataset.style, b.dataset.val);
+    majPage();
+  }));
+  el.app.querySelectorAll('#style-presets button').forEach(b => b.addEventListener('click', () => {
+    const p = STYLE_PRESETS.find(x => x[0] === b.dataset.preset);
+    for (const [k, v] of Object.entries(p[2])) prefSet('style.' + k, v);
+    majPage();
   }));
 }
 
