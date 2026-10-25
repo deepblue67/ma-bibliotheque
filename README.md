@@ -828,6 +828,16 @@ Retour de Christophe sur la 1.8 : les réglages de Style ne touchaient pas le ba
 
 **Vérifié** : `style.js` passe de 33 à 77 vérifications — les dix polices du titre, casse, ombre, les trois fonds (dont un dégradé d'un seul tenant : il se répétait d'abord en carreaux de 11 px, hérités de la trame), les quatre champs, les trois pastilles (active comprise), les quatre boutons ronds (et leur zone de 42 px), les quatre préréglages, le mini-bandeau de l'aperçu (sans bouton ni identifiant en double), et sur iPhone 360 et 390 px aucun des dix titres en majuscules ne touche les boutons. Captures contrôlées dans plusieurs thèmes, en clair et en sombre. Les quatorze autres suites repassent sans échec. Version 1.9.
 
+### 4.40 Outil d'import, section 5 : filtrer et trier les propositions de couvertures
+
+Demande de Christophe : une fois la recherche lancée (« 1. Chercher les livres sans couverture »), pouvoir n'afficher que les correspondances fiables, que les probables, ou que les autres. Une rangée **« Afficher : Toutes · ✓ Fiables · ≈ Probables · ⚠ Autres »**, chacune avec son nombre, apparaît au-dessus de la liste des résultats. « Autres » regroupe les propositions incertaines ; les livres sans aucun résultat ne figurent toujours pas dans la liste.
+
+Le filtre **ne fait que masquer des lignes** : il ne coche ni ne décoche rien, et les boutons « Cocher les correspondances fiables », « Cocher aussi les probables » et « Tout décocher » agissent toujours sur toute la liste. « 2. Téléverser la sélection » envoie **toutes les cases cochées, affichées ou non** ; le bouton indique leur nombre, et une ligne prévient quand certaines sont hors de l'affichage (par exemple les fiables, cochées d'office, quand on regarde les probables). Au passage, la page ne déborde plus en largeur sur iPhone (deux longs exemples de code et le résumé des résultats).
+
+Vérifié avec une recherche simulée (3 fiables, 3 probables, 2 autres, 1 sans résultat), sur ordinateur et sur iPhone : compteurs, chaque filtre, signalement des cases cochées masquées, compteur du bouton, et téléversement de toutes les cases cochées. Pas de changement de version de l'application : seul `supabase_import_tool.html` change.
+
+**Tri, derniers ajoutés en haut** (demande suivante de Christophe) : la liste montre désormais **d'abord les livres ajoutés le plus récemment**. La recherche les traite aussi en premier, et chaque ligne indique « ajouté le JJ/MM/AAAA ». Le tri s'appuie sur la colonne `created_at` de la base, car l'`id` est un UUID qui ne suit pas l'ordre d'ajout (c’est déjà ce qui servait au rayon « Derniers ajouts », §4.11, retiré depuis — §4.29). Les livres sans date d'ajout passent en bas. Une rangée **« Trier : Derniers ajoutés d'abord · Auteur · Titre »** permet de changer l'ordre ; elle se combine avec le filtre « Afficher », et changer de tri garde les cases cochées. Vérifié de la même façon : l'outil demande bien la date d'ajout à la base, ordre des trois tris, combinaison avec le filtre, cases conservées, téléversement des bons livres.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -874,6 +884,7 @@ Retour de Christophe sur la 1.8 : les réglages de Style ne touchaient pas le ba
 42. ~~**Christophe redéploie … — version 1.7** (design harmonisé — voir §4.37).~~ Remplacé par l'étape 43 (la 1.8 contient les 1.1 à 1.7).
 43. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.8** (Réglages → Style — voir §4.38 ; inclut les 1.1 à 1.7). Vérifier « version 1.8 » en bas des Réglages, puis choisir son style dans la section Style. Les migrations SQL « en cours » et « avis » (étapes 36 et 38) restent à faire si ce n'est pas déjà le cas.
 44. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.9** (bandeau paramétrable — voir §4.39 ; inclut les 1.1 à 1.8). Les trois fichiers sont indispensables cette fois : `index.html` charge les quatre nouvelles polices. Vérifier « version 1.9 » en bas des Réglages, puis régler le groupe « Bandeau » de la section Style.
+45. **Christophe redéploie `supabase_import_tool.html`** (section 5 : filtre Fiables / Probables / Autres et tri « derniers ajoutés d'abord » — voir §4.40). L'outil marche aussi directement par double-clic sur le fichier du PC, sans attendre le redéploiement.
 
 ## 6. Notes pour une reprise future du projet
 
