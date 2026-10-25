@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr" data-theme="nordique" data-mode="auto" data-titres="theme" data-bandeau="bd" data-cartes="bd" data-pastilles="bd" data-commandes="bd" data-panneaux="bd">
+<html lang="fr" data-theme="nordique" data-mode="auto" data-titres="theme" data-bandeau="bd" data-cartes="bd" data-pastilles="bd" data-commandes="bd" data-panneaux="bd" data-hdrcasse="maj" data-hdrombre="decalee" data-hdrfond="trame" data-hdrchamps="bd" data-hdrpastilles="bd" data-hdrboutons="bd">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -19,21 +19,22 @@
     var m = localStorage.getItem('mabiblio.mode');
     if (t) document.documentElement.setAttribute('data-theme', t);
     if (m) document.documentElement.setAttribute('data-mode', m);
-    // style choisi dans Réglages → Style (titres, bandeau, cartes, pastilles, boutons, panneaux)
-    ['titres','bandeau','cartes','pastilles','commandes','panneaux'].forEach(function(k){
-      var v = localStorage.getItem('mabiblio.style.' + k);
-      if (v) document.documentElement.setAttribute('data-' + k, v);
-    });
+    // style choisi dans Réglages → Style : chaque clé « mabiblio.style.xxx » devient data-xxx
+    for (var i = 0; i < localStorage.length; i++){
+      var k = localStorage.key(i);
+      if (k && k.indexOf('mabiblio.style.') === 0)
+        document.documentElement.setAttribute('data-' + k.slice(15), localStorage.getItem(k));
+    }
   }catch(e){}
 })();
 </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Archivo:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Libre+Franklin:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=Spectral:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bangers&family=Archivo:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Libre+Franklin:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=Special+Elite&family=Spectral:wght@400;500;600;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
 <!-- ?v= = numéro de version (APP_VERSION dans js/app.js) : à changer à chaque livraison,
      pour obliger les navigateurs (iPhone compris) à recharger les nouveaux fichiers -->
-<link rel="stylesheet" href="css/style.css?v=1.8">
+<link rel="stylesheet" href="css/style.css?v=1.9">
 </head>
 <body>
 
@@ -97,6 +98,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
-<script src="js/app.js?v=1.8"></script>
+<script src="js/app.js?v=1.9"></script>
 </body>
 </html>

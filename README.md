@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 1.8 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 1.9 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -798,13 +798,35 @@ Retour de Christophe sur la 1.7 : la police BD des titres ne correspond pas à l
 | **Boutons, cases et champs** | Doux · BD | boutons, cases à cocher, champs de saisie, menus, boutons de note |
 | **Panneaux** | Doux · BD | statistiques, vignettes de thème, anomalies, aide, livres masqués, lignes du carnet, bandeau de saga, filets et index A–Z |
 
-**Trois préréglages** en tête de section : **Ebook (d'origine)** (l'apparence d'avant la 1.7, titre du bandeau compris), **Mixte** (par défaut : titres dans la police du thème, tout le reste façon BD — la 1.7 sans la police BD) et **Tout BD** (la 1.7). Changer un seul aspect affiche « personnalisé ». Un **aperçu en direct** (titre, carte de livre avec pastilles, bouton, case, statistique — de vrais éléments de l'application) montre l'effet immédiatement, à droite sur ordinateur, au-dessus des choix sur iPhone. Le bandeau lui-même (fond, champs de recherche, pastilles de statut) garde son style BD dans tous les cas.
+**Trois préréglages** en tête de section : **Ebook (d'origine)** (l'apparence d'avant la 1.7, titre du bandeau compris), **Mixte** (par défaut : titres dans la police du thème, tout le reste façon BD — la 1.7 sans la police BD) et **Tout BD** (la 1.7). Changer un seul aspect affiche « personnalisé ». Un **aperçu en direct** (titre, carte de livre avec pastilles, bouton, case, statistique — de vrais éléments de l'application) montre l'effet immédiatement, à droite sur ordinateur, au-dessus des choix sur iPhone. Le bandeau lui-même (fond, champs de recherche, pastilles de statut) gardait son style BD dans tous les cas — il devient réglable en 1.9 (§4.39).
 
 **Technique** : les choix sont posés en attributs sur `<html>` — `data-titres`, `data-bandeau`, `data-cartes`, `data-pastilles`, `data-commandes`, `data-panneaux` — comme `data-theme`. Ils sont mémorisés dans `localStorage` (`mabiblio.style.<aspect>`), appliqués **avant le premier affichage** par le petit script en tête d'`index.html` (pas d'éclair du mauvais style), puis par `applyTheme()` qui ramène toute valeur inconnue à la valeur par défaut. Les valeurs et préréglages sont décrits une seule fois dans `STYLE_OPTIONS` et `STYLE_PRESETS` (`js/app.js`). Dans `css/style.css`, le bloc « STYLE PARAMÉTRABLE » remplace le bloc 1.7 : chaque règle ne s'applique que sous son attribut (`:root[data-cartes="bd"] …`), la valeur d'origine correspondant aux règles plus haut dans la feuille ; la police des titres passe par une variable `--titre-font`. Ajouter une valeur = l'ajouter à `STYLE_OPTIONS` et écrire son groupe de règles.
 
 **Correctif au passage** : sur iPhone, le badge de note « 8/10 » des cartes de livres s'étirait sur toute la largeur de la carte (depuis la 1.5) — sa classe `rating` partageait le nom de la rangée de boutons de note de « Mon avis », dont la règle iPhone lui donnait `width:100%`. La règle est désormais limitée à `.review .rating`.
 
 **Vérifié** : nouvelle suite `style.js` (33 vérifications) qui mesure l'effet réel de chaque choix à l'écran (police calculée des titres pour les quatre polices ; bandeau ; épaisseur des traits et ombres des cartes, de la fiche, des pastilles, des cases, des panneaux, dans chaque variante), les préréglages, « personnalisé », la conservation après rechargement, le retour à la valeur par défaut pour une valeur inconnue, l'iPhone (pas de débordement, badge à sa taille, choix au toucher). `reglages.js` compte désormais 4 sections pour un visiteur (avec Style), `carnet.js` ignore la statistique de l'aperçu. Les quatorze autres suites repassent sans échec. Version 1.8.
+
+### 4.39 Bandeau paramétrable, dix polices pour son titre (Réglages → Style)
+
+Retour de Christophe sur la 1.8 : les réglages de Style ne touchaient pas le bandeau — champs de recherche et de filtre, pastilles de statut, boutons ronds Réglages et Carnet — et il voulait plus de choix pour le titre « Ma Bibliothèque ». La section Style est désormais rangée en **deux groupes, « Bandeau » puis « Pages »** (les cinq réglages de la 1.8), avec sept nouveaux réglages pour le bandeau :
+
+| Réglage | Choix | Ce qui change |
+|---|---|---|
+| **Police du titre** | BD · Comme les titres · Affiche · Classique · Prestige · Élégant · Moderne · Sobre · Machine à écrire · Manuscrit | Bangers, police des titres, Anton, Fraunces, Abril Fatface, Spectral, Space Grotesk, Libre Franklin, Special Elite, Caveat. Chaque bouton s'écrit dans sa propre police |
+| **Écriture du titre** | Majuscules · Normale | MA BIBLIOTHÈQUE ou Ma Bibliothèque |
+| **Ombre du titre** | Décalée · Douce · Aucune | ombre BD de 3 px, ombre floue, ou rien |
+| **Fond du bandeau** | Trame BD · Uni · Dégradé | trame de points et gros filet du bas (BD), couleur pleine, ou dégradé ; toujours dans la couleur d'accent du thème |
+| **Champs de recherche et filtres** | BD · Doux · Arrondis · Soulignés | recherche, Format, Genre et la croix d'effacement. Soulignés = transparents, texte dans la couleur du bandeau, la liste déroulante gardant un fond opaque |
+| **Pastilles de statut** | BD · Douces · Contour | Lus, Écoutés, En cours, Non lus, Favoris ; la pastille active reste pleine dans tous les cas |
+| **Boutons Carnet et Réglages** | BD · Doux · Contour · Discrets | les deux boutons ronds ; Discrets = icône seule, la zone à toucher garde 42 px |
+
+**Quatre préréglages** : **Ebook (d'origine)** (bandeau uni, titre en casse normale sans ombre, champs, pastilles et boutons doux), **Élégant** (nouveau : titres et bandeau en Classique, ombre douce, fond en dégradé, champs arrondis, pastilles et boutons en contour, cartes épurées), **Mixte** (par défaut, inchangé : le bandeau BD de la 1.8) et **Tout BD**. Sans rien toucher, l'application garde donc exactement l'aspect de la 1.8. L'aperçu en direct commence maintenant par un **mini-bandeau** (titre, boutons ronds, champ de recherche, pastilles) qui suit chaque choix.
+
+**Titre sur iPhone** : en majuscules, certaines polices (Élégant, Classique, Manuscrit…) dépassaient de quelques pixels la place laissée à gauche des boutons ronds. Une petite fonction `ajusterTitreBandeau()` (`js/app.js`) réduit alors la taille du titre juste ce qu'il faut — à l'affichage, au changement de réglage, au chargement des polices et quand l'écran tourne. Rien ne change sur ordinateur.
+
+**Technique** : nouveaux attributs sur `<html>` — `data-hdrcasse`, `data-hdrombre`, `data-hdrfond`, `data-hdrchamps`, `data-hdrpastilles`, `data-hdrboutons` — et `data-bandeau` passe de 2 à 10 valeurs (les anciennes, `bd` et `titres`, restent valables : rien à refaire pour qui avait déjà choisi). Le script en tête d'`index.html` applique désormais **toute** clé `mabiblio.style.xxx` en `data-xxx` : un futur réglage n'aura plus besoin d'y être ajouté. La taille du titre passe par une variable `--brand-k` propre à chaque police (à corps égal, Anton paraît bien plus grand que Caveat). Le lien Google Fonts d'`index.html` charge quatre polices de plus : Abril Fatface, Anton, Special Elite, Caveat. Dans `css/style.css`, groupe « 1 bis. BANDEAU » du bloc « STYLE PARAMÉTRABLE ».
+
+**Vérifié** : `style.js` passe de 33 à 77 vérifications — les dix polices du titre, casse, ombre, les trois fonds (dont un dégradé d'un seul tenant : il se répétait d'abord en carreaux de 11 px, hérités de la trame), les quatre champs, les trois pastilles (active comprise), les quatre boutons ronds (et leur zone de 42 px), les quatre préréglages, le mini-bandeau de l'aperçu (sans bouton ni identifiant en double), et sur iPhone 360 et 390 px aucun des dix titres en majuscules ne touche les boutons. Captures contrôlées dans plusieurs thèmes, en clair et en sombre. Les quatorze autres suites repassent sans échec. Version 1.9.
 
 ## 5. Prochaines étapes (dans l'ordre)
 
@@ -851,6 +873,7 @@ Retour de Christophe sur la 1.7 : la police BD des titres ne correspond pas à l
 41. Plus tard, au choix de Christophe : options du carnet (graphique des lectures par mois ou par année, répartition des notes, export Excel).
 42. ~~**Christophe redéploie … — version 1.7** (design harmonisé — voir §4.37).~~ Remplacé par l'étape 43 (la 1.8 contient les 1.1 à 1.7).
 43. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.8** (Réglages → Style — voir §4.38 ; inclut les 1.1 à 1.7). Vérifier « version 1.8 » en bas des Réglages, puis choisir son style dans la section Style. Les migrations SQL « en cours » et « avis » (étapes 36 et 38) restent à faire si ce n'est pas déjà le cas.
+44. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.9** (bandeau paramétrable — voir §4.39 ; inclut les 1.1 à 1.8). Les trois fichiers sont indispensables cette fois : `index.html` charge les quatre nouvelles polices. Vérifier « version 1.9 » en bas des Réglages, puis régler le groupe « Bandeau » de la section Style.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -882,5 +905,6 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 1.6 | 25/10/2026 | Nouvelle page « Mon carnet de lecture » (icône dans le bandeau, propriétaire seulement) : Où j'en suis (déplacé depuis les Réglages) avec lectures par année, livres en cours, liste des livres lus ou écoutés triable par date, note, titre, auteur et filtrable par année, format, note. | §4.36 |
 | 1.7 | 25/10/2026 | Design harmonisé : le langage du bandeau (traits épais, ombres décalées, titres en Bangers, pastilles cerclées) appliqué à toutes les pages — cartes, fiche, Réglages, carnet, anomalies, aide —, dans les couleurs de chaque thème. | §4.37 |
 | 1.8 | 25/10/2026 | Style entièrement paramétrable dans Réglages → Style : titres (4 polices), titre du bandeau, cartes et fiche, pastilles, boutons et champs, panneaux ; préréglages Ebook (d'origine) / Mixte (défaut) / Tout BD ; aperçu en direct. Correctif : badge « 8/10 » étiré sur iPhone. | §4.38 |
+| 1.9 | 25/10/2026 | Bandeau paramétrable dans Réglages → Style (groupe « Bandeau ») : 10 polices pour le titre, majuscules ou non, ombre, fond (trame, uni, dégradé), champs de recherche et filtres, pastilles de statut, boutons Carnet et Réglages ; préréglage « Élégant » ; mini-bandeau dans l'aperçu ; titre ajusté à la largeur sur iPhone. | §4.39 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

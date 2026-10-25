@@ -733,7 +733,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .brand{
   font-family:'Bangers', 'Impact', var(--font-display);
   font-weight:400; letter-spacing:1px;
-  font-size:clamp(28px, 6vw, 48px); line-height:1;
+  font-size:calc(var(--brand-k, 1) * clamp(28px, 6vw, 48px)); line-height:1;   /* --brand-k : voir « STYLE PARAMÉTRABLE » */
   color:var(--accent-ink);
   /* --ink contraste toujours avec --accent-ink (sombre en clair, clair en sombre, dans les
      dix thèmes) : l'ombre reste lisible même quand le titre est foncé en mode sombre */
@@ -1663,11 +1663,18 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 
 /* ===========================================================
-   STYLE PARAMÉTRABLE (version 1.8)
+   STYLE PARAMÉTRABLE (version 1.8, bandeau en 1.9)
    Chaque aspect de l'interface se choisit séparément dans Réglages → Style, et le choix
    est posé en attribut sur <html> (comme le thème) :
      data-titres    theme | bd | classique | moderne   police des titres de page et de section
-     data-bandeau   bd | titres                        titre « Ma Bibliothèque » du bandeau
+     data-bandeau   bd | titres | affiche | classique | prestige | elegant | moderne | sobre | machine | manuscrit
+                                                       police du titre « Ma Bibliothèque » (1.9 : 10 choix)
+     data-hdrcasse  maj | normale                      titre du bandeau en majuscules ou non      (1.9)
+     data-hdrombre  decalee | douce | aucune           ombre du titre du bandeau                  (1.9)
+     data-hdrfond   trame | uni | degrade              fond du bandeau et filet du bas            (1.9)
+     data-hdrchamps bd | doux | arrondis | soulignes   recherche, Format, Genre (et la croix)     (1.9)
+     data-hdrpastilles bd | douces | contour           Lus, Écoutés, En cours, Non lus, Favoris   (1.9)
+     data-hdrboutons bd | doux | contour | discrets    boutons ronds Carnet et Réglages           (1.9)
      data-cartes    douces | bd | epurees              cartes d'auteurs et de livres, fiche
      data-pastilles contour | bd                       Ebook, PDF, Audio, Lu, Écouté, En cours…
      data-commandes douces | bd                        boutons, cases, champs, menus, notes
@@ -1727,9 +1734,98 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 
 /* titre du bandeau : la police BD (par défaut) ou la même que les titres */
-:root[data-bandeau="titres"] .brand{font-family:var(--titre-font); letter-spacing:0;}
-:root[data-bandeau="titres"]:not([data-titres="bd"]) .brand{
-  font-weight:800; font-size:clamp(24px, 4.6vw, 38px); text-shadow:2px 2px 0 var(--ink);
+
+/* ---------- 1 bis. BANDEAU (version 1.9) ----------
+   Les règles « BD » sont celles de la barre du haut, plus haut dans cette feuille : chaque
+   groupe ci-dessous ne fait que les remplacer sous son attribut. Couleurs = thème actif
+   (--accent pour le fond, --accent-ink pour ce qui est posé directement dessus). */
+
+/* police du titre : --brand-k corrige la taille, car à corps égal Anton paraît bien plus
+   grand que Caveat ; la taille reste calculée sur la largeur d'écran (voir .brand) */
+:root[data-bandeau="titres"]{ --brand-k:0.8; }
+:root[data-bandeau="titres"][data-titres="bd"]{ --brand-k:1; }
+:root[data-bandeau="affiche"]{ --brand-k:0.92; }
+:root[data-bandeau="classique"]{ --brand-k:0.8; }
+:root[data-bandeau="prestige"]{ --brand-k:0.8; }
+:root[data-bandeau="elegant"]{ --brand-k:0.84; }
+:root[data-bandeau="moderne"]{ --brand-k:0.8; }
+:root[data-bandeau="sobre"]{ --brand-k:0.78; }
+:root[data-bandeau="machine"]{ --brand-k:0.8; }
+:root[data-bandeau="manuscrit"]{ --brand-k:1.12; }
+:root[data-bandeau="titres"] .brand{font-family:var(--titre-font); font-weight:800; letter-spacing:0;}
+:root[data-bandeau="titres"][data-titres="bd"] .brand{font-weight:400; letter-spacing:1px;}
+:root[data-bandeau="titres"][data-titres="theme"] .brand{font-weight:700;}
+:root[data-bandeau="affiche"] .brand{font-family:'Anton', 'Impact', sans-serif; font-weight:400; letter-spacing:0.5px;}
+:root[data-bandeau="classique"] .brand{font-family:'Fraunces', Georgia, serif; font-weight:700; letter-spacing:-0.01em;}
+:root[data-bandeau="prestige"] .brand{font-family:'Abril Fatface', 'Didot', Georgia, serif; font-weight:400; letter-spacing:0.3px;}
+:root[data-bandeau="elegant"] .brand{font-family:'Spectral', Georgia, serif; font-weight:600; letter-spacing:0.01em;}
+:root[data-bandeau="moderne"] .brand{font-family:'Space Grotesk', system-ui, sans-serif; font-weight:700; letter-spacing:-0.02em;}
+:root[data-bandeau="sobre"] .brand{font-family:'Libre Franklin', system-ui, sans-serif; font-weight:700; letter-spacing:-0.01em;}
+:root[data-bandeau="machine"] .brand{font-family:'Special Elite', 'Courier New', monospace; font-weight:400; letter-spacing:0;}
+:root[data-bandeau="manuscrit"] .brand{font-family:'Caveat', 'Segoe Script', cursive; font-weight:700; letter-spacing:0;}
+/* les majuscules espacent : on gagne un peu de place en casse normale */
+:root[data-hdrcasse="normale"] .brand{text-transform:none;}
+:root[data-hdrombre="douce"] .brand{text-shadow:0 2px 6px rgba(0,0,0,0.35);}
+:root[data-hdrombre="aucune"] .brand{text-shadow:none;}
+
+/* fond : trame BD (défaut), uni, dégradé ; hors BD, plus de gros filet mais une ombre légère */
+:root:is([data-hdrfond="uni"], [data-hdrfond="degrade"]) .topbar{
+  background-image:none; border-bottom:0;
+  box-shadow:0 1px 0 rgba(0,0,0,0.10), 0 6px 18px rgba(0,0,0,0.10);
+}
+:root[data-hdrfond="degrade"] .topbar{
+  background-image:linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 68%, var(--ink)) 100%);
+  background-size:auto;           /* sinon le dégradé se répète en carreaux de 11px, comme la trame */
+}
+
+/* champs : recherche, Format, Genre */
+:root[data-hdrchamps="doux"] .field{
+  border:1px solid var(--line); border-radius:min(var(--radius), 12px);
+  box-shadow:0 1px 3px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08);
+}
+:root[data-hdrchamps="doux"] :is(.field input, .field select){font-weight:500;}
+:root[data-hdrchamps="arrondis"] .field{
+  border:0; border-radius:999px; padding-left:18px; padding-right:16px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.16);
+}
+:root[data-hdrchamps="arrondis"] :is(.field input, .field select){font-weight:500;}
+:root[data-hdrchamps="soulignes"] .field{
+  background:transparent; color:var(--accent-ink);
+  border:0; border-bottom:2px solid var(--accent-ink); border-radius:0;
+  box-shadow:none; padding-left:2px; padding-right:2px;
+}
+:root[data-hdrchamps="soulignes"] .field .icon{color:var(--accent-ink); opacity:0.8;}
+:root[data-hdrchamps="soulignes"] :is(.field input, .field select){color:var(--accent-ink);}
+:root[data-hdrchamps="soulignes"] .field input::placeholder{color:var(--accent-ink); opacity:0.7;}
+:root[data-hdrchamps="soulignes"] .search-clear{background:var(--accent-ink); color:var(--accent);}
+@media (hover:hover) and (pointer:fine){
+  :root[data-hdrchamps="soulignes"] .search-clear:hover{opacity:0.8; background:var(--accent-ink);}
+}
+
+/* pastilles de statut */
+:root[data-hdrpastilles="douces"] .pill{
+  border-color:transparent; background:var(--card); font-weight:600;
+  box-shadow:0 1px 3px rgba(0,0,0,0.16);
+}
+:root[data-hdrpastilles="douces"] .pill.on{background:var(--ink); color:var(--card); border-color:var(--ink);}
+:root[data-hdrpastilles="contour"] .pill{
+  border:1.5px solid var(--accent-ink); background:transparent; color:var(--accent-ink); font-weight:600;
+}
+:root[data-hdrpastilles="contour"] .pill.on{background:var(--accent-ink); color:var(--accent); border-color:var(--accent-ink); font-weight:700;}
+
+/* boutons ronds Carnet et Réglages */
+:root[data-hdrboutons="doux"] .icon-btn{border-color:transparent; box-shadow:0 2px 8px rgba(0,0,0,0.18);}
+:root[data-hdrboutons="contour"] .icon-btn{
+  background:transparent; color:var(--accent-ink); border:2px solid var(--accent-ink); box-shadow:none;
+}
+:root[data-hdrboutons="discrets"] .icon-btn{
+  background:transparent; color:var(--accent-ink); border-color:transparent; box-shadow:none;
+}
+:root[data-hdrboutons="discrets"] .icon-btn svg{width:25px; height:25px;}
+@media (hover:hover) and (pointer:fine){
+  :root:is([data-hdrboutons="contour"], [data-hdrboutons="discrets"]) .icon-btn:hover{
+    background:color-mix(in srgb, var(--accent-ink) 14%, transparent);
+  }
 }
 
 /* ---------- 2. CARTES ET FICHE ---------- */
@@ -1844,9 +1940,28 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 :root[data-titres="bd"] .style-apercu .apercu-titre{letter-spacing:0.5px;}
 :root:is([data-titres="classique"], [data-titres="moderne"]) .style-apercu .apercu-titre{font-weight:700;}
 .style-apercu .book-card{pointer-events:none;}
+/* mini-bandeau de l'aperçu : les vraies classes du bandeau, en plus petit */
+.style-apercu .apercu-bandeau{padding:14px 14px 16px; border-radius:var(--bd-r); z-index:auto; pointer-events:none;}
+.style-apercu .apercu-bandeau .brand-row{display:flex; align-items:center; gap:10px; flex-wrap:nowrap;}
+.style-apercu .apercu-bandeau .brand{font-size:calc(var(--brand-k, 1) * 23px); min-width:0; overflow:hidden; text-overflow:clip;}
+.style-apercu .apercu-bandeau .hdr-btns{margin-left:auto; gap:8px;}
+.style-apercu .apercu-bandeau .icon-btn{width:34px; height:34px;}
+.style-apercu .apercu-bandeau .icon-btn svg{width:18px; height:18px;}
+.style-apercu .apercu-bandeau .controls{display:flex; flex-direction:column; align-items:stretch; gap:10px; margin-top:12px;}
+.style-apercu .apercu-bandeau .field{flex:none; padding:8px 12px;}
+.style-apercu .apercu-bandeau .apercu-saisie{font-size:14px; font-weight:600; flex:1; min-width:0; white-space:nowrap; overflow:hidden;}
+.style-apercu .apercu-bandeau .search-clear{width:24px; height:24px; margin:0;}
+.style-apercu .apercu-bandeau .pill{padding:7px 12px;}
+.style-rows .style-groupe{font-family:var(--font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.12em;
+  color:var(--sub); margin:0.6rem 0 -0.2rem; padding-bottom:0.35rem; border-bottom:1px solid var(--line);}
+.style-rows .style-groupe:first-child{margin-top:0;}
 .style-apercu .apercu-cmd{display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;}
 .style-apercu .stat{max-width:150px;}
 @media (max-width:760px){
   .style-grid{grid-template-columns:minmax(0, 1fr);}
   .style-apercu{position:static; order:-1;}
 }
+/* boutons « Police du titre » : chacun dans sa police, à une taille qui les rend comparables */
+.segmented[data-style="bandeau"] button{font-size:0.95rem; letter-spacing:0;}
+.segmented[data-style="bandeau"] button[data-val="bd"]{letter-spacing:0.5px;}
+.segmented[data-style="bandeau"] button[data-val="manuscrit"]{font-size:1.15rem; font-weight:700;}

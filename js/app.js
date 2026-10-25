@@ -24,31 +24,53 @@ const THEMES = [
 ];
 // Style de l'interface (Réglages → Style) : chaque aspect se choisit séparément, et se
 // mémorise sur l'appareil comme le thème. Valeurs par défaut = préréglage « Mixte ».
+// groupe : sous-titre sous lequel la ligne s'affiche dans Réglages → Style.
 const STYLE_OPTIONS = [
-  { cle: 'titres', lab: 'Titres', hint: "Nom de l'auteur, titre du livre, titres des pages et des sections", choix: [
+  { groupe: 'Bandeau', cle: 'bandeau', lab: 'Police du titre', hint: '« Ma Bibliothèque », en haut de chaque page', choix: [
+      ['bd', 'BD'], ['titres', 'Comme les titres'], ['affiche', 'Affiche'], ['classique', 'Classique'], ['prestige', 'Prestige'],
+      ['elegant', 'Élégant'], ['moderne', 'Moderne'], ['sobre', 'Sobre'], ['machine', 'Machine à écrire'], ['manuscrit', 'Manuscrit']] },
+  { groupe: 'Bandeau', cle: 'hdrcasse', lab: 'Écriture du titre', hint: 'MA BIBLIOTHÈQUE ou Ma Bibliothèque', choix: [
+      ['maj', 'Majuscules'], ['normale', 'Normale']] },
+  { groupe: 'Bandeau', cle: 'hdrombre', lab: 'Ombre du titre', hint: 'Ombre décalée façon BD, ombre floue, ou rien', choix: [
+      ['decalee', 'Décalée'], ['douce', 'Douce'], ['aucune', 'Aucune']] },
+  { groupe: 'Bandeau', cle: 'hdrfond', lab: 'Fond du bandeau', hint: 'Toujours dans la couleur du thème ; la trame ajoute les points et le gros filet', choix: [
+      ['trame', 'Trame BD'], ['uni', 'Uni'], ['degrade', 'Dégradé']] },
+  { groupe: 'Bandeau', cle: 'hdrchamps', lab: 'Champs de recherche et filtres', hint: 'Recherche, Format, Genre', choix: [
+      ['bd', 'BD'], ['doux', 'Doux'], ['arrondis', 'Arrondis'], ['soulignes', 'Soulignés']] },
+  { groupe: 'Bandeau', cle: 'hdrpastilles', lab: 'Pastilles de statut', hint: 'Lus, Écoutés, En cours, Non lus, Favoris', choix: [
+      ['bd', 'BD'], ['douces', 'Douces'], ['contour', 'Contour']] },
+  { groupe: 'Bandeau', cle: 'hdrboutons', lab: 'Boutons Carnet et Réglages', hint: 'Les deux boutons ronds, à droite du titre', choix: [
+      ['bd', 'BD'], ['doux', 'Doux'], ['contour', 'Contour'], ['discrets', 'Discrets']] },
+  { groupe: 'Pages', cle: 'titres', lab: 'Titres', hint: "Nom de l'auteur, titre du livre, titres des pages et des sections", choix: [
       ['theme', 'Police du thème'], ['bd', 'BD'], ['classique', 'Classique'], ['moderne', 'Moderne']] },
-  { cle: 'bandeau', lab: 'Titre du bandeau', hint: '« Ma Bibliothèque », en haut de chaque page', choix: [
-      ['bd', 'BD'], ['titres', 'Comme les titres']] },
-  { cle: 'cartes', lab: 'Cartes et fiche', hint: "Cartes d'auteurs et de livres, fiche d'un livre", choix: [
+  { groupe: 'Pages', cle: 'cartes', lab: 'Cartes et fiche', hint: "Cartes d'auteurs et de livres, fiche d'un livre", choix: [
       ['douces', 'Douces'], ['bd', 'BD'], ['epurees', 'Épurées']] },
-  { cle: 'pastilles', lab: 'Pastilles', hint: 'Ebook, PDF, Audio, Lu, Écouté, En cours, Favori, note', choix: [
+  { groupe: 'Pages', cle: 'pastilles', lab: 'Pastilles', hint: 'Ebook, PDF, Audio, Lu, Écouté, En cours, Favori, note', choix: [
       ['contour', 'Contour'], ['bd', 'BD']] },
-  { cle: 'commandes', lab: 'Boutons, cases et champs', hint: 'Boutons, cases à cocher, champs de saisie, menus, boutons de note', choix: [
+  { groupe: 'Pages', cle: 'commandes', lab: 'Boutons, cases et champs', hint: 'Boutons, cases à cocher, champs de saisie, menus, boutons de note', choix: [
       ['douces', 'Doux'], ['bd', 'BD']] },
-  { cle: 'panneaux', lab: 'Panneaux', hint: 'Statistiques, thèmes, anomalies, aide, livres masqués, carnet', choix: [
+  { groupe: 'Pages', cle: 'panneaux', lab: 'Panneaux', hint: 'Statistiques, thèmes, anomalies, aide, livres masqués, carnet', choix: [
       ['doux', 'Doux'], ['bd', 'BD']] },
 ];
+// chaque bouton « Police du titre » s'écrit dans sa propre police (mêmes familles que style.css)
+const POLICES_BANDEAU = { bd: "'Bangers', Impact", titres: 'var(--titre-font)', affiche: "'Anton', Impact", classique: "'Fraunces', Georgia",
+  prestige: "'Abril Fatface', Georgia", elegant: "'Spectral', Georgia", moderne: "'Space Grotesk', sans-serif", sobre: "'Libre Franklin', sans-serif",
+  machine: "'Special Elite', monospace", manuscrit: "'Caveat', cursive" };
+const BANDEAU_BD = { hdrcasse: 'maj', hdrombre: 'decalee', hdrfond: 'trame', hdrchamps: 'bd', hdrpastilles: 'bd', hdrboutons: 'bd' };
 const STYLE_PRESETS = [
-  ['ebook',  'Ebook (d’origine)', { titres: 'theme', bandeau: 'titres', cartes: 'douces', pastilles: 'contour', commandes: 'douces', panneaux: 'doux' }],
-  ['mixte',  'Mixte',             { titres: 'theme', bandeau: 'bd',     cartes: 'bd',     pastilles: 'bd',      commandes: 'bd',     panneaux: 'bd' }],
-  ['bd',     'Tout BD',           { titres: 'bd',    bandeau: 'bd',     cartes: 'bd',     pastilles: 'bd',      commandes: 'bd',     panneaux: 'bd' }],
+  ['ebook',   'Ebook (d’origine)', { titres: 'theme', bandeau: 'titres', cartes: 'douces', pastilles: 'contour', commandes: 'douces', panneaux: 'doux',
+                                     hdrcasse: 'normale', hdrombre: 'aucune', hdrfond: 'uni', hdrchamps: 'doux', hdrpastilles: 'douces', hdrboutons: 'doux' }],
+  ['elegant', 'Élégant',           { titres: 'classique', bandeau: 'classique', cartes: 'epurees', pastilles: 'contour', commandes: 'douces', panneaux: 'doux',
+                                     hdrcasse: 'normale', hdrombre: 'douce', hdrfond: 'degrade', hdrchamps: 'arrondis', hdrpastilles: 'contour', hdrboutons: 'contour' }],
+  ['mixte',   'Mixte',             { titres: 'theme', bandeau: 'bd', cartes: 'bd', pastilles: 'bd', commandes: 'bd', panneaux: 'bd', ...BANDEAU_BD }],
+  ['bd',      'Tout BD',           { titres: 'bd',    bandeau: 'bd', cartes: 'bd', pastilles: 'bd', commandes: 'bd', panneaux: 'bd', ...BANDEAU_BD }],
 ];
 const DEFAULTS = {theme:"nordique", mode:"auto"};
-for (const [k, v] of Object.entries(STYLE_PRESETS[1][2])) DEFAULTS['style.' + k] = v;
+for (const [k, v] of Object.entries(STYLE_PRESETS.find(p => p[0] === 'mixte')[2])) DEFAULTS['style.' + k] = v;
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 const APP_VERSION_DATE = '2026-10-25';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -76,7 +98,22 @@ function applyTheme(){
     const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
     if (bg) meta.setAttribute("content", bg);
   }
+  ajusterTitreBandeau();
 }
+// Sur iPhone, le titre du bandeau a une colonne fixe à gauche des boutons ronds. Certaines
+// polices en majuscules (Élégant, Classique, Manuscrit…) y dépassent de quelques pixels :
+// on réduit alors juste ce qu'il faut la taille du titre, au lieu de le laisser chevaucher.
+function ajusterTitreBandeau(){
+  const e = document.querySelector('.topbar .brand');
+  if (!e) return;
+  e.style.fontSize = '';
+  if (e.scrollWidth > e.clientWidth + 1 && e.clientWidth > 0){
+    const px = parseFloat(getComputedStyle(e).fontSize);
+    e.style.fontSize = Math.floor(px * e.clientWidth / e.scrollWidth * 0.97) + 'px';
+  }
+}
+window.addEventListener('resize', ajusterTitreBandeau);
+try { document.fonts.ready.then(ajusterTitreBandeau); document.fonts.addEventListener?.('loadingdone', ajusterTitreBandeau); } catch (e) {}
 applyTheme();
 
 const el = {
@@ -1649,18 +1686,36 @@ function renderStyleBlock() {
         </div>
         <div class="style-grid">
           <div class="style-rows">
-            ${STYLE_OPTIONS.map(o => `
+            ${STYLE_OPTIONS.map((o, i) => `
+            ${i === 0 || STYLE_OPTIONS[i - 1].groupe !== o.groupe ? `<p class="style-groupe">${o.groupe}</p>` : ''}
             <div class="style-row">
               <span class="style-lab" id="style-lab-${o.cle}">${o.lab}</span>
               <span class="style-hint">${o.hint}</span>
               <div class="segmented" role="group" aria-labelledby="style-lab-${o.cle}" data-style="${o.cle}">
                 ${o.choix.map(([v, l]) => `<button type="button" data-val="${v}" class="${styleGet(o.cle) === v ? 'on' : ''}"
-                   aria-pressed="${styleGet(o.cle) === v}">${l}</button>`).join('')}
+                   aria-pressed="${styleGet(o.cle) === v}"${o.cle === 'bandeau' ? ` style="font-family:${POLICES_BANDEAU[v]}"` : ''}>${l}</button>`).join('')}
               </div>
             </div>`).join('')}
           </div>
           <div class="style-apercu" aria-hidden="true">
             <span class="apercu-lab">Aperçu</span>
+            <div class="topbar apercu-bandeau">
+              <div class="brand-row">
+                <span class="brand">Ma Bibliothèque</span>
+                <span class="hdr-btns">
+                  <span class="icon-btn">${document.getElementById('carnet-btn')?.innerHTML || ''}</span>
+                  <span class="icon-btn gear">${document.getElementById('settings-btn')?.innerHTML || ''}</span>
+                </span>
+              </div>
+              <div class="controls">
+                <div class="field search-wrap">
+                  ${document.querySelector('.search-wrap .icon')?.outerHTML || ''}
+                  <span class="apercu-saisie">Follett</span>
+                  <span class="search-clear">${document.getElementById('search-clear')?.innerHTML || ''}</span>
+                </div>
+                <div class="status-pills"><span class="pill on">Lus</span><span class="pill">En cours</span><span class="pill">★ Favoris</span></div>
+              </div>
+            </div>
             <p class="apercu-titre">Les Piliers de la Terre</p>
             <div class="book-card">
               ${coverTile({ id: 'apercu', title: 'Les Piliers de la Terre', author_name: 'Ken Follett', cover_path: null })}
