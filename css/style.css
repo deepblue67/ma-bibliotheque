@@ -1661,3 +1661,165 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   .c-date{min-width:0; text-align:left;}
   .c-note{min-width:0; text-align:left;}
 }
+
+/* ===========================================================
+   LANGAGE « BD » POUR TOUTE L'APPLICATION (version 1.7)
+   Le bandeau reprend l'appli « Ma Bibliothèque BD » ; cette couche étend le même langage
+   au reste de l'interface, pour ne plus avoir deux styles côte à côte : traits épais de la
+   couleur d'encre du thème, ombres décalées pleines (sans flou), coins plus francs,
+   titres de page dans la police du bandeau. Les couleurs restent celles du thème actif ;
+   seuls l'épaisseur, l'ombre et l'arrondi sont communs aux dix thèmes. Placée en fin de
+   feuille, elle prend le pas sur les règles plus anciennes sans les réécrire une à une.
+   =========================================================== */
+:root{
+  --bd-s:2px;                                   /* trait fin : pastilles, petits boutons */
+  --bd-m:3px;                                   /* trait courant : cartes, champs */
+  --bd-r:min(var(--radius), 8px);               /* arrondi : plafonné à 8px, garde les thèmes anguleux */
+  --bd-r-sm:min(var(--radius), 6px);
+  --bd-sh-s:2px 2px 0 var(--hdr-shadow);
+  --bd-sh-m:3px 3px 0 var(--hdr-shadow);
+  --bd-sh-l:5px 5px 0 var(--hdr-shadow);
+  --bd-sh-xl:7px 7px 0 var(--hdr-shadow);
+  --bd-font-titre:'Bangers', 'Impact', var(--font-display);
+}
+
+/* ---------- titres ---------- */
+.author-header h1, .fiche h1, .settings h1, .carnet h1{
+  font-family:var(--bd-font-titre); font-weight:400; letter-spacing:0.5px;
+  font-size:clamp(1.9rem, 4.5vw, 2.6rem); line-height:1.05;
+}
+.letter-head{font-family:var(--bd-font-titre); font-weight:400; font-size:2rem; letter-spacing:1px;}
+.letter-head::after, .serie-head::after, .section-title .rule{height:var(--bd-s); background:var(--hdr-line); opacity:0.85;}
+.serie-head .s-nom{font-family:var(--bd-font-titre); font-weight:400; font-size:1.45rem; letter-spacing:0.5px;}
+.serie-head.hors .s-nom{font-size:1.25rem;}
+.carnet-groupe{font-family:var(--bd-font-titre); font-weight:400; font-size:1.5rem; letter-spacing:0.5px;}
+.section-title{color:var(--ink); font-weight:500;}
+.back-link{font-weight:700; color:var(--ink);}
+
+/* ---------- cartes ---------- */
+.author-card, .book-card{
+  border:var(--bd-m) solid var(--hdr-line); border-radius:var(--bd-r);
+  box-shadow:var(--bd-sh-l);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.author-card:hover, .book-card:hover{border-color:var(--hdr-line); box-shadow:var(--bd-sh-l);}
+@media (hover:hover) and (pointer:fine){
+  .author-card:hover, .book-card:hover{transform:translate(-2px, -2px); box-shadow:var(--bd-sh-xl);}
+}
+.author-card .name{font-weight:800;}
+.book-card h3{font-family:var(--font-body); font-weight:800;}
+.mosaic .cover, .book-card .cover{border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r-sm);}
+
+/* ---------- fiche livre ---------- */
+.fiche{
+  border:var(--bd-m) solid var(--hdr-line); border-radius:var(--bd-r);
+  box-shadow:var(--bd-sh-xl);
+}
+.fiche .cover{border:var(--bd-m) solid var(--hdr-line); border-radius:var(--bd-r-sm); box-shadow:var(--bd-sh-l);}
+.magnify{border:var(--bd-s) solid var(--hdr-line); background:var(--card); box-shadow:var(--bd-sh-s);}
+
+/* ---------- pastilles d'information (formats, statuts, note) ---------- */
+.badge{
+  border:var(--bd-s) solid var(--hdr-line); background:var(--chip); color:var(--ink);
+  font-family:var(--font-body); font-weight:800; font-size:0.62rem; letter-spacing:0.04em;
+  padding:0.22em 0.7em;
+}
+.badge.genre{background:var(--card); color:var(--sub); border-color:var(--hdr-line);}
+.badge.status{background:var(--card); color:var(--ink); border-color:var(--hdr-line);}
+.badge.fav{background:var(--accent); color:var(--accent-ink); border-color:var(--hdr-line);}
+.badge.inprogress{background:var(--accent-ink); color:var(--accent); border-color:var(--accent);}
+.badge.rating{background:var(--ink); color:var(--card); border-color:var(--ink);}
+
+/* ---------- boutons ---------- */
+.btn-main, .btn-mini{
+  border:var(--bd-s) solid var(--hdr-line); box-shadow:var(--bd-sh-m);
+  font-weight:800; cursor:pointer;
+  transition:transform .08s ease, box-shadow .08s ease;
+}
+.btn-main{border-color:var(--hdr-line);}
+.btn-main:active, .btn-mini:active{transform:translate(2px, 2px); box-shadow:var(--bd-sh-s);}
+.btn-main.danger{border-color:var(--hdr-line);}
+.nav-author{border:var(--bd-s) solid var(--hdr-line); box-shadow:var(--bd-sh-m); color:var(--ink); font-weight:700;}
+@media (min-width:1400px){ .nav-author{box-shadow:var(--bd-sh-m);} }
+.lightbox-close{border:var(--bd-m) solid #111; box-shadow:3px 3px 0 #000; font-weight:800;}
+
+/* ---------- cases et commandes ---------- */
+.toggle{
+  border:var(--bd-s) solid var(--hdr-line); background:var(--card);
+  box-shadow:var(--bd-sh-m); font-weight:600;
+}
+.toggle.active{border-color:var(--hdr-line); background:var(--chip); font-weight:800;}
+.segmented{border:var(--bd-s) solid var(--hdr-line); background:var(--card); box-shadow:var(--bd-sh-m);}
+.segmented button{font-weight:700; color:var(--ink);}
+.segmented button.on{background:var(--ink); color:var(--card);}
+.rate{border:var(--bd-s) solid var(--hdr-line); background:var(--card); color:var(--ink); box-shadow:var(--bd-sh-s);}
+.rate.fill{background:var(--chip); border-color:var(--hdr-line);}
+.rate.on{background:var(--accent); color:var(--accent-ink); border-color:var(--hdr-line);}
+.rate:active{transform:translate(1px, 1px); box-shadow:none;}
+
+/* ---------- champs de saisie (hors bandeau) ---------- */
+.review input[type="date"], .review textarea, .ano-fix input, .carnet-ctrls select,
+.inline-form input[type="text"], .inline-form input[type="password"]{
+  border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r);
+  background:var(--card); color:var(--ink); box-shadow:var(--bd-sh-m);
+  font-family:var(--font-body);
+}
+.inline-form input[type="password"]{
+  width:100%; font-size:0.92rem; padding:0.55em 0.75em; margin-bottom:0.8rem; box-sizing:border-box;
+}
+.carnet-ctrls select{font-weight:600;}
+
+/* ---------- panneaux et blocs ---------- */
+.stat, .theme-card, .ano-fam, .aide-fam, .hidden-list, .carnet-row{
+  border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r);
+  box-shadow:var(--bd-sh-m);
+}
+.stat .n{font-family:var(--bd-font-titre); font-weight:400; font-size:1.9rem; letter-spacing:0.5px;}
+.stat .l{color:var(--ink);}
+.bar{height:12px; border:var(--bd-s) solid var(--hdr-line); background:var(--card);}
+.ano-body, .aide-body{border-top:var(--bd-s) solid var(--hdr-line);}
+.ano-head, .aide-head{font-weight:700;}
+.ano-head .n{border:var(--bd-s) solid var(--hdr-line); background:var(--chip); color:var(--ink); font-weight:700;}
+.ano-opt{border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r); background:var(--card);}
+.hidden-row{border-bottom:var(--bd-s) solid var(--hdr-line);}
+.inline-form, .review{
+  border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r); background:var(--bg);
+}
+.snippet{border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r);}
+.serie-strip{
+  border:var(--bd-s) solid var(--hdr-line); border-left:7px solid var(--accent);
+  border-radius:var(--bd-r); background:var(--card); box-shadow:var(--bd-sh-m);
+}
+.serie-strip .s-name{font-weight:800;}
+.theme-card.on{border-color:var(--hdr-line); box-shadow:0 0 0 3px var(--accent), var(--bd-sh-m);}
+.theme-card .tp-meta{border-top:var(--bd-s) solid var(--hdr-line);}
+.theme-card .tp-name{font-weight:800;}
+@media (hover:hover) and (pointer:fine){
+  .theme-card:hover, .carnet-row:hover{transform:translate(-2px, -2px); box-shadow:var(--bd-sh-l); border-color:var(--hdr-line);}
+  .theme-card.on:hover{box-shadow:0 0 0 3px var(--accent), var(--bd-sh-l);}
+}
+.carnet-row{transition:transform .12s ease, box-shadow .12s ease;}
+.c-titre{font-weight:800;}
+.c-note{font-family:var(--bd-font-titre); font-weight:400; font-size:1.15rem; letter-spacing:0.5px;}
+.c-note.vide{color:var(--sub); opacity:0.5;}
+.review-head{font-family:var(--bd-font-titre); font-weight:400; font-size:1.35rem; letter-spacing:0.5px;}
+.app-version{border-top:var(--bd-s) solid var(--hdr-line);}
+
+/* ---------- index A–Z ---------- */
+.az{border-bottom:var(--bd-s) solid var(--hdr-line);}
+.az a{font-weight:700; color:var(--ink); border:var(--bd-s) solid transparent;}
+@media (hover:hover) and (pointer:fine){
+  .az a:hover{background:var(--accent); color:var(--accent-ink); border-color:var(--hdr-line);}
+}
+
+@media (max-width:760px){
+  .author-card, .book-card{box-shadow:var(--bd-sh-m);}   /* ombres un peu moins larges sur petit écran */
+  .fiche{box-shadow:var(--bd-sh-l);}
+  .letter-head{font-size:1.7rem;}
+}
+/* titres de sections (Réglages, carnet) : même police que les titres de page */
+.set-head, .carnet-sec > .section-title{
+  font-family:var(--bd-font-titre); font-weight:400; text-transform:none;
+  font-size:1.35rem; letter-spacing:0.5px; color:var(--ink);
+}
+.review{max-width:640px;}     /* la note « 8/10 » reste sur la ligne des 10 boutons */

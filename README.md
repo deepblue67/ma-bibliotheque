@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 1.6 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 1.7 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -767,6 +767,24 @@ La rubrique Aide « Où j'en suis » devient « Mon carnet de lecture » et déc
 
 **Vérifié** : nouvelle suite `carnet.js` (36 vérifications : invisible et inaccessible pour un visiteur ; icône et ouverture ; statistiques et moyenne ; lectures par année ; section En cours ; les six tris, dont la place des sans-date et des non-notés ; intertitres d'année ; chaque filtre et leur combinaison, message si rien ne correspond ; date, note et extrait de commentaire tronqué et échappé ; ouverture de la fiche et conservation du tri au retour ; « Où j'en suis » absent des Réglages ; iPhone ; base sans migration). `reglages.js`, `avis.js` et `encours.js` vont chercher les statistiques dans le carnet au lieu des Réglages. Les treize autres suites repassent sans échec. Version 1.6.
 
+### 4.37 Un seul langage visuel dans toute l'application (façon appli BD)
+
+Après la refonte du bandeau (§4.29), l'application mêlait deux styles : bandeau à traits épais et ombres décalées, mais cartes, fiche, Réglages, carnet aux traits fins et ombres floues. À la demande de Christophe, le langage du bandeau — repris de « Ma Bibliothèque BD » — est désormais appliqué **partout**.
+
+**Comment** : un bloc unique en fin de `css/style.css`, intitulé « LANGAGE « BD » POUR TOUTE L'APPLICATION ». Il définit quelques variables communes — traits `--bd-s` (2 px) et `--bd-m` (3 px), ombres pleines décalées `--bd-sh-s` à `--bd-sh-xl` (2 à 7 px, sans flou), arrondi `--bd-r` **plafonné à 8 px** (`min(var(--radius), 8px)` : les thèmes anguleux comme Rétro Pulp le restent, les thèmes arrondis comme Nordique s'affermissent), police des titres `--bd-font-titre` (Bangers) — puis les applique aux composants. Placé en dernier, il prend le pas sur les règles plus anciennes sans les réécrire une à une : pour revenir en arrière, il suffit de supprimer ce bloc. **Les couleurs restent celles du thème actif** : traits et ombres utilisent `--hdr-line` / `--hdr-shadow` (encre du thème ; ombres noires en mode sombre), comme le bandeau.
+
+**Ce qui change à l'écran** :
+- **titres** de page (auteur, livre, Réglages, carnet), lettres de l'index, noms de séries, intertitres d'année du carnet, titres de sections des Réglages et du carnet, « Mon avis », chiffres des statistiques et notes du carnet : police Bangers ;
+- **cartes** d'auteurs et de livres : trait de 3 px, ombre décalée de 5 px, léger soulèvement au survol (souris seulement) ; vignettes de couverture cerclées ;
+- **fiche livre** : cadre de 3 px et ombre de 7 px, couverture cerclée ;
+- **pastilles d'information** (Ebook, PDF, Audio, Lu, Écouté, En cours, Favori, note) : pleines, cerclées, en gras, comme les pastilles de l'appli BD ;
+- **boutons, cases de statut, sélecteur clair/sombre, boutons de note, champs** (date, commentaire, code propriétaire, correction de titre, menus du carnet) : trait de 2 px et ombre de 3 px ; les boutons « s'enfoncent » à l'appui ;
+- **panneaux** (statistiques, vignettes de thème, familles d'anomalies, rubriques d'aide, livres masqués, lignes du carnet, bandeau de saga) : trait de 2 px, ombre de 3 px ;
+- index A–Z, filets de séparation, barre d'avancement : traits épaissis.
+Sur iPhone, les ombres des cartes et de la fiche sont un peu réduites pour ne pas alourdir l'écran.
+
+**Vérifié** : captures avant/après de toutes les pages (accueil, auteur, résultats, fiche, Réglages, carnet, anomalies, aide) en Rétro Pulp, Nordique et Minuit sombre, sur ordinateur et iPhone ; les quatorze suites Playwright repassent sans échec (dont les contrôles de taille des cibles tactiles et d'absence de débordement horizontal). Aucun changement de JavaScript hors numéro de version. Version 1.7.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -808,8 +826,9 @@ La rubrique Aide « Où j'en suis » devient « Mon carnet de lecture » et déc
 37. ~~**Christophe redéploie … — version 1.4** (statut « En cours » — voir §4.34).~~ Remplacé par l'étape 39 (la 1.5 contient les 1.1 à 1.4).
 38. **Christophe exécute `migration_2026-10_avis.sql`** dans Supabase → SQL Editor → Run (§4.35). La vérification en fin de script doit afficher les trois colonnes `finished_on`, `rating`, `review_comment`. Comme pour l'étape 36, l'ordre avec le redéploiement est libre.
 39. ~~**Christophe redéploie … — version 1.5** (Mon avis — voir §4.35).~~ Remplacé par l'étape 40 (la 1.6 contient les 1.1 à 1.5).
-40. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.6** (Mon carnet de lecture — voir §4.36 ; inclut les 1.1 à 1.5). Vérifier « version 1.6 » en bas des Réglages, puis l'icône carnet dans le bandeau en mode propriétaire. Les étapes 36 et 38 (migrations SQL « en cours » et « avis ») restent à faire si ce n'est pas déjà le cas.
+40. ~~**Christophe redéploie … — version 1.6** (Mon carnet de lecture — voir §4.36).~~ Remplacé par l'étape 42 (la 1.7 contient les 1.1 à 1.6).
 41. Plus tard, au choix de Christophe : options du carnet (graphique des lectures par mois ou par année, répartition des notes, export Excel).
+42. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.7** (design harmonisé — voir §4.37 ; inclut les 1.1 à 1.6). Vérifier « version 1.7 » en bas des Réglages. Les migrations SQL « en cours » et « avis » (étapes 36 et 38) restent à faire si ce n'est pas déjà le cas.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -839,5 +858,6 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 1.4 | 25/10/2026 | Nouveau statut « En cours » : case sur la fiche, pastille de recherche dans le bandeau, badge sur les cartes, compteur dans « Où j'en suis ». Cocher Lu ou Écouté décoche En cours ; « Non lus » exclut les livres en cours. Nécessite `migration_2026-10_en_cours.sql` (sinon fonction masquée). | §4.34 |
 | 1.5 | 25/10/2026 | « Mon avis » sur la fiche d'un livre lu ou écouté : note de 1 à 10, date de lecture/écoute, commentaire. Privé : visible et même téléchargé en mode propriétaire uniquement. Badge de note sur les cartes, note moyenne dans « Où j'en suis ». Nécessite `migration_2026-10_avis.sql` (sinon fonction masquée). | §4.35 |
 | 1.6 | 25/10/2026 | Nouvelle page « Mon carnet de lecture » (icône dans le bandeau, propriétaire seulement) : Où j'en suis (déplacé depuis les Réglages) avec lectures par année, livres en cours, liste des livres lus ou écoutés triable par date, note, titre, auteur et filtrable par année, format, note. | §4.36 |
+| 1.7 | 25/10/2026 | Design harmonisé : le langage du bandeau (traits épais, ombres décalées, titres en Bangers, pastilles cerclées) appliqué à toutes les pages — cartes, fiche, Réglages, carnet, anomalies, aide —, dans les couleurs de chaque thème. | §4.37 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

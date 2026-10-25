@@ -26,7 +26,7 @@ const DEFAULTS = {theme:"nordique", mode:"auto"};
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 const APP_VERSION_DATE = '2026-10-25';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
