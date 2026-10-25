@@ -26,7 +26,7 @@ const DEFAULTS = {theme:"nordique", mode:"auto"};
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.5';
 const APP_VERSION_DATE = '2026-10-25';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -79,6 +79,13 @@ let SERIES_READY = true;
 // case « En cours », sa pastille et son badge n'apparaissent simplement pas.
 let PROGRESS_READY = true;
 
+// Note, date de lecture et commentaire (migration « avis ») : privés. Ces colonnes ne
+// sont jamais demandées à la base pour un visiteur — seul le mode propriétaire les
+// télécharge (loadReviews), et elles sont effacées de la mémoire en le quittant.
+let REVIEWS_READY = true;
+let REVIEWS_LOADED = false;
+const REVIEW_FIELDS = ['rating', 'finished_on', 'review_comment'];
+
 // ---------------------------------------------------------------
 // Mode propriétaire
 //
@@ -114,6 +121,59 @@ function setOwner(on) {
   OWNER = !!on;
   try { localStorage.setItem('mabiblio.owner', OWNER ? '1' : '0'); } catch (e) {}
   syncStatusFilterVisibility();
+  if (OWNER) loadReviews().then(nouveau => { if (nouveau) route(); });
+  else clearReviews();
+}
+
+// Télécharge notes, dates et commentaires — uniquement en mode propriétaire.
+// Renvoie true si de nouvelles données sont arrivées (l'écran doit être redessiné).
+async function loadReviews() {
+  if (!OWNER || !REVIEWS_READY || REVIEWS_LOADED || !LOADED) return false;
+  const PAGE = 1000;
+  let rows = [], offset = 0;
+  while (true) {
+    const { data, error } = await sb.from('books').select('id, ' + REVIEW_FIELDS.join(', '))
+      .order('id', { ascending: true }).range(offset, offset + PAGE - 1);
+    if (error) {
+      // migration pas encore exécutée : la fonction « avis » est simplement absente
+      if (/rating|finished_on|review_comment|column/i.test(error.message || '')) REVIEWS_READY = false;
+      return false;
+    }
+    rows = rows.concat(data);
+    if (data.length < PAGE) break;
+    offset += PAGE;
+  }
+  const parId = new Map(rows.map(r => [r.id, r]));
+  for (const b of ALL_BOOKS.concat(HIDDEN_BOOKS)) {
+    const r = parId.get(b.id) || {};
+    b.rating = (r.rating >= 1 && r.rating <= 10) ? r.rating : null;
+    b.finished_on = r.finished_on || null;
+    b.review_comment = r.review_comment || null;
+  }
+  REVIEWS_LOADED = true;
+  return true;
+}
+
+// En quittant le mode propriétaire, on ne garde rien de privé en mémoire.
+function clearReviews() {
+  for (const b of ALL_BOOKS.concat(HIDDEN_BOOKS)) REVIEW_FIELDS.forEach(f => { b[f] = null; });
+  REVIEWS_LOADED = false;
+}
+
+function hasReview(book) {
+  return !!(book.rating || book.finished_on || book.review_comment);
+}
+// Le bloc « Mon avis » apparaît dès que le livre est lu ou écouté (ou a déjà un avis).
+function reviewEligible(book) {
+  return !!(book.is_read || book.is_listened || hasReview(book));
+}
+function dateFr(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // Le filtre « Statut » ne sert qu'à retrouver SES lus/écoutés/favoris :
@@ -385,6 +445,7 @@ function formatBadges(book) {
   if (OWNER) {
     if (book.is_favorite) out += `<span class="badge fav">★ Favori</span>`;
     if (PROGRESS_READY && book.is_in_progress) out += `<span class="badge inprogress">En cours</span>`;
+    if (book.rating) out += `<span class="badge rating" title="Ma note">${book.rating}/10</span>`;
     if (book.is_read) out += `<span class="badge status">Lu</span>`;
     if (book.is_listened) out += `<span class="badge status">Écouté</span>`;
   }
@@ -663,7 +724,8 @@ function renderBook(bookId) {
           <label class="toggle ${book.is_favorite ? 'active' : ''}" data-field="is_favorite">
             <input type="checkbox" ${book.is_favorite ? 'checked' : ''}> Favori
           </label>
-        </div>` : readOnlyStatuses(book)}
+        </div>
+        ${renderReviewBlock(book)}` : readOnlyStatuses(book)}
 
         ${(EDITABLE && OWNER) ? `<div class="book-actions" id="book-actions">
           <button type="button" class="linkish" data-act="rename">Corriger le titre</button>
@@ -689,6 +751,8 @@ function renderBook(bookId) {
     const input = label.querySelector('input');
     input.addEventListener('change', () => toggleField(book, label.dataset.field, label, input.checked));
   });
+
+  wireReviewBlock(book);
 
   el.app.querySelectorAll('#book-actions button').forEach(b => {
     b.addEventListener('click', () => {
@@ -885,11 +949,117 @@ async function toggleField(book, field, label, checked) {
   // on affiche tout de suite, on corrige si ça rate
   for (const [f, v] of Object.entries(payload)) { book[f] = v; affiche(f, v); }
 
+  const majAvis = () => {
+    const rb = document.getElementById('review-block');
+    if (rb) rb.hidden = !reviewEligible(book);
+  };
+  majAvis();
+
   const { error } = await sb.from('books').update(payload).eq('id', book.id);
   if (error) {
     for (const f of Object.keys(payload)) { book[f] = avant[f]; affiche(f, avant[f]); }
+    majAvis();
     alert("La mise à jour n'a pas pu être enregistrée. Vérifie ta connexion et réessaie.");
   }
+}
+
+// ---------------------------------------------------------------
+// Mon avis : note sur 10, date de lecture/écoute, commentaire.
+// Réservé au propriétaire, jamais affiché ni même téléchargé pour un visiteur.
+// ---------------------------------------------------------------
+function renderReviewBlock(book) {
+  if (!REVIEWS_READY || !REVIEWS_LOADED) return '';
+  const r = book.rating || 0;
+  return `
+        <section class="review" id="review-block" ${reviewEligible(book) ? '' : 'hidden'}>
+          <div class="review-head">Mon avis <span class="review-private">· visible de toi seul</span></div>
+          <div class="review-row">
+            <span class="review-lab" id="rating-lab">Note</span>
+            <div class="rating" role="group" aria-labelledby="rating-lab">
+              ${[1,2,3,4,5,6,7,8,9,10].map(n => `<button type="button" class="rate${n <= r ? ' fill' : ''}${n === r ? ' on' : ''}"
+                 data-rate="${n}" aria-pressed="${n === r}" aria-label="${n} sur 10">${n}</button>`).join('')}
+            </div>
+            <span class="rating-val" id="rating-val">${r ? r + '/10' : 'pas de note'}</span>
+          </div>
+          <div class="review-row">
+            <label class="review-lab" for="finished-on">Lu / écouté le</label>
+            <input type="date" id="finished-on" value="${book.finished_on || ''}">
+            <button type="button" class="linkish" id="finished-today">Aujourd'hui</button>
+            <button type="button" class="linkish" id="finished-clear" ${book.finished_on ? '' : 'hidden'}>Effacer</button>
+          </div>
+          <div class="review-row review-col">
+            <label class="review-lab" for="review-comment">Commentaire</label>
+            <textarea id="review-comment" rows="4" maxlength="4000"
+              placeholder="Ce que tu en as pensé (facultatif)…">${escapeHtml(book.review_comment || '')}</textarea>
+            <div class="review-actions">
+              <button type="button" class="btn-main" id="review-save">Enregistrer le commentaire</button>
+              <span class="review-msg" id="review-msg" aria-live="polite"></span>
+            </div>
+          </div>
+        </section>`;
+}
+
+function wireReviewBlock(book) {
+  const bloc = document.getElementById('review-block');
+  if (!bloc) return;
+  const msg = document.getElementById('review-msg');
+  const dit = (t, erreur) => { msg.textContent = t; msg.classList.toggle('err', !!erreur); };
+
+  // Une seule fonction d'enregistrement : on affiche tout de suite, on revient en
+  // arrière si la base refuse.
+  async function enregistre(champs, rendu) {
+    const avant = {};
+    for (const k of Object.keys(champs)) avant[k] = book[k];
+    Object.assign(book, champs); rendu();
+    dit('Enregistrement…');
+    const { error } = await sb.from('books').update(champs).eq('id', book.id);
+    if (error) {
+      Object.assign(book, avant); rendu();
+      dit("L'enregistrement a échoué. Vérifie ta connexion et réessaie.", true);
+      return false;
+    }
+    dit('Enregistré ✓');
+    return true;
+  }
+
+  // note : toucher un chiffre la fixe, toucher la note actuelle l'efface
+  const renduNote = () => {
+    const r = book.rating || 0;
+    bloc.querySelectorAll('.rate').forEach(b => {
+      const n = +b.dataset.rate;
+      b.classList.toggle('fill', n <= r); b.classList.toggle('on', n === r);
+      b.setAttribute('aria-pressed', n === r ? 'true' : 'false');
+    });
+    document.getElementById('rating-val').textContent = r ? r + '/10' : 'pas de note';
+  };
+  bloc.querySelectorAll('.rate').forEach(b => b.addEventListener('click', () => {
+    const n = +b.dataset.rate;
+    enregistre({ rating: book.rating === n ? null : n }, renduNote);
+  }));
+
+  // date
+  const date = document.getElementById('finished-on');
+  const effacer = document.getElementById('finished-clear');
+  const renduDate = () => { date.value = book.finished_on || ''; effacer.hidden = !book.finished_on; };
+  date.addEventListener('change', () => {
+    const v = /^\d{4}-\d{2}-\d{2}$/.test(date.value) ? date.value : null;
+    if (v !== (book.finished_on || null)) enregistre({ finished_on: v }, renduDate);
+  });
+  document.getElementById('finished-today').addEventListener('click', () => {
+    if (book.finished_on !== todayIso()) enregistre({ finished_on: todayIso() }, renduDate);
+  });
+  effacer.addEventListener('click', () => enregistre({ finished_on: null }, renduDate));
+
+  // commentaire : bouton, ou automatiquement quand on quitte le champ
+  const zone = document.getElementById('review-comment');
+  const renduCom = () => { if (zone.value.trim() !== (book.review_comment || '')) zone.value = book.review_comment || ''; };
+  const sauveCom = () => {
+    const v = zone.value.trim() || null;
+    if (v === (book.review_comment || null)) return;
+    enregistre({ review_comment: v }, renduCom);
+  };
+  document.getElementById('review-save').addEventListener('click', sauveCom);
+  zone.addEventListener('blur', sauveCom);
 }
 
 // ---------------------------------------------------------------
@@ -1096,6 +1266,12 @@ async function fusionnerFiches(garde, absorbe) {
     payload.series = absorbe.series;
     payload.series_index = absorbe.series_index;
   }
+  if (REVIEWS_LOADED) {
+    if (!garde.rating && absorbe.rating) payload.rating = absorbe.rating;
+    if (!garde.finished_on && absorbe.finished_on) payload.finished_on = absorbe.finished_on;
+    if (absorbe.review_comment && absorbe.review_comment !== garde.review_comment)
+      payload.review_comment = [garde.review_comment, absorbe.review_comment].filter(Boolean).join('\n\n');
+  }
   const note = [garde.source_note, absorbe.source_note].filter(Boolean).join(' || ');
   if (note && note !== garde.source_note) payload.source_note = note;
 
@@ -1141,6 +1317,8 @@ function renderSettings() {
   const listened = ALL_BOOKS.filter(b => b.is_listened).length;
   const fav = ALL_BOOKS.filter(b => b.is_favorite).length;
   const enCours = ALL_BOOKS.filter(b => b.is_in_progress).length;
+  const notes = ALL_BOOKS.filter(b => b.rating).map(b => b.rating);
+  const moyenne = notes.length ? (notes.reduce((a, x) => a + x, 0) / notes.length) : 0;
   const done = ALL_BOOKS.filter(b => b.is_read || b.is_listened).length;
 
   el.app.innerHTML = `
@@ -1180,6 +1358,8 @@ function renderSettings() {
           <div class="stat"><div class="n">${read}</div><div class="l">lus</div></div>
           <div class="stat"><div class="n">${listened}</div><div class="l">écoutés</div></div>
           ${PROGRESS_READY ? `<div class="stat"><div class="n">${enCours}</div><div class="l">en cours</div></div>` : ''}
+          ${REVIEWS_LOADED ? `<div class="stat"><div class="n">${notes.length}</div><div class="l">notés</div></div>
+          <div class="stat"><div class="n">${notes.length ? moyenne.toFixed(1).replace('.', ',') : '—'}</div><div class="l">note moyenne /10</div></div>` : ''}
           <div class="stat"><div class="n">${fav}</div><div class="l">favoris</div></div>
         </div>
         <div class="bar" title="${done} livres sur ${ALL_BOOKS.length}"><i style="width:${(done/n*100).toFixed(1)}%"></i></div>
@@ -1554,6 +1734,13 @@ const AIDE_SECTIONS = [
         propriétaire : un visiteur ne peut jamais voir ce que tu lis, as lu, écouté ou mis en
         favori.</p>
       <p class="hint-sm" style="margin:0 0 0.8rem;">
+        <strong>Mon avis</strong> : dès qu'un livre est coché « Lu » ou « Écouté », un bloc
+        apparaît sous les cases — une note de 1 à 10 (toucher la note actuelle l'efface), la date
+        à laquelle tu l'as lu ou écouté (bouton « Aujourd'hui »), et un commentaire libre. Tout est
+        facultatif et s'enregistre aussitôt (le commentaire, au bouton ou en quittant le champ).
+        La note apparaît sur les cartes du livre, et la moyenne dans « Où j'en suis ». Rien de tout
+        cela n'est montré aux visiteurs, ni même envoyé à leur navigateur.</p>
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
         <strong>Corriger le titre</strong> : le nouveau texte devient le titre affiché ;
         l'orthographe du fichier d'origine reste conservée en coulisses, pour que la prochaine
         synchronisation retrouve ce livre et ne le recrée pas en double. La recherche, elle, ne
@@ -1863,5 +2050,6 @@ syncStatusFilterVisibility();
 (async function init() {
   const ok = await loadLibrary();
   syncStatusFilterVisibility();   // la pastille « En cours » dépend de la base chargée
+  if (ok) await loadReviews();    // ne fait rien pour un visiteur
   if (ok) route();
 })();

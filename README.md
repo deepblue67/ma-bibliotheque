@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 1.4 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 1.5 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -725,6 +725,28 @@ La rubrique Aide de l'application décrit ces règles. *Le PDF du mode d'emploi 
 
 **Vérifié** : nouvelle suite `encours.js` (24 vérifications : réservé au propriétaire, ordre des pastilles, 4 cases sur la fiche, mise à jour envoyée, filtre par pastille, badge, combinaison avec la recherche texte, « Non lus » sans les livres en cours, une seule pastille active, « Lu » décoche « En cours », retour arrière en cas de panne, compteur des statistiques, iPhone sans débordement, et base sans la colonne : chargement normal, pastille et case masquées, édition et séries intactes). `owner.js` attend désormais 4 cases au lieu de 3. Les onze autres suites repassent sans échec. Version 1.4.
 
+### 4.35 Mon avis : note sur 10, date de lecture, commentaire
+
+Christophe peut désormais, sur un livre qu'il a lu ou écouté, donner **une note de 1 à 10**, indiquer **la date** à laquelle il l'a lu ou écouté, et laisser **un commentaire**. Ses choix (questions posées avant de construire) : **tout privé** (visible en mode propriétaire uniquement, comme Lu / Écouté / Favori), **une seule date** quel que soit le format, **notes entières** de 1 à 10.
+
+**Base de données** : trois colonnes ajoutées à `books` par **`migration_2026-10_avis.sql`** (une fois dans Supabase → SQL Editor → Run, idempotent) : `rating` (entier, contrainte `books_rating_1_10` : vide ou 1 à 10), `finished_on` (date), `review_comment` (texte). Aucun changement de droits (la politique RLS autorise déjà la mise à jour de `books`). Sans la migration, l'app fonctionne comme avant et n'affiche pas le bloc (`REVIEWS_READY`).
+
+**Confidentialité — ce qui est fait, et sa limite.** Ces trois colonnes **ne sont jamais demandées à la base pour un visiteur** : le chargement principal ne les contient pas, et `loadReviews()` ne les télécharge qu'une fois le mode propriétaire actif (au démarrage s'il l'était déjà, ou dès que le code est saisi). En quittant le mode propriétaire, `clearReviews()` les efface de la mémoire de la page. Un visiteur ne les voit donc pas, et son navigateur ne les reçoit même pas. **Limite** : comme tout le reste de `books`, elles restent lisibles par quelqu'un qui interrogerait directement la base avec la clé publique (le mode propriétaire est un garde-fou côté application, pas une authentification — §4.26). Une protection réelle demanderait une vraie connexion (Supabase Auth) avec une politique RLS réservant ces colonnes au propriétaire ; non faite à ce jour. Christophe en a été averti.
+
+**Dans l'application** (mode propriétaire) :
+- **fiche livre** : bloc « Mon avis · visible de toi seul » sous les cases de statut. Il apparaît dès que « Lu sur liseuse » ou « Écouté en audio » est coché (et reste visible si un avis existe déjà, même si l'on décoche) ;
+  - **note** : 10 boutons ; toucher un chiffre fixe la note, toucher la note actuelle l'efface ; sur iPhone, deux lignes de 5 boutons de 44 px de haut ;
+  - **date** : sélecteur de date du navigateur, bouton « Aujourd'hui », bouton « Effacer » ;
+  - **commentaire** : zone de texte libre (4000 caractères au plus), enregistré au bouton ou automatiquement en quittant le champ ; rien n'est envoyé si le texte n'a pas changé ;
+  - chaque modification s'enregistre aussitôt ; en cas d'échec, l'affichage revient à la valeur précédente et un message le dit ;
+- **cartes de livres** : badge « 8/10 » ;
+- **Réglages → Où j'en suis** : nombre de livres notés et note moyenne ;
+- **fusion de doublons** (§4.19) : si la fiche absorbée avait une note ou une date et pas la fiche gardée, elles sont reprises ; les commentaires des deux sont conservés bout à bout.
+
+La rubrique Aide décrit le bloc. *Le PDF du mode d'emploi n'a pas été régénéré : il ne parle ni d'« En cours » ni de « Mon avis ».*
+
+**Vérifié** : nouvelle suite `avis.js` (30 vérifications), dont : un visiteur ne déclenche aucune requête sur ces colonnes (le faux Supabase des tests enregistre désormais les colonnes demandées) ; apparition du bloc au cochage ; note fixée, effacée, refixée ; « Aujourd'hui », « Effacer », date choisie ; commentaire au bouton et en quittant le champ, sans envoi inutile ; texte contenant du HTML affiché tel quel, jamais exécuté ; état retrouvé en revenant sur la fiche ; retour arrière en cas de panne ; badge et statistiques ; effacement en quittant le mode propriétaire ; boutons de 44×44 px sur iPhone sans débordement ; base sans la migration. Les suites qui utilisent le mode propriétaire (`avis`, `encours`, `statuts`, `recherche`) configurent désormais elles-mêmes un code propriétaire de test, au lieu de dépendre de l'état laissé par la suite précédente. Les douze autres suites repassent sans échec. Version 1.5.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -763,7 +785,9 @@ La rubrique Aide de l'application décrit ces règles. *Le PDF du mode d'emploi 
 34. ~~**Christophe redéploie … — version 1.2** (recherche limitée au titre affiché — voir §4.32).~~ Remplacé par l'étape 35 (la 1.3 contient la 1.2 et la 1.1).
 35. ~~**Christophe redéploie … — version 1.3** (cases de statut — voir §4.33).~~ Remplacé par l'étape 37 (la 1.4 contient les 1.1 à 1.3).
 36. **Christophe exécute `migration_2026-10_en_cours.sql`** dans Supabase → SQL Editor → Run (§4.34). La vérification en fin de script doit afficher la colonne `is_in_progress`. Peut se faire avant ou après l'étape 37 : sans la colonne, l'app masque simplement « En cours ».
-37. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.4** (statut « En cours » — voir §4.34 ; inclut les 1.1 à 1.3). Vérifier ensuite « version 1.4 » en bas des Réglages, puis la pastille « En cours » en mode propriétaire.
+37. ~~**Christophe redéploie … — version 1.4** (statut « En cours » — voir §4.34).~~ Remplacé par l'étape 39 (la 1.5 contient les 1.1 à 1.4).
+38. **Christophe exécute `migration_2026-10_avis.sql`** dans Supabase → SQL Editor → Run (§4.35). La vérification en fin de script doit afficher les trois colonnes `finished_on`, `rating`, `review_comment`. Comme pour l'étape 36, l'ordre avec le redéploiement est libre.
+39. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.5** (Mon avis — voir §4.35 ; inclut les 1.1 à 1.4). Vérifier ensuite « version 1.5 » en bas des Réglages, puis le bloc « Mon avis » sur un livre coché « Lu ».
 
 ## 6. Notes pour une reprise future du projet
 
@@ -791,5 +815,6 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 1.2 | 24/10/2026 | La recherche ne porte plus que sur le titre affiché et l'auteur : un mot effacé lors d'une correction de titre ne retrouve plus le livre. Exception : une fiche fusionnée reste trouvable sous le titre de la fiche absorbée. Aide mise à jour. | §4.32 |
 | 1.3 | 25/10/2026 | Les cases « Lu sur liseuse », « Écouté en audio » et « Favori » se cochent en touchant la case elle-même, plus seulement son texte (iPhone et ordinateur). | §4.33 |
 | 1.4 | 25/10/2026 | Nouveau statut « En cours » : case sur la fiche, pastille de recherche dans le bandeau, badge sur les cartes, compteur dans « Où j'en suis ». Cocher Lu ou Écouté décoche En cours ; « Non lus » exclut les livres en cours. Nécessite `migration_2026-10_en_cours.sql` (sinon fonction masquée). | §4.34 |
+| 1.5 | 25/10/2026 | « Mon avis » sur la fiche d'un livre lu ou écouté : note de 1 à 10, date de lecture/écoute, commentaire. Privé : visible et même téléchargé en mode propriétaire uniquement. Badge de note sur les cartes, note moyenne dans « Où j'en suis ». Nécessite `migration_2026-10_avis.sql` (sinon fonction masquée). | §4.35 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

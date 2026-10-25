@@ -995,6 +995,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .badge.fav{background:var(--accent); color:var(--accent-ink);}
 .badge.status{border-color:var(--sub); color:var(--sub);}
 .badge.inprogress{border-color:var(--accent); color:var(--accent); font-weight:600;}
+.badge.rating{background:var(--ink); border-color:var(--ink); color:var(--card); font-weight:700;}
 .badge.genre{border-color:var(--line); color:var(--sub); background:var(--chip);}
 
 /* ---------- retour / en-tête auteur ---------- */
@@ -1165,6 +1166,51 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 .toggle input{width:16px; height:16px; accent-color:var(--accent);}
 .toggle.active{border-color:var(--accent); background:var(--chip);}
+
+/* ---------- Mon avis (note, date, commentaire — propriétaire seulement) ---------- */
+.review{
+  margin-top:1.2rem; padding:1rem 1.1rem; max-width:560px;
+  border:1px solid var(--line); border-radius:var(--radius); background:var(--card);
+  display:flex; flex-direction:column; gap:0.9rem;
+}
+.review[hidden]{display:none;}
+.review-head{font-family:var(--font-display); font-weight:700; font-size:1rem;}
+.review-private{font-family:var(--font-body); font-weight:400; font-size:0.78rem; color:var(--sub);}
+.review-row{display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem 0.7rem;}
+.review-col{flex-direction:column; align-items:stretch;}
+.review-lab{font-size:0.8rem; color:var(--sub); min-width:7.5em;}
+.rating{display:flex; flex-wrap:wrap; gap:4px;}
+.rate{
+  width:34px; height:34px; padding:0; border-radius:8px;
+  border:1px solid var(--line); background:var(--bg); color:var(--sub);
+  font-family:var(--font-body); font-size:0.85rem; font-weight:700; cursor:pointer;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+}
+.rate.fill{background:var(--chip); color:var(--ink); border-color:var(--sub);}
+.rate.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+.rating-val{font-size:0.82rem; font-weight:700; color:var(--ink);}
+.review input[type="date"]{
+  font-family:var(--font-body); font-size:0.9rem; color:var(--ink);
+  padding:0.4em 0.6em; border:1px solid var(--line); border-radius:8px; background:var(--bg);
+  min-height:38px;
+}
+.review textarea{
+  width:100%; box-sizing:border-box; resize:vertical; min-height:96px;
+  font-family:var(--font-body); font-size:0.92rem; line-height:1.45; color:var(--ink);
+  padding:0.6em 0.75em; border:1px solid var(--line); border-radius:8px; background:var(--bg);
+}
+.review textarea:focus, .review input[type="date"]:focus{outline:2px solid var(--accent); outline-offset:1px;}
+.review-actions{display:flex; align-items:center; gap:0.8rem; flex-wrap:wrap;}
+.review-msg{font-size:0.8rem; color:var(--sub);}
+.review-msg.err{color:var(--danger, #b2685a);}
+@media (max-width:760px){
+  .review{padding:0.9rem;}
+  .review-lab{min-width:0; width:100%;}
+  /* sur iPhone, 10 boutons d'une ligne ne feraient que 25px de large : deux lignes de 5
+     (1 à 5, puis 6 à 10), chaque bouton d'environ 55×44px, confortable au doigt */
+  .rating{display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; width:100%;}
+  .rate{width:auto; height:44px; font-size:0.95rem;}
+}
 
 .source-note{margin-top:1.4rem; font-size:0.7rem; color:var(--sub); font-family:var(--font-mono); line-height:1.6;}
 
