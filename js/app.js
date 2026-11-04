@@ -70,8 +70,8 @@ for (const [k, v] of Object.entries(STYLE_PRESETS.find(p => p[0] === 'mixte')[2]
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '1.9';
-const APP_VERSION_DATE = '2026-10-25';
+const APP_VERSION = '2.0';
+const APP_VERSION_DATE = '2026-11-04';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
 // l'app doit continuer à fonctionner sans, d'où les try/catch.
@@ -569,9 +569,15 @@ function renderHome() {
   const f = currentFilters();
 
   if (filtersActive(f)) {
+    // les tomes d'une saga se suivent dans l'ordre, placés dans la liste au nom de la saga
+    const saga = b => sagaDe(b);
+    const cle = b => saga(b) || b.title;
     const results = ALL_BOOKS.filter(b => matchesFilters(b, f))
-      .sort((a, b) => a.author_name_sort.localeCompare(b.author_name_sort, 'fr') || a.title.localeCompare(b.title, 'fr'));
-    renderBookResults(results);
+      .sort((a, b) => a.author_name_sort.localeCompare(b.author_name_sort, 'fr')
+        || cle(a).localeCompare(cle(b), 'fr')
+        || (saga(a) && saga(b) ? (a.series_index ?? 9999) - (b.series_index ?? 9999) : 0)
+        || a.title.localeCompare(b.title, 'fr'));
+    renderBookResults(results, auteursTrouves(f));
     return;
   }
 
@@ -615,7 +621,8 @@ function renderHome() {
 }
 
 // Mini-mosaïque : jusqu'à 4 couvertures de l'auteur, les vraies d'abord.
-function authorCard(a) {
+function authorCard(a, avecSagas = false) {
+  const nbSagas = avecSagas ? groupBySeries(a.books).filter(g => g.nom).length : 0;
   const withCover = a.books.filter(b => b.cover_path);
   const rest = a.books.filter(b => !b.cover_path);
   const pick = withCover.concat(rest).slice(0, 4);
@@ -624,17 +631,40 @@ function authorCard(a) {
       <div class="mosaic">${pick.map(b => coverTile(b)).join('')}</div>
       <div class="meta">
         <span class="name">${escapeHtml(a.name)}</span>
-        <span class="count">${a.books.length}</span>
+        ${avecSagas ? '' : `<span class="count">${a.books.length}</span>`}
       </div>
+      ${avecSagas ? `<span class="sagas">${a.books.length} livre${a.books.length > 1 ? 's' : ''}${nbSagas ? ` · ${nbSagas} saga${nbSagas > 1 ? 's' : ''}` : ''} →</span>` : ''}
     </a>`;
 }
 
-function renderBookResults(results) {
-  if (!results.length) {
+// Saga « affichable » d'un livre : celle dont l'auteur a au moins deux tomes visibles
+// (même règle que la page de l'auteur, cf. groupBySeries). Sinon null.
+function sagaDe(b) {
+  if (!b.series) return null;
+  const a = AUTHORS.get(b.author_id);
+  if (!a) return null;
+  let n = 0;
+  for (const x of a.books) if (x.series === b.series && ++n >= 2) return b.series;
+  return null;
+}
+// Auteurs dont le nom contient tous les mots tapés : affichés en tête des résultats,
+// pour aller en un clic à leur page (découpée par saga).
+function auteursTrouves(f) {
+  if (!f.terms.length) return [];
+  return AUTHOR_ORDER.map(id => AUTHORS.get(id))
+    .filter(a => a && a.books.length && f.terms.every(t => fold(a.name).includes(t)))
+    .slice(0, 8);
+}
+
+function renderBookResults(results, auteurs = []) {
+  if (!results.length && !auteurs.length) {
     el.app.innerHTML = `<div class="empty">Aucun livre ne correspond à ta recherche.</div>`;
     return;
   }
   el.app.innerHTML = `
+    ${auteurs.length ? `
+    <div class="section-title">Auteur${auteurs.length > 1 ? 's' : ''} <span class="rule"></span></div>
+    <div class="author-grid auteurs-trouves">${auteurs.map(a => authorCard(a, true)).join('')}</div>` : ''}
     <div class="section-title">${results.length} résultat${results.length > 1 ? 's' : ''} <span class="rule"></span></div>
     <div class="book-grid">
       ${results.map(b => `
@@ -643,6 +673,7 @@ function renderBookResults(results) {
           <div class="info">
             <h3>${escapeHtml(b.title)}</h3>
             <p class="by">${escapeHtml(b.author_name)}</p>
+            ${sagaDe(b) ? `<p class="saga-line">${escapeHtml(b.series)}${b.series_index ? ` · tome ${b.series_index}` : ''}</p>` : ''}
             <div class="badges">${formatBadges(b)}<span class="badge genre">${escapeHtml(b.genre)}</span></div>
           </div>
         </a>`).join('')}

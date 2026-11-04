@@ -1965,3 +1965,8 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .segmented[data-style="bandeau"] button{font-size:0.95rem; letter-spacing:0;}
 .segmented[data-style="bandeau"] button[data-val="bd"]{letter-spacing:0.5px;}
 .segmented[data-style="bandeau"] button[data-val="manuscrit"]{font-size:1.15rem; font-weight:700;}
+
+/* ---------- Recherche (version 2.0) : auteurs trouvés et sagas dans les résultats ---------- */
+.auteurs-trouves{margin-bottom:1.6rem;}
+.author-card .sagas{display:block; margin-top:0.25rem; font-size:0.74rem; color:var(--sub);}
+.book-card .saga-line{font-size:0.74rem; font-style:italic; color:var(--ink); opacity:0.78; margin:-0.3rem 0 0.5rem;}
