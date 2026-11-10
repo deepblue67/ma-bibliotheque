@@ -70,8 +70,8 @@ for (const [k, v] of Object.entries(STYLE_PRESETS.find(p => p[0] === 'mixte')[2]
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '2.0';
-const APP_VERSION_DATE = '2026-11-04';
+const APP_VERSION = '2.1';
+const APP_VERSION_DATE = '2026-11-10';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
 // l'app doit continuer à fonctionner sans, d'où les try/catch.
@@ -451,6 +451,10 @@ function fold(s) {
     .normalize('NFD').replace(/[̀-ͯ]/g, '')  // retire les accents
     .toLowerCase()
     .replace(/[œ]/g, 'oe').replace(/[æ]/g, 'ae')       // non décomposées par NFD
+    // lettres nordiques et d'Europe centrale qui ne sont pas des lettres accentuées,
+    // donc que NFD ne simplifie pas : « nesbo » doit trouver Jo Nesbø
+    .replace(/ø/g, 'o').replace(/ß/g, 'ss').replace(/[đð]/g, 'd').replace(/ł/g, 'l')
+    .replace(/þ/g, 'th').replace(/ı/g, 'i')
     .replace(/[’‘`´']/g, ' ')                          // l'apostrophe ne sépare plus
     .replace(/[–—−]/g, '-')
     .replace(/\s+/g, ' ')

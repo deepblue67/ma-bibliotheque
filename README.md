@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 1.9 du 25/10/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 2.1 du 10/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -49,6 +49,7 @@ Une bibliothèque numérique personnelle, sous forme d'application web, présent
 - [x] **Bug de complétude des couvertures identifié (deuxième retour de Christophe, exemple : Isaac Asimov)** et fonction de recherche automatique de couvertures manquantes ajoutée à l'outil autonome (section 5) — voir §4.7.
 - [x] Fonction de couverture manuelle ajoutée à l'outil (section 6, troisième retour de Christophe sur les sites de couverture) — voir §4.8.
 - [x] **Barre de recherche disproportionnée sur iPhone corrigée, et croix d'effacement ajoutée sur tous les appareils (dix-septième retour)** — livré le 2026-10-24 — voir §4.28.
+- [ ] **Synchronisation du 10 novembre 2026 : 34 livres audio, 3 auteurs, 3 ebooks Ken Follett** — 3 JSON préparés, import à faire par Christophe — voir §4.43.
 - [x] **Synchronisation du 24 octobre 2026 : delta des nouveaux fichiers dans `Mes Ebooks` et `Mes livres audio`** — 4 nouveaux livres et 5 mises à jour de format identifiés, 3 JSON préparés — voir §4.27.
 - [x] **L'outil d'import Supabase et le mode d'emploi (PDF) sont désormais accessibles depuis deux liens dans les réglages, réservés au propriétaire** (déployés avec le reste de l'app) — livré le 2026-10-20 — voir §4.26.
 - [x] **Récupération automatique des couvertures sur Fnac.com testée puis abandonnée (décision de Christophe)** ; outil d'import par lot (section 9) conservé pour un usage manuel futur — 2026-10-18 — voir §4.25.
@@ -838,6 +839,67 @@ Vérifié avec une recherche simulée (3 fiables, 3 probables, 2 autres, 1 sans 
 
 **Tri, derniers ajoutés en haut** (demande suivante de Christophe) : la liste montre désormais **d'abord les livres ajoutés le plus récemment**. La recherche les traite aussi en premier, et chaque ligne indique « ajouté le JJ/MM/AAAA ». Le tri s'appuie sur la colonne `created_at` de la base, car l'`id` est un UUID qui ne suit pas l'ordre d'ajout (c’est déjà ce qui servait au rayon « Derniers ajouts », §4.11, retiré depuis — §4.29). Les livres sans date d'ajout passent en bas. Une rangée **« Trier : Derniers ajoutés d'abord · Auteur · Titre »** permet de changer l'ordre ; elle se combine avec le filtre « Afficher », et changer de tri garde les cases cochées. Vérifié de la même façon : l'outil demande bien la date d'ajout à la base, ordre des trois tris, combinaison avec le filtre, cases conservées, téléversement des bons livres.
 
+**Erreur « envoi storage 400 » (25/10, 17 h)** : en téléversant une couverture, Christophe a obtenu « ✗ Radieux: envoi storage 400 ». Supabase Storage répond « 400 » pour presque tout (clé refusée, droits, fichier refusé…), et l'outil n'affichait que ce code. Il affiche désormais **le message de Supabase et une explication en clair** (sections 4, 5, 6 et 9). La cause la plus probable est la **clé collée en haut de la page** : si c'est la clé publique `anon` (celle de `config.js`), la lecture de la base marche — d'où une liste de résultats normale — mais Storage refuse l'envoi. L'outil reconnaît maintenant le type de clé : « Tester la connexion » prévient si c'est la clé publique, et le téléversement s'arrête tout de suite avec la marche à suivre au lieu d'échouer livre par livre. Les nouvelles clés Supabase (`sb_secret_…`, `sb_publishable_…`) sont aussi reconnues. Vérifié en simulant les réponses de Supabase (clé anon, refus des droits, envoi réussi).
+
+### 4.41 Sagas de Ken Follett : Kingsbridge et Le Siècle (04/11/2026)
+
+Christophe veut voir que les romans de Kingsbridge se suivent et forment un tout. **L'application savait déjà afficher une saga** (§4.16 : un bloc par saga sur la page de l'auteur, tomes dans l'ordre, et sur la fiche un bandeau « saga · tome · précédent / suivant »). Mais la détection d'octobre ne lit que les marqueurs entre crochets dans les noms de fichiers (`[Saga-7]`), et ces livres n'en ont pas : leurs colonnes `series` et `series_index` étaient vides.
+
+`5_sagas_follett_2026-11.json` les renseigne, **dans l'ordre de parution** (choix de Christophe ; *Le Crépuscule et l'Aube* est pourtant une préquelle, qui se passe vers l'an 1000) :
+
+| Saga | Tome | Titre en base |
+|---|---|---|
+| La saga de Kingsbridge | 1 | Les Piliers de la Terre |
+| La saga de Kingsbridge | 2 | Un Monde Sans Fin |
+| La saga de Kingsbridge | 3 | Une colonne de feu |
+| La saga de Kingsbridge | 4 | Le Crépuscule et l'Aube |
+| La saga de Kingsbridge | 5 | Les Armes de la lumière |
+| Le Siècle | 1 | La Chute des Géants |
+| Le Siècle | 2 | L'Hiver du monde |
+| Le Siècle | 3 | Aux portes de l'éternité |
+
+Les titres sont ceux de la base (relevé du 14/10/2026) ; l'outil retrouve aussi un livre par son titre d'origine si son titre a été corrigé depuis dans l'application. **À passer dans la section 7 de l'outil d'import** (« Mettre à jour des livres déjà en base »). Rien à redéployer : l'affichage suit dès que la base est à jour. Vérifié en simulant la section 7 : les 8 entrées sont reconnues et seules `series` et `series_index` sont modifiées.
+
+### 4.42 La recherche montre l'auteur et les sagas (version 2.0)
+
+Constat de Christophe après l'import des sagas Ken Follett (§4.41) : une recherche « follett » affichait 29 livres en vrac, par ordre alphabétique, sans rien des sagas — alors que la page de l'auteur, atteinte en passant par la fiche d'un livre, les montrait bien. Ce n'était pas un bug : la recherche affiche une liste de livres, la page auteur un découpage par saga. Deux ajouts rapprochent les deux :
+
+1. **Carte de l'auteur en tête des résultats.** Quand tous les mots tapés figurent dans le nom d'un auteur, une rubrique « Auteur » affiche sa carte (couvertures, nom, « 29 livres · 2 sagas → ») avant les livres ; un clic mène à sa page découpée par saga. Jusqu'à 8 auteurs. Rien de tel pour une recherche de titre (« peuple glaces ») ou mêlant auteur et titre (« follett piliers »).
+2. **Sagas visibles dans les résultats.** Sous l'auteur, chaque tome porte « La saga de Kingsbridge · tome 1 », et les tomes d'une même saga **se suivent dans l'ordre**, placés dans la liste au nom de la saga. Même règle que la page de l'auteur : une « série » dont un seul tome est présent n'est ni signalée ni regroupée.
+
+**Vérifié** : nouvelle suite `recherchesaga.js` (13 vérifications : carte et son libellé, ordre des tomes, mention sur chaque tome et pas ailleurs, place de la saga dans la liste, clic vers la page auteur, recherche de titre sans carte, recherche effacée, iPhone sans débordement). Les quinze autres suites repassent sans échec. Version 2.0.
+
+### 4.43 Synchronisation du 10 novembre 2026 — delta des nouveaux fichiers
+
+Christophe a ajouté des fichiers dans `Mes Ebooks` et `Mes livres audio` et a demandé d'insérer le delta.
+
+**Méthode.** Fichiers et dossiers créés après la synchronisation du 24/10 (§4.27), repérés sur le PC par leur date de création ; catalogue relu en entier depuis l'application en ligne avec la clé publique (2003 livres) ; chaque titre comparé sans tenir compte des accents ni de la casse, titre d'origine compris.
+
+**Ebooks** : trois epub Ken Follett ajoutés le 04/11 — *Une colonne de feu*, *Les Armes de la lumière*, *Le Crépuscule et l'Aube* — dont les fiches n'existaient qu'en audio : ils passent à `has_ebook: true`.
+
+**Livres audio : 34 nouveaux livres**, tous absents de la base :
+- **Arnaldur Indridason** (13) : série *Konrad* tomes 1 à 5 (*Ce que savait la nuit*, *Les Fantômes de Reykjavik*, *La Pierre du remords*, *Le Mur des silences*, *Les Parias*), *Trilogie des ombres* tomes 1 à 3 (*Dans l'ombre*, *La Femme de l'ombre*, *Passage des ombres*), et *Le Duel*, *Le Lagon noir*, *Le Roi et l'Horloger*, *Les Lendemains qui chantent*, *La Fin du voyage*. Plusieurs titres sont présents en **double sur le disque** (deux dossiers pour *La Pierre du remords*, *Le Mur des silences* et chaque tome de la *Trilogie des ombres*) : une seule fiche chacun.
+- **Jo Nesbø** (10, nouvel auteur) : série *Harry Hole* tomes 3, 4, 5, 6, 7, 11, 12, 13 (*Rouge-gorge*, *Rue Sans-Souci*, *L'Étoile du diable*, *Le Sauveur*, *Le Bonhomme de neige*, *La Soif*, *Le Couteau*, *Éclipse totale*), *Un loup dans la ville*, *Les Maîtres du domaine*.
+- **Michael Connelly** (6) : série *Harry Bosch* — *Les Égouts de Los Angeles* (1), *Le Dernier Coyote* (4), *L'Envol des anges* (6), *Lumière morte* (9), *Ceux qui tombent* (15), *Jusqu'à l'impensable* (18). Seul le tome 18 est numéroté dans le nom du dossier ; les autres numéros sont ceux de la série publiée.
+- **Un livre chacun** : Camilla Läckberg — *La Pleureuse* ; Jacques Expert (nouvel auteur) — *L'Ascenseur* ; Jean-Christophe Grangé — *Tokyorama* ; Stephen King — *Les Régulateurs* (paru sous le pseudonyme de Richard Bachman, rangé chez Stephen King comme ses autres livres) ; Ragnar Jónasson (nouvel auteur) — *La Mort en blanc*.
+
+Genres repris de ceux de l'auteur déjà en base (Policier, Thriller, Horreur). Les dossiers *Près de moi pour toujours* (Coben et Witherspoon) et *Une colonne de feu* (audio, Follett), touchés depuis le 24/10, correspondent à des fiches déjà en base avec l'audio : rien à faire.
+
+**Trois fichiers** dans « Claude outputs », à passer dans l'outil d'import **dans cet ordre** :
+1. `1_nouveaux_auteurs_2026-11-10.json` → **section 2** (Jo Nesbø, Jacques Expert, Ragnar Jónasson) ;
+2. `2_nouveaux_livres_2026-11-10.json` → **section 3** (les 34 livres audio) ;
+3. `3_mise_a_jour_2026-11-10.json` → **section 7** (les 3 ebooks Follett, puis saga et tome de 22 nouveaux livres : la section 3 ne sait pas enregistrer une saga, d'où ce passage après l'insertion).
+
+Ensuite, section 5 de l'outil pour chercher leurs couvertures (« Derniers ajoutés d'abord »). Vérifié en simulant les sections 2, 3 et 7 : 34 livres insérés, 25 mises à jour, aucun introuvable.
+
+### 4.44 « nesbo » trouve Jo Nesbø (version 2.1)
+
+Remarque de Christophe après le delta du 10/11 : chercher « Jo Nesbo » doit ramener Jo Nesbø. La recherche retirait bien les accents (é, è, ô…) et remplaçait œ et æ, mais le **ø** norvégien et danois n'est pas un o accentué : c'est une lettre à part, que la décomposition Unicode utilisée par `fold()` (`js/app.js`) laisse intacte. « nesbo » ne trouvait donc pas « Nesbø ».
+
+`fold()` ramène désormais aussi **ø → o**, **ß → ss**, **ł → l**, **đ / ð → d**, **þ → th** et **ı → i** — les lettres d'Europe du Nord et centrale qui posent le même problème (Jónasson, Indriðason, Łódź…). La recherche marche dans les deux sens : « nesbo », « Nesbø » et « NESBO » trouvent la même chose, carte de l'auteur comprise. Le même pliage sert à la détection des doublons de l'écran Anomalies, qui rapproche donc aussi ces graphies.
+
+**Vérifié** : `recherchesaga.js` passe à 17 vérifications (pliage des six lettres ; « nesbo », « Nesbø » et « NESBO » ramènent la carte de l'auteur et ses livres). Les quinze autres suites repassent (un échec ponctuel de `style.js`, dû au délai d'un rechargement, n'est pas revenu en trois relances). Seuls `index.html` et `js/app.js` changent. Version 2.1.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -885,6 +947,10 @@ Vérifié avec une recherche simulée (3 fiables, 3 probables, 2 autres, 1 sans 
 43. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.8** (Réglages → Style — voir §4.38 ; inclut les 1.1 à 1.7). Vérifier « version 1.8 » en bas des Réglages, puis choisir son style dans la section Style. Les migrations SQL « en cours » et « avis » (étapes 36 et 38) restent à faire si ce n'est pas déjà le cas.
 44. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.9** (bandeau paramétrable — voir §4.39 ; inclut les 1.1 à 1.8). Les trois fichiers sont indispensables cette fois : `index.html` charge les quatre nouvelles polices. Vérifier « version 1.9 » en bas des Réglages, puis régler le groupe « Bandeau » de la section Style.
 45. **Christophe redéploie `supabase_import_tool.html`** (section 5 : filtre Fiables / Probables / Autres et tri « derniers ajoutés d'abord » — voir §4.40). L'outil marche aussi directement par double-clic sur le fichier du PC, sans attendre le redéploiement.
+46. **Christophe passe `5_sagas_follett_2026-11.json` dans la section 7 de l'outil d'import** (sagas Kingsbridge et Le Siècle — voir §4.41). Contrôle : « Terminé : 8 livre(s) mis à jour, 0 non trouvé(s) », puis la page Ken Follett de l'application montre les deux sagas.
+47. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 2.0** (la recherche montre l'auteur et les sagas — voir §4.42). Vérifier « version 2.0 » en bas des Réglages, puis chercher « follett ».
+48. **Christophe importe le delta du 10/11/2026** (voir §4.43) : `1_nouveaux_auteurs_2026-11-10.json` en section 2, `2_nouveaux_livres_2026-11-10.json` en section 3, `3_mise_a_jour_2026-11-10.json` en section 7, puis couvertures en section 5.
+49. **Christophe redéploie `index.html` et `js/app.js` — version 2.1** (« nesbo » trouve Jo Nesbø — voir §4.44). Vérifier « version 2.1 » en bas des Réglages.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -917,5 +983,7 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 1.7 | 25/10/2026 | Design harmonisé : le langage du bandeau (traits épais, ombres décalées, titres en Bangers, pastilles cerclées) appliqué à toutes les pages — cartes, fiche, Réglages, carnet, anomalies, aide —, dans les couleurs de chaque thème. | §4.37 |
 | 1.8 | 25/10/2026 | Style entièrement paramétrable dans Réglages → Style : titres (4 polices), titre du bandeau, cartes et fiche, pastilles, boutons et champs, panneaux ; préréglages Ebook (d'origine) / Mixte (défaut) / Tout BD ; aperçu en direct. Correctif : badge « 8/10 » étiré sur iPhone. | §4.38 |
 | 1.9 | 25/10/2026 | Bandeau paramétrable dans Réglages → Style (groupe « Bandeau ») : 10 polices pour le titre, majuscules ou non, ombre, fond (trame, uni, dégradé), champs de recherche et filtres, pastilles de statut, boutons Carnet et Réglages ; préréglage « Élégant » ; mini-bandeau dans l'aperçu ; titre ajusté à la largeur sur iPhone. | §4.39 |
+| 2.0 | 04/11/2026 | Recherche : carte de l'auteur en tête des résultats quand son nom correspond (« 29 livres · 2 sagas → »), tomes d'une saga signalés (« saga · tome N ») et regroupés dans l'ordre. | §4.42 |
+| 2.1 | 10/11/2026 | Recherche : ø, ß, ł, đ/ð, þ et ı ramenés à leur lettre simple (« nesbo » trouve Jo Nesbø). | §4.44 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.
