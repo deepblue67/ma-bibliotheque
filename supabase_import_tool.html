@@ -81,7 +81,7 @@
 <body>
 <div class="wrap">
   <h1>Ma Bibliothèque — Outil d'import Supabase</h1>
-  <p class="hint" id="tool-version" style="margin:-0.2rem 0 0.6rem;">Version de l'outil : 25/10/2026 — tri, filtre et diagnostic des envois</p>
+  <p class="hint" id="tool-version" style="margin:-0.2rem 0 0.6rem;">Version de l'outil : 10/11/2026 — section 3 : saga et tome ; section 7 : sans majuscules ni accents</p>
   <p class="subtitle">Outil autonome — accessible depuis les réglages de l'application (mode propriétaire), ou directement par un double-clic sur ce fichier. Il tourne entièrement dans ton navigateur et ne communique qu'avec ton propre projet Supabase — jamais avec Claude.</p>
 
   <div class="warn">
@@ -114,7 +114,7 @@
   <div class="card">
     <h2><span class="num">3</span>Importer/mettre à jour des livres</h2>
     <p class="hint">Colle un tableau JSON de livres, ou choisis un fichier <code>.json</code>. Format attendu par élément :
-      <code>{"author_name": "...", "title": "...", "has_ebook": true, "has_pdf": false, "has_audio": false, "genre": "...", "openlibrary_subjects": [], "source_note": "...", "needs_review": false, "cover_i": 12345}</code> (les champs <code>genre</code>/<code>openlibrary_subjects</code>/<code>source_note</code>/<code>needs_review</code>/<code>cover_i</code> sont optionnels).
+      <code>{"author_name": "...", "title": "...", "has_ebook": true, "has_pdf": false, "has_audio": false, "genre": "...", "openlibrary_subjects": [], "source_note": "...", "needs_review": false, "cover_i": 12345}</code> (les champs <code>genre</code>/<code>openlibrary_subjects</code>/<code>source_note</code>/<code>needs_review</code>/<code>cover_i</code> sont optionnels, de même que <code>series</code> et <code>series_index</code> pour ranger le livre dans sa saga).
       L'auteur doit déjà exister (importe-le d'abord à l'étape 2 si besoin) — <code>author_name</code> doit correspondre exactement au <code>name</code> de l'auteur dans Supabase.
       Les doublons (même auteur + même titre) sont automatiquement ignorés, tu peux relancer l'import sans risque.
       Si un <code>cover_i</code> (identifiant de couverture Open Library) est fourni, la couverture correspondante sera aussi téléversée automatiquement après l'insertion du livre.
@@ -197,7 +197,7 @@
     <h2><span class="num">7</span>Mettre à jour des livres déjà en base (champs choisis)</h2>
     <p class="hint">
       Pour modifier certains champs d'un livre déjà présent, sans toucher aux autres — par exemple activer <code>has_audio</code> quand tu ajoutes la version audio d'un livre que tu as déjà en ebook. Format attendu :
-      <code>[{"author_name": "...", "title": "...", "fields": {"has_audio": true}}, ...]</code> — <code>author_name</code> et <code>title</code> doivent correspondre exactement à ce qui existe déjà en base (l'outil retrouve le livre par cette combinaison exacte, comme pour les autres sections). Les entrées non trouvées sont listées sans rien modifier.
+      <code>[{"author_name": "...", "title": "...", "fields": {"has_audio": true}}, ...]</code> — l'outil retrouve le livre par <code>author_name</code> et <code>title</code> : d'abord à l'identique, sinon sans tenir compte des majuscules ni des accents (« Le Réseau Corneille » trouve « Le réseau Corneille »), et par le titre d'origine si le titre a été corrigé dans l'appli. Si deux livres du même auteur s'écrivent alors pareil, rien n'est modifié. Les entrées non trouvées sont listées sans rien modifier.
     </p>
     <label>Fichier .json (optionnel)</label>
     <input type="file" id="update-fields-file" accept=".json">
@@ -447,6 +447,8 @@ document.getElementById('btn-books').addEventListener('click', async () => {
         openlibrary_subjects: it.openlibrary_subjects || [],
         source_note: it.source_note || '',
         needs_review: !!it.needs_review,
+        // saga et tome (facultatifs) : évite de repasser par la section 7 après l'insertion
+        ...(it.series ? { series: it.series, series_index: it.series_index ?? null } : {}),
         __cover_i: it.cover_i || null,
         __author_name: it.author_name,
       });
@@ -1019,25 +1021,36 @@ document.getElementById('btn-update-fields').addEventListener('click', async () 
     if (!Array.isArray(items) || !items.length) throw new Error('Le JSON doit être un tableau non vide.');
 
     const authorsList = await fetchAllPaginated(offset => `/rest/v1/authors?select=id,name&order=id.asc&offset=${offset}&limit=1000`);
-    const authorMap = {};
-    for (const a of authorsList) authorMap[a.name] = a.id;
+    const authorMap = {}, authorPlie = {};
+    for (const a of authorsList) { authorMap[a.name] = a.id; ajoutePlie(authorPlie, plie(a.name), a.id); }
 
     const booksList = await fetchAllPaginated(offset => `/rest/v1/books?select=id,author_id,title,source_title&order=id.asc&offset=${offset}&limit=1000`);
-    const bookMap = {};
+    const bookMap = {}, bookPlie = {}, titreDe = {};
     for (const b of booksList) {
-      bookMap[b.author_id + '||' + b.title] = b.id;
-      // un titre corrigé dans l'app reste joignable par son orthographe d'origine
-      if (b.source_title) bookMap[b.author_id + '||' + b.source_title] = b.id;
+      titreDe[b.id] = b.title;
+      for (const t of [b.title, b.source_title]) {   // un titre corrigé dans l'app reste joignable par son orthographe d'origine
+        if (!t) continue;
+        bookMap[b.author_id + '||' + t] = b.id;
+        ajoutePlie(bookPlie, b.author_id + '||' + plie(t), b.id);
+      }
     }
 
-    let done = 0, unresolved = 0;
+    let done = 0, unresolved = 0, approches = 0;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      const authorId = authorMap[it.author_name];
-      const bookId = authorId && bookMap[authorId + '||' + it.title];
+      // d'abord l'orthographe exacte ; à défaut, sans tenir compte des majuscules ni des accents
+      // (« Le Réseau Corneille » trouve « Le réseau Corneille »), mais seulement si c'est sans ambiguïté
+      const authorId = authorMap[it.author_name] || uniquePlie(authorPlie, plie(it.author_name));
+      let bookId = authorId && bookMap[authorId + '||' + it.title];
+      let note = '';
+      if (!bookId && authorId) {
+        const p = bookPlie[authorId + '||' + plie(it.title)];
+        if (p && p.size === 1) { bookId = [...p][0]; approches++; note = ` (titre en base : « ${titreDe[bookId]} »)`; }
+        else if (p && p.size > 1) note = ' — plusieurs livres de cet auteur s\'écrivent ainsi, rien n\'a été modifié';
+      }
       if (!bookId) {
         unresolved++;
-        logTo('update-fields-log', `✗ introuvable : ${it.author_name} — ${it.title}`, 'err');
+        logTo('update-fields-log', `✗ introuvable : ${it.author_name} — ${it.title}${note}`, 'err');
       } else {
         const res = await sbFetch(`/rest/v1/books?id=eq.${bookId}`, {
           method: 'PATCH',
@@ -1049,18 +1062,28 @@ document.getElementById('btn-update-fields').addEventListener('click', async () 
           logTo('update-fields-log', `✗ erreur sur ${it.title}: HTTP ${res.status} ${text}`, 'err');
         } else {
           done++;
-          logTo('update-fields-log', `✓ ${it.author_name} — ${it.title}`, 'ok');
+          logTo('update-fields-log', `✓ ${it.author_name} — ${it.title}${note}`, 'ok');
         }
       }
       setProgress('update-fields-progress-wrap', 'update-fields-progress', Math.round(((i + 1) / items.length) * 100));
     }
-    logTo('update-fields-log', `Terminé : ${done} livre(s) mis à jour, ${unresolved} non trouvé(s).`, unresolved ? 'err' : 'ok');
+    logTo('update-fields-log', `Terminé : ${done} livre(s) mis à jour, ${unresolved} non trouvé(s).` +
+      (approches ? ` Dont ${approches} retrouvé(s) malgré une différence de majuscules ou d'accents.` : ''), unresolved ? 'err' : 'ok');
   } catch (e) {
     logTo('update-fields-log', 'Erreur : ' + e.message, 'err');
   } finally {
     btn.disabled = false;
   }
 });
+
+// Comparaison tolérante (section 7) : sans accents, sans majuscules, apostrophes et espaces unifiés.
+function plie(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/ß/g, 'ss')
+    .replace(/[’‘`´]/g, "'").replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
+}
+function ajoutePlie(map, cle, id) { (map[cle] = map[cle] || new Set()).add(id); }
+function uniquePlie(map, cle) { const s = map[cle]; return s && s.size === 1 ? [...s][0] : undefined; }
 
 // ---------- 8. Requête personnalisée ----------
 document.getElementById('btn-custom').addEventListener('click', async () => {

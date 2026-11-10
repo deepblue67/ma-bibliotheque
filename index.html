@@ -34,7 +34,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bangers&family=Archivo:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Libre+Franklin:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&family=Special+Elite&family=Spectral:wght@400;500;600;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
 <!-- ?v= = numéro de version (APP_VERSION dans js/app.js) : à changer à chaque livraison,
      pour obliger les navigateurs (iPhone compris) à recharger les nouveaux fichiers -->
-<link rel="stylesheet" href="css/style.css?v=2.1">
+<link rel="stylesheet" href="css/style.css?v=2.2">
 </head>
 <body>
 
@@ -96,8 +96,12 @@
   <img id="lightbox-img" src="" alt="">
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- supabase-js figé et contrôlé par empreinte (2.2), comme dans l'appli BD : une nouvelle
+     version publiée sur le CDN ne peut plus changer l'appli sans qu'on le décide. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"
+        integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o"
+        crossorigin="anonymous"></script>
 <script src="js/config.js"></script>
-<script src="js/app.js?v=2.1"></script>
+<script src="js/app.js?v=2.2"></script>
 </body>
 </html>

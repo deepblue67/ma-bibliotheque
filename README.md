@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 2.1 du 10/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 2.2 du 10/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -49,7 +49,7 @@ Une bibliothèque numérique personnelle, sous forme d'application web, présent
 - [x] **Bug de complétude des couvertures identifié (deuxième retour de Christophe, exemple : Isaac Asimov)** et fonction de recherche automatique de couvertures manquantes ajoutée à l'outil autonome (section 5) — voir §4.7.
 - [x] Fonction de couverture manuelle ajoutée à l'outil (section 6, troisième retour de Christophe sur les sites de couverture) — voir §4.8.
 - [x] **Barre de recherche disproportionnée sur iPhone corrigée, et croix d'effacement ajoutée sur tous les appareils (dix-septième retour)** — livré le 2026-10-24 — voir §4.28.
-- [ ] **Synchronisation du 10 novembre 2026 : 34 livres audio, 3 auteurs, 3 ebooks Ken Follett** — 3 JSON préparés, import à faire par Christophe — voir §4.43.
+- [x] **Synchronisation du 10 novembre 2026 : 34 livres audio, 3 auteurs, 3 ebooks Ken Follett** — importée par Christophe le soir même (2037 fiches en base ensuite) — voir §4.43.
 - [x] **Synchronisation du 24 octobre 2026 : delta des nouveaux fichiers dans `Mes Ebooks` et `Mes livres audio`** — 4 nouveaux livres et 5 mises à jour de format identifiés, 3 JSON préparés — voir §4.27.
 - [x] **L'outil d'import Supabase et le mode d'emploi (PDF) sont désormais accessibles depuis deux liens dans les réglages, réservés au propriétaire** (déployés avec le reste de l'app) — livré le 2026-10-20 — voir §4.26.
 - [x] **Récupération automatique des couvertures sur Fnac.com testée puis abandonnée (décision de Christophe)** ; outil d'import par lot (section 9) conservé pour un usage manuel futur — 2026-10-18 — voir §4.25.
@@ -900,6 +900,26 @@ Remarque de Christophe après le delta du 10/11 : chercher « Jo Nesbo » doit r
 
 **Vérifié** : `recherchesaga.js` passe à 17 vérifications (pliage des six lettres ; « nesbo », « Nesbø » et « NESBO » ramènent la carte de l'auteur et ses livres). Les quinze autres suites repassent (un échec ponctuel de `style.js`, dû au délai d'un rechargement, n'est pas revenu en trois relances). Seuls `index.html` et `js/app.js` changent. Version 2.1.
 
+### 4.45 Petits gains sûrs (version 2.2) — premier lot de la revue de code
+
+La revue de code du 10/11/2026 (document « Revue de code — Ma Bibliothèque (v2.1) », sur le modèle de celle de l'appli BD) propose quatre livraisons, la sécurité d'abord. Avant elles, hors version : **les tests sont copiés sur le PC** de Christophe, dans `ma-bibliotheque-ebook-audio\tests` (à côté de « Claude outputs », donc jamais déposés sur GitHub) ; mode d'emploi dans `tests\LISEZMOI.md`, tout se lance par `node run_all.js`. Ce premier lot, la 2.2 :
+
+**1. `supabase-js` figé.** `index.html` chargeait `supabase-js@2`, c'est-à-dire la dernière 2.x publiée : une nouvelle version pouvait changer l'appli sans qu'on le décide. Il charge maintenant la **2.45.4**, avec son empreinte `integrity` (le navigateur refuse le fichier s'il a changé) — exactement la même balise que l'appli BD depuis sa 2.8. Vérifié depuis le navigateur sur le site en ligne : l'empreinte du fichier du CDN est bien celle attendue, la bibliothèque se charge, et une lecture et un comptage du catalogue répondent (2 025 livres visibles). L'appli n'utilise que des fonctions de base de la bibliothèque (`from`, `select`, `update`, `eq`, `order`, `range`), présentes depuis la toute première 2.x.
+
+**2. Outil d'import plus tolérant.**
+- **Section 7** : un livre est d'abord cherché à l'identique, puis, à défaut, **sans tenir compte des majuscules ni des accents** (« Le Réseau Corneille » trouve « Le réseau Corneille », l'échec du 24/10 — §4.27 ; « Jo Nesbo » trouve « Jo Nesbø »), et toujours aussi par le titre d'origine d'une fiche corrigée. Le journal précise le titre retrouvé. Si deux fiches du même auteur s'écrivent alors pareil, **rien n'est modifié** et le journal le dit.
+- **Section 3** : accepte `series` et `series_index` (facultatifs) ; plus besoin de repasser par la section 7 pour ranger les nouveaux livres dans leur saga.
+- Version de l'outil affichée : « 10/11/2026 ».
+
+**3. Les 20 titres à marques de fichier** (« 13-2004-Signe Suspect », « Les sept soeurs, tome 1 »…), relevés par la revue. Vérifiés un par un dans la base et, quand c'était utile, dans les epub eux-mêmes (titre, série de Calibre, page de titre). Résultat : **10 étaient des doublons** d'une fiche correcte déjà présente, et 10 des titres à renommer (plus deux autres tomes des *Sept Sœurs* dont le titre portait aussi la saga entre parenthèses).
+- **Doublons, fusionnés comme le fait l'écran Anomalies** (la fiche correcte récupère couverture, format et note d'origine ; le doublon est masqué) : sept *Kay Scarpetta* de Patricia Cornwell (*Mordoc*, *Combustion*, *Cadavre X*, *Baton Rouge*, *Signe suspect*, *Sans raison*, *Registre des morts*), *La griffe du sud* (Cornwell, *Andy Brazil*), *L'amulette de Samarcande* (Stroud, qui gagne le PDF) et *Galaad et le roi pêcheur* (Markale, « Graal tome 07 », qui gagne le PDF et une couverture). L'écran Anomalies ne les voyait pas : le numéro et l'année devant le titre (« 13-2004- ») empêchaient le rapprochement.
+- **Renommés**, l'ancien titre étant conservé comme titre d'origine (comme lors d'une correction dans l'appli, pour qu'un prochain import ne les recrée pas) : la saga **Les Sept Sœurs** de Lucinda Riley (*Les Sept Sœurs*, *La Sœur de la tempête*, *La Sœur de l'ombre*, *La Sœur à la perle*, *La Sœur de la lune*, *La Sœur disparue*, *Atlas : L'Histoire de Pa Salt* ; *La Sœur du soleil* n'avait que la saga à recevoir) ; la trilogie **La Lignée** de Guillermo Del Toro (*La Lignée*, *La Chute*, *La Nuit éternelle*) ; **Le Cycle du Graal** de Jean Markale, tomes 5 et 6 : « La Quête du Graal tome 5 » s'appelle en réalité ***Gauvain*** (page de titre de l'epub : « Le cycle du Graal – 5 »), « Le Graal tome 6 - Perceval Le Gallois » devient *Perceval le Gallois*.
+- **Sagas renseignées au passage** : *Les Sept Sœurs* 1 à 8, *La Lignée* 1 à 3, *Le Cycle du Graal* 1 à 8 (les huit tomes sont présents), *Bartiméus* de Jonathan Stroud (1 *L'amulette de Samarcande*, 2 *L'Oeil du Golem*, 4 *L'Anneau de Salomon* ; le tome 3, *La Porte de Ptolémée*, n'est pas dans la bibliothèque).
+- Le tout tient dans **`4_corrections_titres_2026-11-10.json`** (40 lignes, section 7). Contrôlé contre la base en lecture seule : chacune des 40 lignes retrouve exactement une fiche, et aucun nouveau titre n'existe déjà chez le même auteur.
+- **Point à vérifier par Christophe** : le doublon « Andy Brazil-2-La griffe du sud » venait d'un fichier nommé *La griffe du diable* (`Cornwell Patricia -1999- La griffe du diable .epub`) ; c'est très probablement une erreur de nom de fichier (*La Griffe du Sud* est bien le tome 2 d'*Andy Brazil*), mais le fichier n'a pas été ouvert.
+
+**Tests** : 21 suites (19 + `livraison.js` — numéro de version identique dans `app.js` et `index.html`, `supabase-js` figé et contrôlé par empreinte, pas de clé `service_role` dans `config.js` — + `outil\test_section7.js`, 11 vérifications de la section 7 tolérante et de la section 3 avec saga), toutes réussies, lancées depuis une copie de l'arborescence du PC. Le dossier `tests` du PC est mis à jour. Version 2.2.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -951,6 +971,7 @@ Remarque de Christophe après le delta du 10/11 : chercher « Jo Nesbo » doit r
 47. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 2.0** (la recherche montre l'auteur et les sagas — voir §4.42). Vérifier « version 2.0 » en bas des Réglages, puis chercher « follett ».
 48. **Christophe importe le delta du 10/11/2026** (voir §4.43) : `1_nouveaux_auteurs_2026-11-10.json` en section 2, `2_nouveaux_livres_2026-11-10.json` en section 3, `3_mise_a_jour_2026-11-10.json` en section 7, puis couvertures en section 5.
 49. **Christophe redéploie `index.html` et `js/app.js` — version 2.1** (« nesbo » trouve Jo Nesbø — voir §4.44). Vérifier « version 2.1 » en bas des Réglages.
+50. **Christophe redéploie `index.html`, `js/app.js` et `supabase_import_tool.html` — version 2.2** (voir §4.45), puis passe **`4_corrections_titres_2026-11-10.json` dans la section 7** de l'outil (rouvert depuis le PC, « Version de l'outil : 10/11/2026 » sous le titre). Résultat attendu : « 40 livre(s) mis à jour, 0 non trouvé(s) ».
 
 ## 6. Notes pour une reprise future du projet
 
@@ -985,5 +1006,6 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 1.9 | 25/10/2026 | Bandeau paramétrable dans Réglages → Style (groupe « Bandeau ») : 10 polices pour le titre, majuscules ou non, ombre, fond (trame, uni, dégradé), champs de recherche et filtres, pastilles de statut, boutons Carnet et Réglages ; préréglage « Élégant » ; mini-bandeau dans l'aperçu ; titre ajusté à la largeur sur iPhone. | §4.39 |
 | 2.0 | 04/11/2026 | Recherche : carte de l'auteur en tête des résultats quand son nom correspond (« 29 livres · 2 sagas → »), tomes d'une saga signalés (« saga · tome N ») et regroupés dans l'ordre. | §4.42 |
 | 2.1 | 10/11/2026 | Recherche : ø, ß, ł, đ/ð, þ et ı ramenés à leur lettre simple (« nesbo » trouve Jo Nesbø). | §4.44 |
+| 2.2 | 10/11/2026 | `supabase-js` figé (2.45.4) avec empreinte ; outil d'import : section 7 sans majuscules ni accents, section 3 avec saga et tome ; 20 titres à marques de fichier corrigés (10 doublons fusionnés, 10 renommés) et 4 sagas renseignées par `4_corrections_titres_2026-11-10.json` ; tests copiés sur le PC (21 suites). | §4.45 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.
