@@ -1700,7 +1700,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 :root[data-titres="moderne"]{ --titre-font:'Space Grotesk', system-ui, sans-serif; }
 
 .review{max-width:640px;}     /* la note « 8/10 » reste sur la ligne des 10 boutons */
-.inline-form input[type="password"]{
+.inline-form :is(input[type="password"], input[type="email"]){
   width:100%; font-family:var(--font-body); font-size:0.92rem; padding:0.55em 0.75em;
   margin-bottom:0.8rem; box-sizing:border-box;
   border:1px solid var(--line); border-radius:var(--radius); background:var(--card); color:var(--ink);
@@ -1882,7 +1882,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 :root[data-commandes="bd"] .rate.on{background:var(--accent); color:var(--accent-ink); border-color:var(--hdr-line);}
 :root[data-commandes="bd"] .rate:active{transform:translate(1px, 1px); box-shadow:none;}
 :root[data-commandes="bd"] :is(.review input[type="date"], .review textarea, .ano-fix input, .carnet-ctrls select,
-  .inline-form input[type="text"], .inline-form input[type="password"]){
+  .inline-form input[type="text"], .inline-form input[type="password"], .inline-form input[type="email"]){
   border:var(--bd-s) solid var(--hdr-line); border-radius:var(--bd-r);
   background:var(--card); color:var(--ink); box-shadow:var(--bd-sh-m);
 }
@@ -1970,3 +1970,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 .auteurs-trouves{margin-bottom:1.6rem;}
 .author-card .sagas{display:block; margin-top:0.25rem; font-size:0.74rem; color:var(--sub);}
 .book-card .saga-line{font-size:0.74rem; font-style:italic; color:var(--ink); opacity:0.78; margin:-0.3rem 0 0.5rem;}
+
+/* Connexion sécurisée (version 3.0) : le formulaire garde l'allure des autres réglages */
+.inline-form :is(input[type="password"], input[type="email"]):focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);}
+#auth-form .row{margin-top:0.2rem;}

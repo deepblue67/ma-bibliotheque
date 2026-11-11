@@ -70,7 +70,7 @@ for (const [k, v] of Object.entries(STYLE_PRESETS.find(p => p[0] === 'mixte')[2]
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '2.2';
+const APP_VERSION = '3.0';
 const APP_VERSION_DATE = '2026-11-10';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -153,42 +153,125 @@ let REVIEWS_LOADED = false;
 const REVIEW_FIELDS = ['rating', 'finished_on', 'review_comment'];
 
 // ---------------------------------------------------------------
-// Mode propriétaire
+// Mode propriétaire (version 3.0)
 //
-// Cette application est publique : elle est consultée par les proches de
-// Christophe, la clé Supabase `anon` est dans le code, et la politique RLS
-// autorise la mise à jour de `books` sans authentification — c'est ce qui
-// fait fonctionner les cases de statut.
+// Un appareil est « propriétaire » quand il est connecté à Supabase (Réglages → Mode
+// propriétaire → Connexion sécurisée : e-mail + mot de passe, une fois par appareil ;
+// la session est gardée par supabase-js). Les inscriptions étant fermées dans Supabase,
+// le seul compte possible est celui que Christophe a créé à la main.
 //
-// Ce code n'est donc PAS une serrure. C'est un garde-fou : il empêche un
-// visiteur de masquer un livre ou de renommer un titre par inadvertance.
-// Il n'empêche pas quelqu'un de déterminé, qui lirait le source et
-// appellerait l'API directement, d'écrire dans la base. La seule fermeture
-// réelle serait de retirer le droit d'écriture publique sur `books` et de
-// passer par une authentification Supabase.
-//
-// Le code n'est pas stocké en clair : config.js ne contient que son
-// empreinte SHA-256, et la page de réglages sait générer cette empreinte
-// pour que le code choisi n'ait à être écrit nulle part.
+// Ce n'est plus l'appli qui protège : une fois le script de verrouillage exécuté
+// (migration_2026-11_securite.sql), la base elle-même refuse toute écriture sans cette
+// connexion, et ne montre ni statuts ni avis à la clé publique. L'ancien code
+// propriétaire (empreinte ownerHash dans config.js, note « mabiblio.owner ») ne sert plus.
 // ---------------------------------------------------------------
-const OWNER_CONFIGURED = typeof cfg.ownerHash === 'string' && /^[0-9a-f]{64}$/.test(cfg.ownerHash);
 let OWNER = false;
-try { OWNER = OWNER_CONFIGURED && localStorage.getItem('mabiblio.owner') === '1'; } catch (e) {}
+let OWNER_EMAIL = '';
+const AUTH_EMAIL_KEY = 'mabiblio.auth.email';   // l'adresse seule, pour la reproposer
+try { localStorage.removeItem('mabiblio.owner'); } catch (e) {}
 
-// crypto.subtle n'existe qu'en contexte sécurisé : disponible sur le site
-// publié (https), absent si le fichier est ouvert en local (file://).
-async function hashCode(code) {
-  if (!(window.crypto && window.crypto.subtle)) return null;
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('mabiblio:' + code));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+function estProprietaire(session) {
+  return !!(session && session.user && !session.user.is_anonymous);
 }
 
 function setOwner(on) {
   OWNER = !!on;
-  try { localStorage.setItem('mabiblio.owner', OWNER ? '1' : '0'); } catch (e) {}
   syncStatusFilterVisibility();
-  if (OWNER) loadReviews().then(nouveau => { if (nouveau) route(); });
-  else clearReviews();
+  if (OWNER) loadPrivate().then(nouveau => { if (nouveau) route(); });
+  else clearPrivate();
+}
+
+// ---------------------------------------------------------------
+// Statuts et avis : données privées (version 3.0)
+//
+// Avant le script de verrouillage, ils sont des colonnes de `books`, lisibles par tous.
+// Après, ils vivent dans la table `lecture` (un livre, ses statuts, sa note, sa date,
+// son commentaire), lisible et modifiable par le seul propriétaire connecté. L'appli
+// détecte laquelle des deux situations est la bonne : elle marche donc avant ET après
+// le script, ce qui permet de valider la connexion avant de verrouiller.
+// ---------------------------------------------------------------
+const STATUS_FIELDS = ['is_read', 'is_listened', 'is_favorite', 'is_in_progress'];
+let LECTURE = null;          // null = pas encore vérifié ; true = table « lecture » ; false = colonnes de books
+let PRIVATE_LOADED = false;
+
+async function detecteLecture() {
+  if (LECTURE !== null) return LECTURE;
+  const { error } = await sb.from('lecture').select('book_id').limit(1);
+  if (!error) LECTURE = true;
+  else if (/lecture|schema cache|does not exist|42P01|PGRST20[45]/i.test((error.code || '') + ' ' + (error.message || ''))) LECTURE = false;
+  return LECTURE;            // reste null si la base n'a pas répondu : on réessaiera
+}
+
+// Lit statuts et avis du propriétaire. Renvoie true si l'écran doit être redessiné.
+async function loadPrivate() {
+  if (!OWNER || PRIVATE_LOADED || !LOADED) return false;
+  const lect = await detecteLecture();
+  if (lect === null) return false;
+  if (!lect) {                                   // avant le script : comme en 2.x
+    PRIVATE_LOADED = true;
+    return loadReviews();
+  }
+  const PAGE = 1000;
+  let rows = [], offset = 0;
+  while (true) {
+    const { data, error } = await sb.from('lecture').select('*')
+      .order('book_id', { ascending: true }).range(offset, offset + PAGE - 1);
+    if (error) return false;
+    rows = rows.concat(data);
+    if (data.length < PAGE) break;
+    offset += PAGE;
+  }
+  const parId = new Map(rows.map(r => [r.book_id, r]));
+  for (const b of ALL_BOOKS.concat(HIDDEN_BOOKS)) {
+    const r = parId.get(b.id) || {};
+    for (const f of STATUS_FIELDS) b[f] = !!r[f];
+    b.rating = (r.rating >= 1 && r.rating <= 10) ? r.rating : null;
+    b.finished_on = r.finished_on || null;
+    b.review_comment = r.review_comment || null;
+  }
+  PROGRESS_READY = true;
+  REVIEWS_READY = true;
+  REVIEWS_LOADED = true;
+  PRIVATE_LOADED = true;
+  syncStatusFilterVisibility();
+  return true;
+}
+
+function clearPrivate() {
+  clearReviews();
+  // après le script, les statuts ne viennent que de la table privée : on les oublie
+  // aussi (avant, ils viennent de books et sont déjà en mémoire pour tout le monde)
+  if (LECTURE) for (const b of ALL_BOOKS.concat(HIDDEN_BOOKS)) STATUS_FIELDS.forEach(f => { b[f] = false; });
+  PRIVATE_LOADED = false;
+}
+
+// Enregistre une modification d'un livre : statuts et avis dans la table privée quand
+// elle existe, le reste (titre, masquage, formats, couverture, saga…) dans books.
+async function ecritLivre(book, payload) {
+  if (LECTURE === null) await detecteLecture();
+  const prive = {}, pub = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (LECTURE && (STATUS_FIELDS.includes(k) || REVIEW_FIELDS.includes(k))) prive[k] = v; else pub[k] = v;
+  }
+  if (Object.keys(prive).length) {
+    const { error } = await sb.from('lecture').upsert({ book_id: book.id, ...prive }, { onConflict: 'book_id' });
+    if (error) return { error };
+  }
+  if (Object.keys(pub).length) {
+    const { error } = await majBooks(book.id, pub);
+    if (error) return { error };
+  }
+  return { error: null };
+}
+
+// Met à jour un livre dans books en vérifiant qu'une ligne a vraiment changé : quand la base
+// verrouillée refuse (session expirée, déconnecté sur un autre onglet…), elle ne renvoie pas
+// d'erreur, elle ne modifie simplement rien. Sans ce contrôle, l'appli croirait avoir enregistré.
+async function majBooks(id, payload) {
+  const { data, error } = await sb.from('books').update(payload).eq('id', id).select('id');
+  if (error) return { error };
+  if (!data || !data.length) return { error: { message: 'modification refusée par la base (connexion expirée ?)' } };
+  return { error: null };
 }
 
 // Télécharge notes, dates et commentaires — uniquement en mode propriétaire.
@@ -922,7 +1005,7 @@ async function doRename(book) {
   // On ne fige l'orthographe du disque qu'à la première correction.
   if (!book.source_title) payload.source_title = book.title;
 
-  const { error } = await sb.from('books').update(payload).eq('id', book.id);
+  const { error } = await majBooks(book.id, payload);
   if (error) {
     btn.disabled = false;
     showFormError(err, "L'enregistrement a échoué. Vérifie ta connexion et réessaie.");
@@ -1005,7 +1088,7 @@ function confirmHide(book) {
   document.getElementById('hide-ok').addEventListener('click', async () => {
     const btn = document.getElementById('hide-ok');
     btn.disabled = true;
-    const { error } = await sb.from('books').update({ is_hidden: true }).eq('id', book.id);
+    const { error } = await majBooks(book.id, { is_hidden: true });
     if (error) {
       btn.disabled = false;
       showFormError(document.getElementById('hide-error'), "Le masquage a échoué. Vérifie ta connexion et réessaie.");
@@ -1022,7 +1105,7 @@ function confirmHide(book) {
 }
 
 async function restoreBook(book) {
-  const { error } = await sb.from('books').update({ is_hidden: false }).eq('id', book.id);
+  const { error } = await majBooks(book.id, { is_hidden: false });
   if (error) { alert("La restauration n'a pas pu être enregistrée."); return; }
   book.is_hidden = false;
   HIDDEN_BOOKS = HIDDEN_BOOKS.filter(b => b.id !== book.id);
@@ -1057,7 +1140,7 @@ async function toggleField(book, field, label, checked) {
   };
   majAvis();
 
-  const { error } = await sb.from('books').update(payload).eq('id', book.id);
+  const { error } = await ecritLivre(book, payload);
   if (error) {
     for (const f of Object.keys(payload)) { book[f] = avant[f]; affiche(f, avant[f]); }
     majAvis();
@@ -1285,7 +1368,7 @@ function wireReviewBlock(book) {
     for (const k of Object.keys(champs)) avant[k] = book[k];
     Object.assign(book, champs); rendu();
     dit('Enregistrement…');
-    const { error } = await sb.from('books').update(champs).eq('id', book.id);
+    const { error } = await ecritLivre(book, champs);
     if (error) {
       Object.assign(book, avant); rendu();
       dit("L'enregistrement a échoué. Vérifie ta connexion et réessaie.", true);
@@ -1548,9 +1631,9 @@ async function fusionnerFiches(garde, absorbe) {
   const note = [garde.source_note, absorbe.source_note].filter(Boolean).join(' || ');
   if (note && note !== garde.source_note) payload.source_note = note;
 
-  let { error } = await sb.from('books').update(payload).eq('id', garde.id);
+  let { error } = await ecritLivre(garde, payload);
   if (error) return false;
-  ({ error } = await sb.from('books').update({ is_hidden: true }).eq('id', absorbe.id));
+  ({ error } = await majBooks(absorbe.id, { is_hidden: true }));
   if (error) return false;
 
   Object.assign(garde, payload);
@@ -1571,7 +1654,7 @@ async function corrigeTitre(book, next) {
   if (clash) return 'doublon';
   const payload = { title: next };
   if (!book.source_title) payload.source_title = book.title;
-  const { error } = await sb.from('books').update(payload).eq('id', book.id);
+  const { error } = await majBooks(book.id, payload);
   if (error) return 'erreur';
   if (!book.source_title) book.source_title = book.title;
   book.title = next;
@@ -1785,69 +1868,71 @@ function renderOwnerBlock() {
   if (OWNER) {
     return `
       <p class="lede" style="margin:0 0 1rem; font-size:0.85rem;">
-        Mode propriétaire actif sur cet appareil : tu peux corriger un titre, masquer une fiche
-        et cocher les statuts. Tes visiteurs, eux, ne voient que la bibliothèque.</p>
-      <button type="button" class="linkish" id="owner-off">Quitter le mode propriétaire</button>`;
+        Connecté${OWNER_EMAIL ? ` en tant que <strong>${escapeHtml(OWNER_EMAIL)}</strong>` : ''} :
+        tu peux cocher les statuts, noter, corriger un titre et masquer une fiche sur cet appareil.
+        Tes visiteurs, eux, ne voient que la bibliothèque.</p>
+      <button type="button" class="linkish" id="owner-off">Se déconnecter</button>`;
   }
-  if (!OWNER_CONFIGURED) {
-    return `
-      <p class="lede" style="margin:0 0 1rem; font-size:0.85rem;">
-        Pas encore configuré. Tant qu'aucun code n'est défini, <strong>personne</strong> ne peut
-        modifier la bibliothèque depuis l'application — toi non plus. Choisis un code ci-dessous :
-        l'empreinte à recopier dans <code>js/config.js</code> s'affichera, et ton code lui-même
-        ne sera écrit nulle part.</p>
-      <div class="inline-form">
-        <label for="owner-new">Code de ton choix</label>
-        <input type="password" id="owner-new" autocomplete="new-password">
-        <div class="row"><button type="button" class="btn-main" id="owner-gen">Générer l'empreinte</button></div>
-        <p class="form-error" id="owner-msg" hidden></p>
-        <pre class="snippet" id="owner-out" hidden></pre>
-      </div>`;
-  }
+  let email = '';
+  try { email = localStorage.getItem(AUTH_EMAIL_KEY) || ''; } catch (e) {}
   return `
     <p class="lede" style="margin:0 0 1rem; font-size:0.85rem;">
-      Saisis ton code pour activer les commandes de correction et de masquage sur cet appareil.
-      Il reste actif jusqu'à ce que tu en sortes.</p>
-    <div class="inline-form">
-      <label for="owner-code">Code</label>
-      <input type="password" id="owner-code" autocomplete="current-password">
-      <div class="row"><button type="button" class="btn-main" id="owner-ok">Déverrouiller</button></div>
+      <strong>Connexion sécurisée.</strong> Saisis l'adresse et le mot de passe de ton compte
+      Supabase : une seule fois par appareil, la connexion est ensuite gardée.</p>
+    <form class="inline-form" id="auth-form" autocomplete="on">
+      <label for="auth-email">Adresse e-mail</label>
+      <input type="email" id="auth-email" autocomplete="username" inputmode="email" value="${escapeHtml(email)}" required>
+      <label for="auth-password">Mot de passe</label>
+      <input type="password" id="auth-password" autocomplete="current-password" required>
+      <div class="row"><button type="submit" class="btn-main" id="auth-login">Se connecter</button></div>
       <p class="form-error" id="owner-msg" hidden></p>
-    </div>
+    </form>
     <p class="hint-sm" style="max-width:52ch;">
-      Ce code est un garde-fou contre les fausses manœuvres de tes visiteurs, pas une sécurité :
-      l'application étant publique, quelqu'un de déterminé pourrait toujours écrire dans la base.</p>`;
+      Le compte se crée dans Supabase (Authentication → Users), pas ici : les inscriptions
+      sont fermées, personne d'autre ne peut en ouvrir un.</p>`;
+}
+
+// Traduit en clair les refus de Supabase Auth.
+function messageConnexion(error) {
+  const m = ((error && error.message) || '').toLowerCase();
+  if (/invalid login|invalid credentials|invalid_grant/.test(m)) return 'Adresse ou mot de passe incorrect.';
+  if (/not confirmed/.test(m)) return "Ce compte n'est pas confirmé : dans Supabase, recrée-le en cochant « Auto Confirm User ».";
+  if (/fetch|network|failed/.test(m) || (error && error.status === 0)) return 'Connexion impossible : vérifie ta connexion Internet et réessaie.';
+  if (/rate|too many/.test(m)) return 'Trop de tentatives : attends quelques minutes et réessaie.';
+  return 'Connexion refusée : ' + ((error && error.message) || 'erreur inconnue') + '.';
 }
 
 function wireOwnerBlock() {
   const msg = document.getElementById('owner-msg');
   const off = document.getElementById('owner-off');
-  if (off) off.addEventListener('click', () => { setOwner(false); renderSettings(); });
-
-  const gen = document.getElementById('owner-gen');
-  if (gen) gen.addEventListener('click', async () => {
-    const code = document.getElementById('owner-new').value;
-    if (code.length < 4) { showFormError(msg, 'Choisis un code d\'au moins 4 caractères.'); return; }
-    const h = await hashCode(code);
-    if (!h) { showFormError(msg, "Le calcul de l'empreinte n'est possible que sur le site publié (https), pas en ouvrant le fichier en local."); return; }
-    msg.hidden = true;
-    const out = document.getElementById('owner-out');
-    out.textContent = `ownerHash: "${h}",`;
-    out.hidden = false;
+  if (off) off.addEventListener('click', async () => {
+    off.disabled = true;
+    try { await sb.auth.signOut({ scope: 'local' }); } catch (e) {}
+    setOwner(false);
+    renderSettings();
   });
 
-  const ok = document.getElementById('owner-ok');
-  if (ok) {
-    const tryCode = async () => {
-      const h = await hashCode(document.getElementById('owner-code').value);
-      if (!h) { showFormError(msg, "Vérification impossible ici : l'application doit être ouverte depuis son adresse https."); return; }
-      if (h !== cfg.ownerHash) { showFormError(msg, 'Code incorrect.'); return; }
-      setOwner(true);
-      renderSettings();
-    };
-    ok.addEventListener('click', tryCode);
-    document.getElementById('owner-code').addEventListener('keydown', e => { if (e.key === 'Enter') tryCode(); });
-  }
+  const form = document.getElementById('auth-form');
+  if (form) form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    if (!email || !password) { showFormError(msg, "Saisis ton adresse et ton mot de passe."); return; }
+    const btn = document.getElementById('auth-login');
+    btn.disabled = true; btn.textContent = 'Connexion…';
+    let res;
+    try { res = await sb.auth.signInWithPassword({ email, password }); }
+    catch (e) { res = { error: { message: 'Failed to fetch', status: 0 } }; }
+    btn.disabled = false; btn.textContent = 'Se connecter';
+    if (res.error || !estProprietaire(res.data && res.data.session)) {
+      showFormError(msg, messageConnexion(res.error));
+      return;
+    }
+    try { localStorage.setItem(AUTH_EMAIL_KEY, email); } catch (e) {}
+    OWNER_EMAIL = email;
+    if (!OWNER) setOwner(true);   // onAuthStateChange peut l'avoir déjà fait
+    renderSettings();
+  });
 }
 
 // Familles dépliées : conservées entre deux rendus, sinon le panneau se
@@ -2050,13 +2135,16 @@ const AIDE_SECTIONS = [
     corps: `
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         Dans <strong>Réglages</strong> (cette page), la rubrique « Mode propriétaire » plus haut
-        demande ton code. Une fois déverrouillé, il reste actif sur cet appareil jusqu'à ce que tu
-        cliques sur « Quitter le mode propriétaire » — y compris si tu fermes l'onglet ou éteins
-        l'appareil. Chaque appareil mémorise son propre état.</p>
+        propose la <strong>connexion sécurisée</strong> : ton adresse e-mail et le mot de passe de
+        ton compte Supabase, puis « Se connecter ». La connexion reste active sur cet appareil
+        jusqu'à ce que tu cliques sur « Se déconnecter », y compris si tu fermes l'onglet ou
+        éteins l'appareil. Il faut se connecter une fois sur chaque appareil.</p>
       <p class="hint-sm" style="margin:0;">
-        Ce code est un garde-fou contre une fausse manœuvre d'un visiteur, pas un coffre-fort :
-        l'application étant publique, quelqu'un de déterminé pourrait toujours écrire dans la base
-        sans passer par elle.</p>`,
+        C'est la base elle-même qui protège : sans cette connexion, elle refuse toute
+        modification et ne montre ni tes statuts ni tes avis, même à quelqu'un qui contournerait
+        l'application. Mot de passe oublié : dans Supabase → Authentication → Users, supprime ton
+        compte et recrée-le avec un nouveau mot de passe ; rien d'autre n'est à changer, tes
+        statuts et avis ne sont pas rattachés au compte.</p>`,
   },
   {
     id: 'fiche',
@@ -2399,8 +2487,21 @@ if (el.carnetBtn) el.carnetBtn.addEventListener('click', () => { location.hash =
 syncStatusFilterVisibility();
 
 (async function init() {
+  // la session Supabase est lue sur l'appareil (pas d'attente réseau) ; ses changements
+  // (connexion, déconnexion, session expirée) remettent l'appli dans le bon mode
+  try {
+    const { data } = await sb.auth.getSession();
+    OWNER = estProprietaire(data && data.session);
+    OWNER_EMAIL = (data && data.session && data.session.user && data.session.user.email) || '';
+    sb.auth.onAuthStateChange((evenement, session) => {
+      OWNER_EMAIL = (session && session.user && session.user.email) || '';
+      const maintenant = estProprietaire(session);
+      if (maintenant !== OWNER) { setOwner(maintenant); route(); }
+    });
+  } catch (e) { OWNER = false; }
+  syncStatusFilterVisibility();
   const ok = await loadLibrary();
   syncStatusFilterVisibility();   // la pastille « En cours » dépend de la base chargée
-  if (ok) await loadReviews();    // ne fait rien pour un visiteur
+  if (ok) await loadPrivate();    // ne fait rien pour un visiteur
   if (ok) route();
 })();
