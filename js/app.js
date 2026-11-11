@@ -65,13 +65,13 @@ const STYLE_PRESETS = [
   ['mixte',   'Mixte',             { titres: 'theme', bandeau: 'bd', cartes: 'bd', pastilles: 'bd', commandes: 'bd', panneaux: 'bd', ...BANDEAU_BD }],
   ['bd',      'Tout BD',           { titres: 'bd',    bandeau: 'bd', cartes: 'bd', pastilles: 'bd', commandes: 'bd', panneaux: 'bd', ...BANDEAU_BD }],
 ];
-const DEFAULTS = {theme:"nordique", mode:"auto"};
+const DEFAULTS = {theme:"nordique", mode:"auto", tri:"auteur", accueil:"grille"};
 for (const [k, v] of Object.entries(STYLE_PRESETS.find(p => p[0] === 'mixte')[2])) DEFAULTS['style.' + k] = v;
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '3.0';
-const APP_VERSION_DATE = '2026-11-10';
+const APP_VERSION = '3.1';
+const APP_VERSION_DATE = '2026-11-11';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
 // l'app doit continuer à fonctionner sans, d'où les try/catch.
@@ -656,14 +656,7 @@ function renderHome() {
   const f = currentFilters();
 
   if (filtersActive(f)) {
-    // les tomes d'une saga se suivent dans l'ordre, placés dans la liste au nom de la saga
-    const saga = b => sagaDe(b);
-    const cle = b => saga(b) || b.title;
-    const results = ALL_BOOKS.filter(b => matchesFilters(b, f))
-      .sort((a, b) => a.author_name_sort.localeCompare(b.author_name_sort, 'fr')
-        || cle(a).localeCompare(cle(b), 'fr')
-        || (saga(a) && saga(b) ? (a.series_index ?? 9999) - (b.series_index ?? 9999) : 0)
-        || a.title.localeCompare(b.title, 'fr'));
+    const results = ALL_BOOKS.filter(b => matchesFilters(b, f)).sort(comparateurTri(triActif()));
     renderBookResults(results, auteursTrouves(f));
     return;
   }
@@ -685,17 +678,33 @@ function renderHome() {
       : `<a class="off">${L}</a>`
   ).join('');
 
+  // affichage en grille de cartes (défaut) ou en liste compacte (version 3.1), mémorisé sur l'appareil
+  const liste = prefGet('accueil') === 'liste';
   const sections = Array.from(groups.entries()).map(([L, list]) => `
     <h2 class="letter-head" id="L-${L}">${L}</h2>
+    ${liste ? `
+    <ul class="author-list">
+      ${list.map(a => `<li><a href="#/author/${a.id}"><span class="nom">${escapeHtml(a.name)}</span><span class="nb">${a.books.length}</span></a></li>`).join('')}
+    </ul>` : `
     <div class="author-grid">
       ${list.map(a => authorCard(a)).join('')}
-    </div>
+    </div>`}
   `).join('');
 
   el.app.innerHTML = `
-    <nav class="az" aria-label="Aller à une lettre">${az}</nav>
+    <div class="home-head">
+      <nav class="az" aria-label="Aller à une lettre">${az}</nav>
+      <div class="segmented vue-auteurs" role="group" aria-label="Affichage des auteurs">
+        <button type="button" data-vue="grille" class="${liste ? '' : 'on'}" aria-pressed="${!liste}">Grille</button>
+        <button type="button" data-vue="liste" class="${liste ? 'on' : ''}" aria-pressed="${liste}">Liste</button>
+      </div>
+    </div>
     ${sections}
   `;
+  el.app.querySelectorAll('.vue-auteurs button').forEach(bt => bt.addEventListener('click', () => {
+    prefSet('accueil', bt.dataset.vue);
+    renderHome();
+  }));
 
   // l'index A–Z fait défiler sans changer l'URL (sinon on casse le retour arrière)
   el.app.querySelectorAll('.az a[data-jump]').forEach(a => {
@@ -743,16 +752,62 @@ function auteursTrouves(f) {
     .slice(0, 8);
 }
 
+// ---------------------------------------------------------------
+// Tri des résultats (version 3.1) : mémorisé sur l'appareil. « Lus récemment » et « Note »
+// reposent sur les données privées : proposés au seul propriétaire connecté.
+// ---------------------------------------------------------------
+const TRIS = [
+  ['auteur', 'Auteur', false],
+  ['titre', 'Titre', false],
+  ['recent', 'Ajoutés récemment', false],
+  ['lus', 'Lus récemment', true],
+  ['note', 'Note', true],
+];
+function trisDisponibles() {
+  return TRIS.filter(([cle, , prive]) => !prive || (OWNER && (cle !== 'note' || REVIEWS_READY) && (cle !== 'lus' || REVIEWS_READY)));
+}
+function triActif() {
+  const t = prefGet('tri');
+  return trisDisponibles().some(([cle]) => cle === t) ? t : 'auteur';
+}
+function comparateurTri(tri) {
+  const fr = (x, y) => (x || '').localeCompare(y || '', 'fr', { sensitivity: 'base' });
+  const parTitre = (a, b) => fr(a.title, b.title) || a.author_name_sort.localeCompare(b.author_name_sort, 'fr');
+  if (tri === 'titre') return parTitre;
+  // les plus récents d'abord ; sans date, en fin de liste
+  const recentD = k => (a, b) => ((b[k] || '') > (a[k] || '') ? 1 : (b[k] || '') < (a[k] || '') ? -1 : 0) || parTitre(a, b);
+  if (tri === 'recent') return recentD('created_at');
+  if (tri === 'lus') return recentD('finished_on');
+  if (tri === 'note') return (a, b) => (b.rating || 0) - (a.rating || 0) || parTitre(a, b);
+  // par auteur : les tomes d'une saga se suivent dans l'ordre, placés au nom de la saga
+  const cle = b => sagaDe(b) || b.title;
+  return (a, b) => a.author_name_sort.localeCompare(b.author_name_sort, 'fr')
+    || fr(cle(a), cle(b))
+    || (sagaDe(a) && sagaDe(b) ? (a.series_index ?? 9999) - (b.series_index ?? 9999) : 0)
+    || fr(a.title, b.title);
+}
+// Petite ligne sous l'auteur, selon le tri : la date qui explique l'ordre.
+function ligneTri(b, tri) {
+  const jour = d => { const [y, m, j] = String(d).slice(0, 10).split('-'); return `${j}/${m}/${y}`; };
+  if (tri === 'recent' && b.created_at) return `<p class="tri-line">ajouté le ${jour(b.created_at)}</p>`;
+  if (tri === 'lus' && b.finished_on) return `<p class="tri-line">lu le ${jour(b.finished_on)}</p>`;
+  return '';
+}
+
 function renderBookResults(results, auteurs = []) {
   if (!results.length && !auteurs.length) {
     el.app.innerHTML = `<div class="empty">Aucun livre ne correspond à ta recherche.</div>`;
     return;
   }
+  const tri = triActif();
   el.app.innerHTML = `
     ${auteurs.length ? `
     <div class="section-title">Auteur${auteurs.length > 1 ? 's' : ''} <span class="rule"></span></div>
     <div class="author-grid auteurs-trouves">${auteurs.map(a => authorCard(a, true)).join('')}</div>` : ''}
-    <div class="section-title">${results.length} résultat${results.length > 1 ? 's' : ''} <span class="rule"></span></div>
+    <div class="section-title results-head">${results.length} résultat${results.length > 1 ? 's' : ''} <span class="rule"></span>
+      ${results.length > 1 ? `<label class="tri-select">Trier par
+        <select id="tri-resultats">${trisDisponibles().map(([cle, lab]) => `<option value="${cle}"${cle === tri ? ' selected' : ''}>${lab}</option>`).join('')}</select>
+      </label>` : ''}</div>
     <div class="book-grid">
       ${results.map(b => `
         <a class="book-card" href="#/book/${b.id}">
@@ -761,10 +816,13 @@ function renderBookResults(results, auteurs = []) {
             <h3>${escapeHtml(b.title)}</h3>
             <p class="by">${escapeHtml(b.author_name)}</p>
             ${sagaDe(b) ? `<p class="saga-line">${escapeHtml(b.series)}${b.series_index ? ` · tome ${b.series_index}` : ''}</p>` : ''}
+            ${ligneTri(b, tri)}
             <div class="badges">${formatBadges(b)}<span class="badge genre">${escapeHtml(b.genre)}</span></div>
           </div>
         </a>`).join('')}
     </div>`;
+  const sel = document.getElementById('tri-resultats');
+  if (sel) sel.addEventListener('change', () => { prefSet('tri', sel.value); renderHome(); document.getElementById('tri-resultats')?.focus(); });
 }
 
 // ---------------------------------------------------------------

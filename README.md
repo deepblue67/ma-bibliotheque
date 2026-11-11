@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 2.2 du 10/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 3.1 du 11/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -920,6 +920,51 @@ La revue de code du 10/11/2026 (document « Revue de code — Ma Bibliothèque (
 
 **Tests** : 21 suites (19 + `livraison.js` — numéro de version identique dans `app.js` et `index.html`, `supabase-js` figé et contrôlé par empreinte, pas de clé `service_role` dans `config.js` — + `outil\test_section7.js`, 11 vérifications de la section 7 tolérante et de la section 3 avec saga), toutes réussies, lancées depuis une copie de l'arborescence du PC. Le dossier `tests` du PC est mis à jour. Version 2.2.
 
+### 4.46 Connexion sécurisée et base verrouillée (version 3.0)
+
+Deuxième lot de la revue de code du 10/11, et le plus important : jusqu'ici, la clé publique de `config.js` permettait à n'importe qui de **modifier** la base (titres, masquages, statuts) et de **lire les avis** du propriétaire ; le « mode propriétaire » n'était qu'un code vérifié dans le navigateur (et une note `mabiblio.owner` qu'on pouvait écrire soi-même dans la console). Christophe a demandé de reprendre la solution de son appli BD (versions 3.2 et 3.3 de celle-ci) : **adresse e-mail et mot de passe**, inscriptions fermées, base verrouillée. C'est aussi plus adapté que le lien magique envisagé le 25/10 : sur iPhone, un lien reçu par e-mail s'ouvre dans Safari, pas dans l'appli posée sur l'écran d'accueil.
+
+**Dans l'appli (`js/app.js`).**
+- Réglages → Mode propriétaire → **Connexion sécurisée** : adresse, mot de passe, « Se connecter » (`supabase.auth.signInWithPassword`). Un appareil est propriétaire **quand il a une session Supabase non anonyme** ; supabase-js la garde sur l'appareil, il faut donc se connecter une fois par appareil. « Se déconnecter » ferme la session de cet appareil. L'adresse est reproposée, jamais le mot de passe ; les deux champs se laissent remplir par le trousseau iCloud ou un gestionnaire de mots de passe. Messages en clair : mauvais identifiants, pas de réseau, trop de tentatives, compte non confirmé.
+- **L'ancien code disparaît** : plus de champ de code, plus de générateur d'empreinte, la note `mabiblio.owner` est effacée au démarrage et ne donne plus rien. La ligne `ownerHash` de `config.js` est désormais ignorée (on pourra la retirer plus tard ; elle ne gêne pas).
+- **Statuts et avis dans une table privée.** Supabase autorise ou refuse une ligne entière, pas une colonne : tant que Lu / Écouté / En cours / Favori et note / date / commentaire sont des colonnes de `books` (table que les visiteurs doivent lire), la clé publique les voit. Ils passent donc dans une nouvelle table **`lecture`** (une ligne par livre), réservée au propriétaire. L'appli **détecte** si cette table existe : avant le script de verrouillage, elle lit et écrit les colonnes de `books` comme en 2.x ; après, elle lit `lecture` à la connexion et y écrit statuts et avis (`upsert`), le reste (titre, masquage, fusion, saga, formats) restant dans `books`. Déconnecté, statuts et avis sont effacés de la mémoire de la page. On peut donc **déployer la 3.0, valider la connexion, puis seulement verrouiller**.
+- **Modifications refusées en silence.** Test sur un vrai PostgreSQL : quand une base verrouillée refuse une modification de `books`, elle ne renvoie pas d'erreur, elle ne modifie aucune ligne. Toutes les écritures sur `books` passent maintenant par `majBooks()`, qui vérifie qu'une ligne a bien changé ; sinon l'appli affiche son message d'échec habituel au lieu de croire avoir enregistré (session expirée, déconnexion dans un autre onglet…).
+- Aide propriétaire mise à jour (activer le mode, mot de passe oublié : supprimer et recréer le compte dans Supabase, rien d'autre à changer).
+
+**Dans la base : `migration_2026-11_securite.sql`** (et son retour arrière `migration_2026-11_securite_retour.sql`), sur le modèle de `supabase_securite.sql` de l'appli BD.
+- Refuse de s'exécuter tant qu'aucun compte n'existe (sinon plus personne ne pourrait modifier la base).
+- Crée `lecture` (`book_id` clé et lien vers `books`, supprimé avec le livre ; statuts ; `rating` 1 à 10 ; `finished_on` ; `review_comment` ; `updated_at` tenu à jour), **y copie** les statuts et avis existants, puis **les vide** de `books`.
+- Règles RLS, toutes les anciennes étant d'abord supprimées : `authors` et `books` en lecture pour tous, écriture (ajout, modification, suppression) pour le propriétaire connecté ; `lecture` entièrement réservée au propriétaire, et aucun droit de table pour la clé publique. « Propriétaire » = session Supabase non anonyme (`mabiblio_proprietaire()`), ce qui suffit puisque les inscriptions sont fermées.
+- Contrôles affichés à la fin : 12 règles (4 par table), nombre de lignes copiées dans `lecture`, et 0 reste dans `books`.
+- Peut être relancé sans dommage. Le retour arrière recopie `lecture` dans `books`, remet les règles d'avant et renomme `lecture` en `lecture_sauvegarde` (rien n'est perdu, et l'appli 3.0 revient d'elle-même aux colonnes de `books`).
+- Inchangés : l'outil d'import (clé `service_role`, qui passe outre ces règles) et les couvertures (lecture publique).
+
+**Vérifié.**
+- **Les deux scripts joués sur un vrai PostgreSQL 16** monté avec les rôles de Supabase (visiteur `anon`, connecté `authenticated`, `auth.jwt()`) et quelques livres : sans compte, le verrou refuse ; après verrou, un visiteur lit le catalogue, ne voit aucun statut ni avis (« permission denied » sur `lecture`), ne modifie ni livre ni auteur (0 ligne) et ne peut rien ajouter ; une session anonyme est refusée aussi ; le propriétaire lit ses statuts et avis copiés, corrige un titre, ajoute et met à jour une ligne de `lecture` sans écraser les autres colonnes ; relancer le script ne change rien ; le retour arrière remet tout comme avant ; on peut reverrouiller ensuite.
+- **Sur la vraie base, sans rien modifier** : la bibliothèque `supabase-js` 2.45.4 répond « Invalid login credentials » (code `invalid_credentials`) à un mauvais mot de passe, renvoie une liste vide sans erreur pour une modification qui ne touche aucune ligne, et le code `PGRST205` pour la table `lecture` encore absente — exactement ce que l'appli et sa fausse base de test attendent.
+- **Tests** : la fausse base (`test\js\stub-auth.js`) simule la connexion, la table `lecture` et la base verrouillée ; `owner.js` est réécrit (40 vérifications : visiteur, ancien code sans effet, mauvais mot de passe, pas de réseau, connexion, déconnexion, session gardée, session anonyme refusée, écritures avant et après verrou, refus silencieux détecté, carnet, iPhone) ; les autres suites se connectent par une session de test au lieu du code. Deux tests de rechargement (`owner.js`, `style.js`) passent désormais par une page neuve : Chromium perd parfois le stockage d'une page ouverte en local quand on la recharge, ce qui faisait échouer `style.js` de temps en temps depuis la 1.8. 21 suites réussies deux fois de suite. Version 3.0.
+
+### 4.47 Tri des résultats, liste compacte des auteurs, ménage sécurité (version 3.1)
+
+Christophe a exécuté le verrou de la 3.0 le 11/11 : `lignes_dans_lecture` = 16, `restes_dans_books` = 0. (L'éditeur SQL de Supabase n'affiche que le résultat de la dernière requête : la liste des 12 règles n'apparaît pas, ce qui l'a d'abord fait douter.) Vérifié ensuite depuis le site en ligne, avec la seule clé publique : catalogue lisible (2 037 livres), modification d'un livre sans effet (0 ligne), table `lecture` refusée en lecture comme en écriture (« permission denied »), aucun statut ni avis restant dans `books`. Les corrections de titres de la 2.2 sont aussi appliquées (doublons masqués, sagas renseignées).
+
+Troisième lot de la revue de code (« Pour la famille »). Le bouton « Demander ce livre » proposé par la revue est **écarté à la demande de Christophe**.
+
+**1. Trier les résultats.** Dès qu'une recherche ou un filtre affiche plus d'un livre, un menu **« Trier par »** apparaît à droite du nombre de résultats :
+- **Auteur** (défaut, l'ordre d'avant : par auteur, les tomes d'une saga à la suite et dans l'ordre),
+- **Titre** (ordre alphabétique, sans tenir compte des accents ni des majuscules),
+- **Ajoutés récemment** (date d'ajout en base, la plus récente d'abord, affichée sous l'auteur : « ajouté le 10/11/2026 ») — c'est la façon de retrouver les nouveautés, sans le rayon « Derniers ajouts » retiré en 1.1 ; par exemple filtre Audio + ce tri pour les derniers livres audio ;
+- pour le propriétaire connecté seulement : **Lus récemment** (date de lecture, affichée « lu le … ») et **Note** (la meilleure d'abord, les non notés à la fin).
+Le choix est mémorisé sur l'appareil (`mabiblio.tri`) ; un tri réservé au propriétaire retombe sur « Auteur » pour un visiteur ou après déconnexion.
+
+**2. Liste compacte des auteurs.** Sur l'accueil, une bascule **Grille / Liste** à droite de l'index A–Z : la liste montre chaque auteur sur une ligne (nom et nombre de livres), en colonnes sur ordinateur, une colonne sur iPhone (lignes de 44 px, faciles à toucher), sous les mêmes lettres. Choix mémorisé (`mabiblio.accueil`). L'index A–Z et la bascule forment un en-tête qui reste collé en haut de l'écran.
+
+**3. Ménage sécurité.**
+- `js/config.js` : la ligne `ownerHash` (empreinte de l'ancien code) et son long commentaire sont retirés ; un commentaire rappelle que la clé publique ne permet plus que de lire depuis la 3.0. Adresse et clé publique inchangées.
+- **Mode d'emploi PDF refait** (`Mode_emploi_proprietaire.pdf`, 4 pages, version 3.1) : connexion sécurisée et mot de passe oublié, quatre statuts et « Mon avis », carnet de lecture, recherche (accents, carte d'auteur), tri et liste compacte, sagas, réglages et style, livres masqués, anomalies, delta, outil d'import (clé `service_role` qui passe outre les règles, sections 3, 5 et 7 telles qu'elles sont maintenant), tableau de ce que la sécurité protège. L'ancien décrivait encore le code propriétaire, trois statuts et « Où j'en suis » dans les réglages.
+
+**Vérifié** : nouvelle suite `tri.js` (25 vérifications : tris visiteur et propriétaire, ordre de chaque tri, dates affichées, mémorisation, retour à « Auteur » après déconnexion, pas de menu pour un seul résultat, liste compacte, clic vers l'auteur, en-tête collé, iPhone sans débordement et lignes de 44 px). 22 suites réussies deux fois de suite. PDF contrôlé page par page. Version 3.1.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -972,6 +1017,10 @@ La revue de code du 10/11/2026 (document « Revue de code — Ma Bibliothèque (
 48. **Christophe importe le delta du 10/11/2026** (voir §4.43) : `1_nouveaux_auteurs_2026-11-10.json` en section 2, `2_nouveaux_livres_2026-11-10.json` en section 3, `3_mise_a_jour_2026-11-10.json` en section 7, puis couvertures en section 5.
 49. **Christophe redéploie `index.html` et `js/app.js` — version 2.1** (« nesbo » trouve Jo Nesbø — voir §4.44). Vérifier « version 2.1 » en bas des Réglages.
 50. **Christophe redéploie `index.html`, `js/app.js` et `supabase_import_tool.html` — version 2.2** (voir §4.45), puis passe **`4_corrections_titres_2026-11-10.json` dans la section 7** de l'outil (rouvert depuis le PC, « Version de l'outil : 10/11/2026 » sous le titre). Résultat attendu : « 40 livre(s) mis à jour, 0 non trouvé(s) ».
+51. **Christophe prépare Supabase pour la connexion sécurisée** (projet de Ma Bibliothèque, pas celui des BD) — voir §4.46 : Authentication → Sign In / Providers : laisser **Email** activé et **désactiver « Allow new users to sign up »** ; Authentication → Users → Add user → Create new user : son adresse, un mot de passe (celui qu'il tapera dans l'appli), **« Auto Confirm User » coché**.
+52. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` — version 3.0**, puis se connecte (Réglages → Mode propriétaire → Connexion sécurisée) **sur son PC et sur son iPhone**, et vérifie que ses statuts s'affichent et qu'une case se coche.
+53. **Seulement ensuite : `migration_2026-11_securite.sql`** dans Supabase → SQL Editor. Résultat attendu : 12 règles, `lignes_dans_lecture` = le nombre de livres qui avaient un statut ou un avis, `restes_dans_books` = 0. Puis, dans l'appli : statuts et avis toujours là une fois connecté ; dans une fenêtre de navigation privée, plus aucune pastille de statut. En cas de problème : `migration_2026-11_securite_retour.sql`. — **Fait le 11/11 et vérifié** (voir §4.47).
+54. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js`, `js/config.js` et `Mode_emploi_proprietaire.pdf` — version 3.1** (voir §4.47). Vérifier « version 3.1 » en bas des Réglages, la bascule Grille / Liste sur l'accueil et le menu « Trier par » dans une recherche.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -1007,5 +1056,7 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 2.0 | 04/11/2026 | Recherche : carte de l'auteur en tête des résultats quand son nom correspond (« 29 livres · 2 sagas → »), tomes d'une saga signalés (« saga · tome N ») et regroupés dans l'ordre. | §4.42 |
 | 2.1 | 10/11/2026 | Recherche : ø, ß, ł, đ/ð, þ et ı ramenés à leur lettre simple (« nesbo » trouve Jo Nesbø). | §4.44 |
 | 2.2 | 10/11/2026 | `supabase-js` figé (2.45.4) avec empreinte ; outil d'import : section 7 sans majuscules ni accents, section 3 avec saga et tome ; 20 titres à marques de fichier corrigés (10 doublons fusionnés, 10 renommés) et 4 sagas renseignées par `4_corrections_titres_2026-11-10.json` ; tests copiés sur le PC (21 suites). | §4.45 |
+| 3.0 | 11/11/2026 | Connexion sécurisée (e-mail et mot de passe Supabase, une fois par appareil) à la place du code propriétaire ; statuts et avis dans la table privée `lecture` ; base verrouillée par `migration_2026-11_securite.sql` (écriture réservée au propriétaire, avis et statuts invisibles des visiteurs) ; modifications refusées en silence détectées. | §4.46 |
+| 3.1 | 11/11/2026 | Menu « Trier par » dans les résultats (Auteur, Titre, Ajoutés récemment ; Lus récemment et Note pour le propriétaire) ; accueil en grille ou en liste compacte ; `ownerHash` retiré de `config.js` ; mode d'emploi PDF refait. | §4.47 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.
