@@ -75,13 +75,37 @@
   .cover-added{color:var(--sub); font-size:0.72rem;}
   .cover-row[hidden]{display:none !important;}
   .tier-empty{padding:1.2rem; text-align:center; color:var(--sub); font-size:0.85rem;}
+  .genre-lots{display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.4rem 0;}
+  .genre-lots:empty{display:none;}
+  .genre-lots button{padding:0.35rem 0.7rem; font-size:0.8rem; background:var(--lin); color:var(--ink); border:1px solid var(--line);}
+  .genre-lots button[aria-pressed="true"]{background:var(--accent); color:#fff; border-color:transparent;}
+  .genre-lots button .fait{font-size:0.72rem; opacity:0.8;}
+  .genre-list{display:flex; flex-direction:column; gap:0.35rem; margin:0.6rem 0;}
+  .genre-list:empty{display:none;}
+  .genre-row{display:grid; grid-template-columns:auto minmax(0,1fr) 13rem; gap:0.3rem 0.7rem; align-items:center; padding:0.45rem 0.6rem; border:1px solid var(--line); border-radius:8px; font-size:0.82rem;}
+  .genre-row input[type=checkbox]{width:18px; height:18px; margin:0;}
+  .genre-row .t{color:var(--ink); font-weight:600; overflow-wrap:anywhere;}
+  .genre-row .m{color:var(--sub); font-size:0.75rem; overflow-wrap:anywhere;}
+  .genre-row .m .chg{color:#a8763f; font-weight:600;}
+  .genre-row select{margin:0; padding:0.35rem; font-size:0.82rem;}
+  .genre-row.off{opacity:0.5;}
+  .genre-row.fait{opacity:0.6; background:var(--lin);}
+  @media (max-width:560px){ .genre-row{grid-template-columns:auto minmax(0,1fr);} .genre-row select{grid-column:2;} }
+  .batch-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:0.6rem; margin:0.6rem 0 0.4rem; max-height:560px; overflow:auto;}
+  .batch-grid:empty{display:none;}
+  .batch-item{position:relative; font-size:0.7rem; line-height:1.25; color:var(--sub); min-width:0;}
+  .batch-item img{width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:4px; background:var(--lin); display:block; cursor:zoom-in;}
+  .batch-item input{position:absolute; top:4px; left:4px; width:18px; height:18px; margin:0; z-index:1;}
+  .batch-item .t{color:var(--ink); font-weight:600; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-top:0.25rem;}
+  .batch-item .etat{font-size:0.66rem; margin-top:0.1rem;}
+  .batch-item.off img{opacity:0.35;}
   code{overflow-wrap:anywhere; background:var(--lin); padding:0.15em 0.4em; border-radius:4px; font-size:0.85em;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Ma Bibliothèque — Outil d'import Supabase</h1>
-  <p class="hint" id="tool-version" style="margin:-0.2rem 0 0.6rem;">Version de l'outil : 10/11/2026 — section 3 : saga et tome ; section 7 : sans majuscules ni accents</p>
+  <p class="hint" id="tool-version" style="margin:-0.2rem 0 0.6rem;">Version de l'outil : 11/11/2026 — section 10 : genres à valider par lots ; section 9 : aperçu du lot de couvertures</p>
   <p class="subtitle">Outil autonome — accessible depuis les réglages de l'application (mode propriétaire), ou directement par un double-clic sur ce fichier. Il tourne entièrement dans ton navigateur et ne communique qu'avec ton propre projet Supabase — jamais avec Claude.</p>
 
   <div class="warn">
@@ -232,13 +256,44 @@
   <div class="card">
     <h2><span class="num">9</span>Importer un lot de couvertures (fichiers nommés par identifiant)</h2>
     <p class="hint">
-      Pour associer d'un coup plusieurs couvertures trouvées ailleurs (Fnac, Amazon, Babelio…) — typiquement un lot préparé par Claude. Chaque image doit être nommée exactement <code>&lt;identifiant du livre&gt;.jpg</code> (ou <code>.png</code>/<code>.webp</code>) ; l'identifiant est donné avec le lot, pas besoin de taper l'auteur ni le titre — ça évite toute confusion entre deux livres qui se ressembleraient. Sélectionne toutes les images du lot d'un coup (Ctrl/Cmd-clic, ou glisser-déposer plusieurs fichiers dans le champ).
+      Pour associer d'un coup un lot de couvertures préparé par Claude — par exemple celles tirées de tes epub et de tes mp3 (dossier <code>couvertures_epub\images</code>). Chaque image est nommée <code>&lt;identifiant du livre&gt;.jpg</code> (ou <code>.png</code>/<code>.webp</code>) : pas besoin de taper l'auteur ni le titre, aucune confusion possible entre deux livres qui se ressemblent.
+    </p>
+    <p class="hint">
+      Renseigne d'abord la section 1, puis sélectionne toutes les images du lot (Ctrl+A dans le dossier, ou glisser-déposer). L'outil affiche un aperçu : décoche une image pour l'écarter, clique sur une vignette pour l'agrandir. Rien n'est envoyé avant le clic sur « Téléverser ».
     </p>
     <label for="batch-cover-files">Images du lot</label>
     <input type="file" id="batch-cover-files" accept="image/*" multiple>
-    <button id="btn-batch-covers">Téléverser le lot</button>
+    <label style="display:flex; align-items:center; gap:0.5em; color:var(--ink); font-size:0.85rem; margin-top:0.8rem;">
+      <input type="checkbox" id="batch-cover-keep" checked style="width:16px; height:16px;">
+      Ne jamais remplacer une couverture déjà présente (recommandé)
+    </label>
+    <p class="hint" id="batch-cover-summary"></p>
+    <div id="batch-cover-preview" class="batch-grid"></div>
+    <button id="btn-batch-covers">Téléverser les images cochées</button>
     <div class="progress" id="batch-cover-progress-wrap" style="display:none;"><div id="batch-cover-progress"></div></div>
     <div class="log" id="batch-cover-log" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">10</span>Valider des genres proposés par Claude (par lots de 50)</h2>
+    <p class="hint">
+      Pour classer les livres « Non classé » ou marqués « à revoir ». Charge le fichier de propositions préparé par Claude (par exemple <code>genres\propositions_genres.json</code>). Pour chaque livre : le genre actuel, le genre proposé (modifiable dans la liste) et, parfois, une courte explication. Décoche un livre pour le laisser tel quel.
+    </p>
+    <p class="hint">
+      « Enregistrer ce lot » écrit le genre choisi et retire la marque « à revoir ». Un livre dont le genre a changé depuis la proposition (par toi, dans l'appli ou ailleurs) n'est pas touché. Tu peux t'arrêter entre deux lots : en rechargeant le fichier, les livres déjà enregistrés apparaissent comme faits.
+    </p>
+    <label for="genre-file">Fichier de propositions</label>
+    <input type="file" id="genre-file" accept=".json,application/json">
+    <p class="hint" id="genre-summary"></p>
+    <div id="genre-lots" class="genre-lots"></div>
+    <label id="genre-only-wrap" style="display:none; align-items:center; gap:0.5em; color:var(--ink); font-size:0.85rem; margin-top:0.4rem;">
+      <input type="checkbox" id="genre-only-changes" style="width:16px; height:16px;">
+      Masquer les livres dont le genre est seulement confirmé
+    </label>
+    <div id="genre-list" class="genre-list"></div>
+    <button id="btn-genre-save" style="display:none;">Enregistrer ce lot</button>
+    <div class="progress" id="genre-progress-wrap" style="display:none;"><div id="genre-progress"></div></div>
+    <div class="log" id="genre-log" style="display:none;"></div>
   </div>
 
 </div>
@@ -1104,55 +1159,308 @@ document.getElementById('btn-custom').addEventListener('click', async () => {
 });
 
 // ---------- 9. Import groupé de couvertures (fichiers nommés par identifiant) ----------
+// Étape 1 (au choix des fichiers) : aperçu. Chaque image est rapprochée de son livre ; celles
+// dont le livre a déjà une couverture sont décochées et verrouillées tant que la case
+// « Ne jamais remplacer… » est cochée. Étape 2 (bouton) : envoi des seules images cochées.
+const BATCH_RE = /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.(jpe?g|png|webp)$/i;
+let BATCH = [];          // [{file, id, ext, book, etat:'nouveau'|'remplace'|'inconnu'|'nom', url}]
+let BATCH_GEN = 0;       // ignore une analyse dépassée si on rechoisit des fichiers entre-temps
+
+function batchEtat(item, keep){
+  if (item.etat === 'nom') return { txt: 'nom de fichier inattendu', col: 'var(--danger)', ok: false };
+  if (item.etat === 'inconnu') return { txt: 'aucun livre avec cet identifiant', col: 'var(--danger)', ok: false };
+  if (item.etat === 'remplace') return keep
+    ? { txt: 'a déjà une couverture — ignorée', col: 'var(--sub)', ok: false }
+    : { txt: '⚠ remplacera la couverture actuelle', col: '#a8763f', ok: true };
+  return { txt: '✓ nouvelle couverture', col: 'var(--ok)', ok: true };
+}
+
+function renderBatch(){
+  const box = document.getElementById('batch-cover-preview');
+  const keep = document.getElementById('batch-cover-keep').checked;
+  box.innerHTML = '';
+  const n = { nouveau: 0, remplace: 0, inconnu: 0, nom: 0 };
+  BATCH.forEach((item, i) => {
+    n[item.etat]++;
+    const e = batchEtat(item, keep);
+    if (!e.ok) item.coche = false;
+    else if (item.coche === undefined || item.verrou) item.coche = item.etat === 'nouveau';
+    item.verrou = !e.ok;
+    const div = document.createElement('div');
+    div.className = 'batch-item' + (item.coche ? '' : ' off');
+    const titre = item.book ? item.book.title : item.file.name;
+    const auteur = item.book && item.book.authors ? item.book.authors.name : '';
+    div.innerHTML = `
+      <input type="checkbox" class="batch-check" data-i="${i}" ${item.coche ? 'checked' : ''} ${e.ok ? '' : 'disabled'} aria-label="Garder ${escapeHtmlLocal(titre)}">
+      <img src="${item.url}" data-zoom="${item.url}" alt="" loading="lazy">
+      <div class="t">${escapeHtmlLocal(titre)}</div>
+      <div>${escapeHtmlLocal(auteur)}</div>
+      <div class="etat" style="color:${e.col};">${e.txt}</div>`;
+    box.appendChild(div);
+  });
+  const coches = BATCH.filter(x => x.coche).length;
+  const parts = [`${BATCH.length} image(s) : ${n.nouveau} pour des livres sans couverture`];
+  if (n.remplace) parts.push(`${n.remplace} pour des livres qui en ont déjà une`);
+  if (n.inconnu) parts.push(`${n.inconnu} sans livre correspondant`);
+  if (n.nom) parts.push(`${n.nom} mal nommée(s)`);
+  document.getElementById('batch-cover-summary').textContent = parts.join(', ') + `. ${coches} cochée(s) pour l'envoi.`;
+  document.getElementById('btn-batch-covers').textContent = `Téléverser les ${coches} image(s) cochée(s)`;
+}
+
+document.getElementById('batch-cover-preview').addEventListener('change', (ev) => {
+  const cb = ev.target.closest('.batch-check');
+  if (!cb) return;
+  const item = BATCH[+cb.dataset.i];
+  item.coche = cb.checked;
+  cb.closest('.batch-item').classList.toggle('off', !cb.checked);
+  const coches = BATCH.filter(x => x.coche).length;
+  document.getElementById('batch-cover-summary').textContent =
+    document.getElementById('batch-cover-summary').textContent.replace(/\d+ cochée\(s\)/, coches + ' cochée(s)');
+  document.getElementById('btn-batch-covers').textContent = `Téléverser les ${coches} image(s) cochée(s)`;
+});
+document.getElementById('batch-cover-keep').addEventListener('change', () => { if (BATCH.length) renderBatch(); });
+
+document.getElementById('batch-cover-files').addEventListener('change', async () => {
+  const gen = ++BATCH_GEN;
+  BATCH.forEach(x => URL.revokeObjectURL(x.url));
+  BATCH = [];
+  document.getElementById('batch-cover-preview').innerHTML = '';
+  const files = Array.from(document.getElementById('batch-cover-files').files || []);
+  const sum = document.getElementById('batch-cover-summary');
+  if (!files.length) { sum.textContent = ''; return; }
+  sum.textContent = `Lecture du catalogue pour rapprocher les ${files.length} image(s)…`;
+  let books;
+  try {
+    books = await fetchAllPaginated(offset => `/rest/v1/books?select=id,title,cover_path,authors(name)&order=id.asc&offset=${offset}&limit=1000`);
+  } catch (e) {
+    if (gen === BATCH_GEN) sum.textContent = 'Impossible de lire le catalogue : ' + e.message + ' Renseigne la section 1, puis choisis à nouveau les images.';
+    return;
+  }
+  if (gen !== BATCH_GEN) return;
+  const byId = new Map(books.map(b => [b.id.toLowerCase(), b]));
+  BATCH = files.map(file => {
+    const m = file.name.match(BATCH_RE);
+    const item = { file, url: URL.createObjectURL(file) };
+    if (!m) { item.etat = 'nom'; return item; }
+    item.id = m[1].toLowerCase();
+    item.ext = m[2].toLowerCase() === 'jpeg' ? 'jpg' : m[2].toLowerCase();
+    item.book = byId.get(item.id);
+    item.etat = !item.book ? 'inconnu' : (item.book.cover_path ? 'remplace' : 'nouveau');
+    return item;
+  });
+  // Par auteur puis titre ; les images sans livre reconnu à la fin.
+  const cle = x => x.book ? '0' + (x.book.authors ? x.book.authors.name : '') + ' ' + x.book.title : '1' + x.file.name;
+  BATCH.sort((a, b) => cle(a).localeCompare(cle(b), 'fr'));
+  renderBatch();
+});
+
 document.getElementById('btn-batch-covers').addEventListener('click', async () => {
   const btn = document.getElementById('btn-batch-covers');
-  const input = document.getElementById('batch-cover-files');
-  const files = Array.from(input.files || []);
-  if (!files.length) { logTo('batch-cover-log', 'Choisis au moins une image.', 'err'); return; }
+  const keep = document.getElementById('batch-cover-keep').checked;
+  const todo = BATCH.filter(x => x.coche && batchEtat(x, keep).ok);
+  if (!BATCH.length) { logTo('batch-cover-log', 'Choisis d\'abord les images du lot.', 'err'); return; }
+  if (!todo.length) { logTo('batch-cover-log', 'Aucune image cochée.', 'err'); return; }
   btn.disabled = true;
+  document.getElementById('batch-cover-files').disabled = true;
   try {
-    const booksList = await fetchAllPaginated(offset => `/rest/v1/books?select=id&order=id.asc&offset=${offset}&limit=1000`);
-    const knownIds = new Set(booksList.map(b => b.id));
     const c = cfg();
-    let ok = 0, fail = 0;
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      setProgress('batch-cover-progress-wrap', 'batch-cover-progress', Math.round((i / files.length) * 100));
-      const m = file.name.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.(jpe?g|png|webp)$/i);
-      if (!m) { logTo('batch-cover-log', `✗ ${file.name} : nom de fichier inattendu (attendu <identifiant>.jpg)`, 'err'); fail++; continue; }
-      const id = m[1];
-      if (!knownIds.has(id)) { logTo('batch-cover-log', `✗ ${file.name} : aucun livre avec cet identifiant`, 'err'); fail++; continue; }
-      const extRaw = m[2].toLowerCase();
-      const ext = extRaw === 'jpeg' ? 'jpg' : extRaw;
-      const contentType = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
-      const path = `${id}.${ext}`;
+    // Relecture juste avant l'envoi : un livre a pu recevoir une couverture entre-temps.
+    let dejaCouverts = new Set();
+    if (keep) {
+      const fresh = await fetchAllPaginated(offset => `/rest/v1/books?select=id,cover_path&cover_path=not.is.null&order=id.asc&offset=${offset}&limit=1000`);
+      dejaCouverts = new Set(fresh.map(b => b.id.toLowerCase()));
+    }
+    let ok = 0, fail = 0, saut = 0;
+    for (let i = 0; i < todo.length; i++) {
+      const item = todo[i];
+      setProgress('batch-cover-progress-wrap', 'batch-cover-progress', Math.round((i / todo.length) * 100));
+      const nom = item.book.title;
+      if (keep && dejaCouverts.has(item.id)) { logTo('batch-cover-log', `• ${nom} : a déjà une couverture, ignorée`, 'info'); saut++; continue; }
+      const contentType = item.ext === 'png' ? 'image/png' : (item.ext === 'webp' ? 'image/webp' : 'image/jpeg');
+      const path = `${item.id}.${item.ext}`;
       try {
         const upRes = await fetch(`${c.url}/storage/v1/object/covers/${path}`, {
           method: 'POST',
           headers: { apikey: c.key, Authorization: 'Bearer ' + c.key, 'Content-Type': contentType, 'x-upsert': 'true' },
-          body: file,
+          body: item.file,
         });
         if (!upRes.ok) throw new Error(await storageErrorText(upRes));
-        const patchRes = await sbFetch(`/rest/v1/books?id=eq.${id}`, {
+        const patchRes = await sbFetch(`/rest/v1/books?id=eq.${item.id}` + (keep ? '&cover_path=is.null' : ''), {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
           body: JSON.stringify({ cover_path: path }),
         });
         if (!patchRes.ok) throw new Error('mise à jour cover_path ' + patchRes.status);
-        logTo('batch-cover-log', `✓ ${file.name}`, 'ok');
+        const lignes = await patchRes.json().catch(() => []);
+        if (!Array.isArray(lignes) || lignes.length !== 1) throw new Error('fiche non modifiée (couverture apparue entre-temps ?)');
+        logTo('batch-cover-log', `✓ ${nom}`, 'ok');
+        item.coche = false; item.etat = 'remplace'; item.book.cover_path = path;
         ok++;
       } catch (e) {
-        logTo('batch-cover-log', `✗ ${file.name} : ${e.message}`, 'err');
+        logTo('batch-cover-log', `✗ ${nom} : ${e.message}`, 'err');
         fail++;
       }
     }
     setProgress('batch-cover-progress-wrap', 'batch-cover-progress', 100);
-    logTo('batch-cover-log', `Terminé : ${ok} couverture(s) associée(s), ${fail} échec(s)/ignorée(s).`, (ok && !fail) ? 'ok' : 'info');
+    logTo('batch-cover-log', `Terminé : ${ok} couverture(s) associée(s)` + (saut ? `, ${saut} ignorée(s)` : '') + `, ${fail} échec(s).`, (ok && !fail) ? 'ok' : 'info');
+    renderBatch();
   } catch (e) {
     logTo('batch-cover-log', 'Erreur : ' + e.message, 'err');
   } finally {
     btn.disabled = false;
+    document.getElementById('batch-cover-files').disabled = false;
   }
+});
+
+// ---------- 10. Validation des genres proposés par Claude ----------
+// Le fichier contient [{id, titre, auteur, saga, actuel, a_revoir, propose, note}].
+// À l'ouverture, l'outil relit genre et needs_review de ces livres : un livre déjà
+// classé (genre ≠ « Non classé » et plus « à revoir ») est affiché comme fait ; un livre
+// dont le genre a changé depuis la proposition est signalé et décoché.
+const GENRE_LOT = 50;
+let GENRES = [];          // [{p, cur, curRev, etat:'a_faire'|'fait'|'change', coche, choix}]
+let GENRE_LOT_ACTIF = 0;
+let GENRE_LISTE = [];
+
+function genreLots(){ return Math.ceil(GENRES.length / GENRE_LOT); }
+
+function renderGenreLots(){
+  const box = document.getElementById('genre-lots');
+  box.innerHTML = '';
+  for (let l = 0; l < genreLots(); l++) {
+    const part = GENRES.slice(l * GENRE_LOT, (l + 1) * GENRE_LOT);
+    const faits = part.filter(g => g.etat === 'fait').length;
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.lot = l;
+    b.setAttribute('aria-pressed', l === GENRE_LOT_ACTIF ? 'true' : 'false');
+    b.innerHTML = `Lot ${l + 1} <span class="fait">${faits === part.length ? '✓ fait' : faits ? faits + '/' + part.length : ''}</span>`;
+    box.appendChild(b);
+  }
+  const faits = GENRES.filter(g => g.etat === 'fait').length;
+  document.getElementById('genre-summary').textContent =
+    `${GENRES.length} livres en ${genreLots()} lots de ${GENRE_LOT} au plus — ${faits} déjà classé(s), ${GENRES.length - faits} à valider.`;
+}
+
+function renderGenreLot(){
+  const list = document.getElementById('genre-list');
+  const masquer = document.getElementById('genre-only-changes').checked;
+  list.innerHTML = '';
+  const debut = GENRE_LOT_ACTIF * GENRE_LOT;
+  const part = GENRES.slice(debut, debut + GENRE_LOT);
+  part.forEach((g, k) => {
+    const i = debut + k;
+    if (masquer && g.etat === 'a_faire' && g.choix === g.cur) return;
+    const row = document.createElement('div');
+    row.className = 'genre-row' + (g.etat === 'fait' ? ' fait' : (g.coche ? '' : ' off'));
+    const opts = GENRE_LISTE.map(x => `<option ${x === g.choix ? 'selected' : ''}>${escapeHtmlLocal(x)}</option>`).join('');
+    let etat;
+    if (g.etat === 'fait') etat = `✓ classé en ${escapeHtmlLocal(g.cur)}`;
+    else if (g.etat === 'change') etat = `⚠ genre modifié depuis la proposition (maintenant ${escapeHtmlLocal(g.cur)}) — non coché`;
+    else etat = `actuel : ${escapeHtmlLocal(g.cur)}${g.curRev ? ' · à revoir' : ''}` +
+      (g.choix !== g.cur ? ` → <span class="chg">${escapeHtmlLocal(g.choix)}</span>` : ' → confirmé');
+    row.innerHTML = `
+      <input type="checkbox" class="genre-check" data-i="${i}" ${g.coche ? 'checked' : ''} ${g.etat === 'fait' ? 'disabled' : ''} aria-label="Valider ${escapeHtmlLocal(g.p.titre)}">
+      <div>
+        <div class="t">${escapeHtmlLocal(g.p.titre)}</div>
+        <div class="m">${escapeHtmlLocal(g.p.auteur || '')}${g.p.saga ? ' · ' + escapeHtmlLocal(g.p.saga) : ''}</div>
+        <div class="m">${etat}${g.p.note ? ' — <i>' + escapeHtmlLocal(g.p.note) + '</i>' : ''}</div>
+      </div>
+      <select class="genre-select" data-i="${i}" ${g.etat === 'fait' ? 'disabled' : ''} aria-label="Genre de ${escapeHtmlLocal(g.p.titre)}">${opts}</select>`;
+    list.appendChild(row);
+  });
+  const n = part.filter(g => g.coche && g.etat !== 'fait').length;
+  const btn = document.getElementById('btn-genre-save');
+  btn.style.display = '';
+  btn.textContent = n ? `Enregistrer ce lot (${n} livre(s) cochés)` : 'Rien à enregistrer dans ce lot';
+  btn.disabled = !n;
+}
+
+document.getElementById('genre-lots').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-lot]');
+  if (!b) return;
+  GENRE_LOT_ACTIF = +b.dataset.lot;
+  renderGenreLots(); renderGenreLot();
+});
+document.getElementById('genre-only-changes').addEventListener('change', renderGenreLot);
+document.getElementById('genre-list').addEventListener('change', (e) => {
+  const cb = e.target.closest('.genre-check'), sel = e.target.closest('.genre-select');
+  if (cb) GENRES[+cb.dataset.i].coche = cb.checked;
+  if (sel) { const g = GENRES[+sel.dataset.i]; g.choix = sel.value; g.coche = true; }
+  renderGenreLot();
+});
+
+document.getElementById('genre-file').addEventListener('change', async () => {
+  const f = document.getElementById('genre-file').files[0];
+  const sum = document.getElementById('genre-summary');
+  document.getElementById('genre-list').innerHTML = '';
+  document.getElementById('genre-lots').innerHTML = '';
+  document.getElementById('btn-genre-save').style.display = 'none';
+  GENRES = [];
+  if (!f) { sum.textContent = ''; return; }
+  let props;
+  try {
+    props = JSON.parse(await f.text());
+    if (!Array.isArray(props) || !props.every(p => p && p.id && p.propose && 'actuel' in p)) throw new Error('format inattendu');
+  } catch (e) { sum.textContent = 'Fichier illisible : ' + e.message + '. Choisis le fichier propositions_genres.json préparé par Claude.'; return; }
+  sum.textContent = `Lecture de l'état actuel des ${props.length} livres…`;
+  let books;
+  try {
+    books = await fetchAllPaginated(offset => `/rest/v1/books?select=id,genre,needs_review&order=id.asc&offset=${offset}&limit=1000`);
+  } catch (e) { sum.textContent = 'Impossible de lire le catalogue : ' + e.message + ' Renseigne la section 1, puis choisis à nouveau le fichier.'; return; }
+  const cur = new Map(books.map(b => [b.id, b]));
+  const genresBase = new Set(books.map(b => b.genre || 'Non classé'));
+  props.forEach(p => genresBase.add(p.propose));
+  genresBase.delete('Non classé');
+  GENRE_LISTE = [...genresBase].sort((a, b) => a.localeCompare(b, 'fr')).concat('Non classé');
+  GENRES = props.filter(p => cur.has(p.id)).map(p => {
+    const b = cur.get(p.id);
+    const g = b.genre || 'Non classé';
+    let etat = 'a_faire';
+    if (g !== p.actuel) etat = (g !== 'Non classé' && !b.needs_review) ? 'fait' : 'change';
+    else if (!b.needs_review && g !== 'Non classé') etat = 'fait';
+    return { p, cur: g, curRev: !!b.needs_review, etat, coche: etat === 'a_faire', choix: etat === 'a_faire' ? p.propose : g };
+  });
+  const absents = props.length - GENRES.length;
+  GENRE_LOT_ACTIF = Math.max(0, GENRES.findIndex(g => g.etat !== 'fait'));
+  GENRE_LOT_ACTIF = GENRE_LOT_ACTIF === -1 ? 0 : Math.floor(GENRE_LOT_ACTIF / GENRE_LOT);
+  document.getElementById('genre-only-wrap').style.display = 'flex';
+  renderGenreLots(); renderGenreLot();
+  if (absents) logTo('genre-log', `${absents} livre(s) du fichier n'existent plus dans la base (fusionnés ou supprimés) : ignorés.`, 'info');
+});
+
+document.getElementById('btn-genre-save').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-genre-save');
+  const debut = GENRE_LOT_ACTIF * GENRE_LOT;
+  const todo = GENRES.slice(debut, debut + GENRE_LOT).filter(g => g.coche && g.etat !== 'fait');
+  if (!todo.length) return;
+  btn.disabled = true;
+  let ok = 0, saut = 0, fail = 0;
+  for (let k = 0; k < todo.length; k++) {
+    const g = todo[k];
+    setProgress('genre-progress-wrap', 'genre-progress', Math.round(k / todo.length * 100));
+    try {
+      // Le filtre sur le genre actuel garantit qu'on n'écrase pas un changement fait entre-temps.
+      const filtre = g.cur === 'Non classé'
+        ? `or=(genre.eq.${encodeURIComponent('"Non classé"')},genre.is.null)`
+        : `genre=eq.${encodeURIComponent(g.cur)}`;
+      const res = await sbFetch(`/rest/v1/books?id=eq.${g.p.id}&${filtre}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ genre: g.choix, needs_review: false }),
+      });
+      if (!res.ok) throw new Error('mise à jour ' + res.status);
+      const lignes = await res.json().catch(() => []);
+      if (!Array.isArray(lignes) || lignes.length !== 1) { saut++; g.etat = 'change'; g.coche = false; logTo('genre-log', `• ${g.p.titre} : genre modifié entre-temps, laissé tel quel`, 'info'); continue; }
+      g.etat = 'fait'; g.cur = g.choix; g.curRev = false; g.coche = false; ok++;
+    } catch (e) {
+      fail++; logTo('genre-log', `✗ ${g.p.titre} : ${e.message}`, 'err');
+    }
+  }
+  setProgress('genre-progress-wrap', 'genre-progress', 100);
+  logTo('genre-log', `Lot ${GENRE_LOT_ACTIF + 1} : ${ok} genre(s) enregistré(s)` + (saut ? `, ${saut} laissé(s) tel quel` : '') + `, ${fail} échec(s).`, (ok && !fail) ? 'ok' : 'info');
+  if (!fail && GENRE_LOT_ACTIF < genreLots() - 1) GENRE_LOT_ACTIF++;
+  renderGenreLots(); renderGenreLot();
+  btn.disabled = false;
 });
 </script>
 

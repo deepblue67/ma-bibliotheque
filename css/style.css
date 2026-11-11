@@ -1232,6 +1232,10 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 .serie-head::after{content:""; flex:1; height:1px; background:var(--line);}
 .book-card h3 .tome{color:var(--sub); font-family:var(--font-mono); font-size:0.8em;}
+/* tomes absents d'une saga (3.2, propriétaire seulement) : la ligne se colle sous l'en-tête */
+.serie-head:has(+ .s-manque){margin-bottom:0.25rem;}
+.s-manque{margin:0 0 0.9rem; font-size:0.8rem; color:var(--sub);}
+.s-manque .s-prive{font-size:0.72rem; opacity:0.8;}
 
 .serie-strip{
   margin:0 0 1.1rem; padding:0.7rem 0.9rem;

@@ -70,7 +70,7 @@ for (const [k, v] of Object.entries(STYLE_PRESETS.find(p => p[0] === 'mixte')[2]
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '3.1';
+const APP_VERSION = '3.2';
 const APP_VERSION_DATE = '2026-11-11';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -845,7 +845,7 @@ function renderAuthor(authorId) {
       ${g.nom ? `<div class="serie-head">
           <span class="s-nom">${escapeHtml(g.nom)}</span>
           <span class="s-cnt">${g.livres.length} tome${g.livres.length > 1 ? 's' : ''}</span>
-        </div>` : (groupes.length > 1 ? `<div class="serie-head hors">
+        </div>${OWNER ? tomesAbsents(g.livres) : ''}` : (groupes.length > 1 ? `<div class="serie-head hors">
           <span class="s-nom">Hors série</span>
           <span class="s-cnt">${g.livres.length} livre${g.livres.length > 1 ? 's' : ''}</span>
         </div>` : '')}
@@ -891,6 +891,34 @@ function authorNav(authorId) {
 
   return `<nav class="author-nav" aria-label="Navigation entre auteurs">${
     lien(prev, 'prev')}${lien(next, 'next')}</nav>`;
+}
+
+// Tomes absents d'une saga (version 3.2, propriétaire seulement) : les numéros
+// entiers manquants entre 1 et le plus grand tome possédé. On ne connaît pas la
+// longueur réelle de la saga, donc rien n'est dit des tomes qui suivraient le
+// dernier possédé. « 1, 2, 8 à 10 » : trois numéros consécutifs ou plus forment
+// une plage.
+function plagesTomes(nums) {
+  const out = [];
+  for (let i = 0; i < nums.length; ) {
+    let j = i;
+    while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
+    if (j - i >= 2) out.push(`${nums[i]} à ${nums[j]}`);
+    else for (let k = i; k <= j; k++) out.push(String(nums[k]));
+    i = j + 1;
+  }
+  return out.join(', ');
+}
+function tomesAbsents(livres) {
+  const presents = new Set(livres.map(b => Number(b.series_index))
+    .filter(n => Number.isInteger(n) && n >= 1));
+  if (!presents.size) return '';
+  const max = Math.max(...presents);
+  const manque = [];
+  for (let n = 1; n < max; n++) if (!presents.has(n)) manque.push(n);
+  if (!manque.length) return '';
+  return `<p class="s-manque">Tome${manque.length > 1 ? 's' : ''} absent${manque.length > 1 ? 's' : ''} : ${plagesTomes(manque)}
+    <span class="s-prive">· visible de toi seul</span></p>`;
 }
 
 // Regroupe les livres d'un auteur par saga : chaque série dans l'ordre de ses
