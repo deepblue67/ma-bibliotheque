@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 3.5 du 12/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 3.7 du 12/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -1048,6 +1048,51 @@ Demande de Christophe (12/11) : retirer de l'accueil le sélecteur Grille / Éve
 
 **Vérifié** : `accueil.js` (41 vérifications : plus de sélecteur sur l'accueil, rubrique pour tous avec « Par défaut » qui annonce la présentation du site, choix de l'appareil prioritaire puis effacé par « Par défaut », réglages iPhone sans débordement) et `tri.js` adaptés ; 26 suites réussies. Mode d'emploi PDF mis à jour (version 3.5). Version 3.5.
 
+### 4.53 Couvertures des cinq derniers livres (12/11/2026)
+
+Les cinq livres visibles encore sans couverture après l'extraction des fichiers (§4.48) — quatre livres audio (*Surtensions* et *Dans les brumes de Capelans* d'Olivier Norek, *Tokyorama* de Jean-Christophe Grangé, *Lumière morte* de Michael Connelly) et un ebook (*L'Ermite de la forêt d'Eyton* d'Ellis Peters) — ont reçu une image trouvée en ligne : pochettes des éditions audio (Lizzie, Audiolib), édition Points pour *Lumière morte*, édition 10/18 « Grands détectives » pour Ellis Peters. Chaque image a été regardée avant d'être retenue. Elles sont dans `couvertures_epub\images_complement\`, nommées par l'identifiant du livre, prêtes pour la section 9 de l'outil d'import. Les deux images de Norek écartées le 11/11 (celle de *Code 93* portée par les mp3) restent écartées dans `extraire.py`.
+
+### 4.54 Page « Toutes les sagas », graphiques du carnet, ordre des auteurs (version 3.6)
+
+Trois demandes de Christophe (12/11), validées sur la liste des suites possibles.
+
+**Toutes les sagas** — nouvelle icône dans le bandeau (des livres alignés, à gauche du carnet), pour tout le monde ; adresse `#/sagas`.
+- Une saga est la même que sur la page d'un auteur : une série dont au moins deux tomes sont visibles.
+- Chaque ligne : jusqu'à cinq couvertures dans l'ordre des tomes (trois sur iPhone), le nom, l'auteur, le nombre de tomes.
+- Recherche dans la page (nom de la saga ou de l'auteur, mots dans n'importe quel ordre), tri par nom, par auteur ou par nombre de tomes.
+- **Propriétaire connecté** : barre de progression et « 3 lus sur 5 » (un tome écouté compte comme lu ; « les 5 lus ✓ » quand c'est fini), tomes absents (même calcul que la page auteur, §4.49), bilan en tête (« Où tu en es : 2 terminées, 5 commencées, 40 à commencer »), tri par progression et menu « Lecture » (commencées, terminées, à commencer). Rien de cela n'est jamais montré à un visiteur ; à la déconnexion, la page revient à la version publique.
+- Toucher une saga ouvre la page de l'auteur **directement au niveau de cette saga** ; le retour arrière ramène à la liste. Une arrivée ordinaire sur une page d'auteur se comporte comme avant.
+
+**Graphiques du carnet** (propriétaire, sous « Où j'en suis », dès qu'un livre est lu et que la table des avis existe) :
+- *Répartition des notes* : une barre par note de 1 à 10 ; phrase de résumé (« Note la plus fréquente : 8/10 (34 livres sur 120 notés) », ou la liste des notes à égalité).
+- *Lectures par mois* : les douze derniers mois (mois en cours compris), ou une année au choix dans un menu ; seuls les livres dont la date de lecture est renseignée comptent, et leur nombre manquant est signalé.
+- Barres d'une seule couleur (celle du thème), sans bibliothèque extérieure ; valeur d'une barre au survol, au toucher ou au clavier, dans une bulle qui ne déborde jamais du cadre ; toutes les valeurs sont lues par les lecteurs d'écran. Clair et sombre vérifiés.
+
+**Ordre des auteurs sur l'accueil** — Réglages → Présentation de l'accueil, nouveau choix « Ordre des auteurs » (par appareil, `mabiblio.ordre`) : Alphabétique (défaut, inchangé : lettres et index A–Z), Nombre de livres, Enrichis récemment (date du dernier livre ajouté chez l'auteur). Les deux derniers donnent une seule suite, sans lettres ni index, avec une ligne qui rappelle l'ordre et un lien « changer l'ordre ». Valable pour les cinq présentations. Les flèches « auteur précédent / suivant » des pages d'auteur restent alphabétiques ; une recherche affiche toujours les livres trouvés.
+
+Rubrique Aide (« Mon carnet de lecture ») et mode d'emploi PDF complétés.
+
+**Vérifié** : nouvelle suite `sagas.js` (73 vérifications : page publique puis propriétaire, filtres et tris, saut à la saga et retour arrière, déconnexion, graphiques avec valeurs calculées à la main, périodes, bulle au survol, au clavier et au toucher, absence sans table des avis, iPhone sans débordement, ordre des auteurs dans deux présentations, flèches alphabétiques, retour à l'ordre alphabétique) ; `carnet.js` adapté (trois icônes dans le bandeau du propriétaire). 27 suites réussies. Version 3.6.
+
+### 4.55 Chantier technique : catalogue gardé sur l'appareil, app.js découpé, feuille de style nettoyée (version 3.7)
+
+Demande de Christophe (12/11) : faire le chantier technique proposé, **en s'assurant que le fonctionnement reste identique**.
+
+**1. Catalogue gardé sur l'appareil** (`mabiblio.cache.catalogue` dans le stockage du navigateur) :
+- À l'ouverture, l'appli affiche aussitôt le catalogue de la visite précédente, puis relit la base en arrière-plan et ne redessine la page que si quelque chose a changé (titre, livre ajouté, couverture, genre, réglage du site…). Sur iPhone, la bibliothèque apparaît donc sans attendre les deux pages de 1 000 livres.
+- Seul le **catalogue public** est gardé, c'est-à-dire exactement ce que voit un visiteur : jamais les statuts, notes, dates ni commentaires, qui restent lus dans la table privée `lecture` à chaque visite. En mode propriétaire, l'appli attend ces données privées avant le premier affichage : pas de page « sans statuts » qui se compléterait ensuite.
+- Si l'on est en train d'écrire dans la page (recherche des sagas, commentaire…) quand la base répond, la page n'est pas redessinée sous les doigts : le catalogue à jour s'affiche à la page suivante. Une modification faite pendant la relecture (statut coché, titre corrigé) n'est jamais recouverte.
+- Base injoignable : avec un catalogue sur l'appareil, la bibliothèque s'affiche quand même (avant : message d'erreur) ; sans catalogue, le message d'erreur d'avant. Un cache d'une autre base ou abîmé est ignoré. Première visite sur un appareil : comportement inchangé.
+
+**2. `js/app.js` découpé en sept fichiers** (3 150 lignes au total), chargés par `index.html` dans cet ordre : `app.js` (socle : thèmes, mode propriétaire, données privées, chargement et cache, utilitaires ; garde `APP_VERSION`), `accueil.js`, `livres.js` (page auteur, fiche, correction, masquage), `carnet.js` (sagas, carnet, graphiques, avis), `anomalies.js`, `reglages.js` (Réglages, Style, Aide), `demarrage.js` (visionneuse, clavier, routage, démarrage). Contrôlé : mis bout à bout, sans leurs deux lignes d'en-tête, les sept fichiers redonnent **exactement** le fichier unique d'avant. **Les sept fichiers doivent être déposés ensemble sur GitHub** (et l'ancien `app.js` remplacé par le nouveau).
+
+**3. `css/style.css` nettoyé** : sommaire en tête ; règles mortes retirées (`.ro-status`, `.snippet`, `.link-btn`, une largeur `.review` toujours écrasée) ; les six sélecteurs écrits deux fois fusionnés (`.cover`, `.review`, `.serie-head`, `.shelf-author`, `.hdr-btns` sur iPhone). Le reste était déjà rangé par composant : il n'a pas été déplacé, pour ne pas toucher à l'ordre des règles.
+
+**Vérifié** :
+- **Banc visuel** (nouveau, dossier `tests\visuel`) : 160 captures — les dix thèmes en clair et en sombre, les quatre préréglages de style sur 18 pages (accueil dans ses cinq présentations, ordre des auteurs, recherche, auteur, fiche, Réglages, carnet avec bulle de graphique, sagas, visionneuse), iPhone et tablette — prises avec la 3.6 puis avec la 3.7 : **identiques au pixel près**, sauf le numéro de version en bas des Réglages (et quelques pixels d'anticrénelage sur les couvertures inclinées, qui varient déjà entre deux passages de la même version). Les mêmes 578 sélecteurs CSS servent avant et après.
+- Affichage depuis le cache comparé à l'affichage depuis la base (accueil, auteur, sagas, carnet, fiche, Réglages) : contenu identique.
+- Nouvelle suite `cache.js` (29 vérifications, sur un petit serveur local) ; `livraison.js` vérifie les sept fichiers et leurs `?v=` ; 28 suites réussies. Version 3.7.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -1090,7 +1135,7 @@ Demande de Christophe (12/11) : retirer de l'accueil le sélecteur Grille / Éve
 38. **Christophe exécute `migration_2026-10_avis.sql`** dans Supabase → SQL Editor → Run (§4.35). La vérification en fin de script doit afficher les trois colonnes `finished_on`, `rating`, `review_comment`. Comme pour l'étape 36, l'ordre avec le redéploiement est libre.
 39. ~~**Christophe redéploie … — version 1.5** (Mon avis — voir §4.35).~~ Remplacé par l'étape 40 (la 1.6 contient les 1.1 à 1.5).
 40. ~~**Christophe redéploie … — version 1.6** (Mon carnet de lecture — voir §4.36).~~ Remplacé par l'étape 42 (la 1.7 contient les 1.1 à 1.6).
-41. Plus tard, au choix de Christophe : options du carnet (graphique des lectures par mois ou par année, répartition des notes, export Excel).
+41. Plus tard, au choix de Christophe : options du carnet (graphique des lectures par mois ou par année, répartition des notes, export Excel). — **Graphiques faits en 3.6 (§4.54)** ; reste l'export Excel.
 42. ~~**Christophe redéploie … — version 1.7** (design harmonisé — voir §4.37).~~ Remplacé par l'étape 43 (la 1.8 contient les 1.1 à 1.7).
 43. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.8** (Réglages → Style — voir §4.38 ; inclut les 1.1 à 1.7). Vérifier « version 1.8 » en bas des Réglages, puis choisir son style dans la section Style. Les migrations SQL « en cours » et « avis » (étapes 36 et 38) restent à faire si ce n'est pas déjà le cas.
 44. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` ensemble — version 1.9** (bandeau paramétrable — voir §4.39 ; inclut les 1.1 à 1.8). Les trois fichiers sont indispensables cette fois : `index.html` charge les quatre nouvelles polices. Vérifier « version 1.9 » en bas des Réglages, puis régler le groupe « Bandeau » de la section Style.
@@ -1113,6 +1158,9 @@ Demande de Christophe (12/11) : retirer de l'accueil le sélecteur Grille / Éve
 61. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.3** (voir §4.50). Vérifier « version 3.3 » en bas des Réglages et essayer les présentations Éventail, Étagère et Mur sur l'accueil (PC et iPhone).
 62. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.4** (voir §4.51), puis **exécute `migration_2026-11_reglages.sql`** dans Supabase → SQL Editor (résultat attendu : `accueil_defaut = eventail`, 3 règles). L'ordre importe peu : sans la table, l'appli s'ouvre déjà sur l'Éventail. Vérifier « version 3.4 », puis Réglages → Accueil des visiteurs : choisir une présentation, et contrôler dans une fenêtre de navigation privée qu'elle s'affiche à l'ouverture.
 63. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.5** (voir §4.52). Vérifier « version 3.5 », l'accueil sans sélecteur, et Réglages → Présentation de l'accueil.
+64. **Christophe envoie les cinq dernières couvertures** (voir §4.53) : outil d'import, section 1 (clé `service_role`), section 9, dossier `couvertures_epub\images_complement` (5 images), « Téléverser ». Ensuite, plus aucun livre visible sans couverture.
+65. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.6** (voir §4.54). Vérifier « version 3.6 » en bas des Réglages, la nouvelle icône des sagas dans le bandeau, les graphiques du carnet (connecté) et Réglages → Présentation de l'accueil → Ordre des auteurs.
+66. **Christophe redéploie la version 3.7** (voir §4.55) : `index.html`, `css/style.css`, **les sept fichiers de `js/`** (`app.js`, `accueil.js`, `livres.js`, `carnet.js`, `anomalies.js`, `reglages.js`, `demarrage.js` — `config.js` ne change pas) et `Mode_emploi_proprietaire.pdf`. Le plus simple sur GitHub : « Add file → Upload files », glisser les sept fichiers dans le dossier `js`. Vérifier « version 3.7 » en bas des Réglages ; rouvrir ensuite l'appli : la bibliothèque doit s'afficher immédiatement.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -1128,7 +1176,7 @@ Demande de Christophe (12/11) : retirer de l'accueil le sélecteur Grille / Éve
    - `+1.0` pour une refonte importante (nouvel écran, changement de structure) : 1.9 → 2.0.
 2. Reporter **le même numéro** dans `index.html`, dans les deux liens `css/style.css?v=…` et `js/app.js?v=…`.
 3. Ajouter une ligne au tableau ci-dessous, et mettre à jour la ligne « Version actuellement livrée » en tête de ce fichier.
-4. Toujours livrer ensemble les trois fichiers `index.html`, `css/style.css`, `js/app.js` dès que l'un d'eux change (le numéro est dans les deux premiers et le dernier).
+4. Toujours livrer ensemble `index.html`, `css/style.css` et les fichiers de `js/` dès que l'un d'eux change (le numéro est dans `index.html` et `js/app.js`). Depuis la 3.7, `js/` compte sept fichiers chargés dans un ordre fixe (voir §4.55) ; un nouveau fichier s'ajoute à `index.html`, aux pages de `tests\test`, à `tests\sync.js` et à `tests\livraison.js`.
 5. Après dépôt sur le PC de Christophe, relire les fichiers sur le PC et comparer leur empreinte (md5) à la version testée — voir l'incident décrit en fin de §4.29.
 
 Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne change pas le numéro de l'application.
@@ -1154,5 +1202,7 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 3.3 | 11/11/2026 | Accueil : trois nouvelles présentations des auteurs, Éventail, Étagère et Mur, en plus de la Grille et de la Liste. | §4.50 |
 | 3.4 | 11/11/2026 | Éventail par défaut à l'accueil ; nouvelle rubrique Réglages → Accueil des visiteurs (propriétaire) qui enregistre la présentation par défaut dans la nouvelle table `reglages`. | §4.51 |
 | 3.5 | 12/11/2026 | Le choix de présentation quitte l'accueil pour Réglages → Présentation de l'accueil (pour tous, par appareil, avec « Par défaut »). | §4.52 |
+| 3.6 | 12/11/2026 | Page « Toutes les sagas » (icône du bandeau ; progression et tomes absents pour le propriétaire) ; graphiques du carnet (répartition des notes, lectures par mois) ; ordre des auteurs sur l'accueil (alphabétique, nombre de livres, enrichis récemment). | §4.54 |
+| 3.7 | 12/11/2026 | Chantier technique, sans changement visible : catalogue gardé sur l'appareil (ouverture immédiate, mise à jour en arrière-plan, rien de privé), `app.js` découpé en sept fichiers, `style.css` nettoyé ; banc de non-régression visuelle (160 captures identiques). | §4.55 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.
