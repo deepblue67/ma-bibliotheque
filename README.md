@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 3.1 du 11/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 3.4 du 11/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -965,6 +965,77 @@ Le choix est mémorisé sur l'appareil (`mabiblio.tri`) ; un tri réservé au pr
 
 **Vérifié** : nouvelle suite `tri.js` (25 vérifications : tris visiteur et propriétaire, ordre de chaque tri, dates affichées, mémorisation, retour à « Auteur » après déconnexion, pas de menu pour un seul résultat, liste compacte, clic vers l'auteur, en-tête collé, iPhone sans débordement et lignes de 44 px). 22 suites réussies deux fois de suite. PDF contrôlé page par page. Version 3.1.
 
+### 4.48 Couvertures tirées des fichiers eux-mêmes (début de la 3.2, outil d'import seul)
+
+Quatrième lot de la revue de code (« Données »), première partie. Le 11/11, 653 livres visibles n'avaient pas de couverture (661 avant les fusions de la 2.2) ; la recherche Open Library de la section 5 ne trouvait rien de fiable pour eux.
+
+**Inventaire (lecture seule).** La liste des 653 livres a été lue dans Supabase avec la clé publique ; la note d'import (`source_note`) de chaque livre donne le nom de son fichier. Chaque fichier a été ouvert sur le PC sans être modifié : un epub est une archive zip dont le fichier `content.opf` désigne l'image de couverture (EPUB 3 : `properties="cover-image"` ; EPUB 2 : `<meta name="cover">` ; sinon la page désignée par `<guide>`, ou une image nommée « cover »). Pour un livre audio : image du dossier, sinon image intégrée au premier mp3 ; pour un pdf : la première page. Les noms de fichier notés à l'import ont parfois perdu leurs lettres accentuées (« Station-fantme ») : la recherche compare aussi en ignorant tout caractère non ASCII.
+
+**Résultat** : 650 images trouvées (616 epub, 27 mp3, 4 dossiers audio, 3 premières pages de pdf), **vérifiées une par une à l'œil** sur 9 planches, plus une pour les pdf. Deux sont fausses et écartées dans le script : *Surtensions* et *Dans les brumes de Capelans* (Norek) ont l'image de *Code 93* dans leurs mp3. **648 couvertures extraites le 11/11.** Restent sans couverture (5) : *Lumière morte* (Connelly) et *Tokyorama* (Grangé), sans aucune image ; *L'Ermite de la forêt d'Eyton*, fichier introuvable sur le disque ; et les deux Norek écartés. (`pdftoppm` n'écrit pas sur la sortie standard : la première page d'un pdf passe par un fichier temporaire.) À noter : *L'Appel de l'Ange* (Musso) a pour titre « LappeldelAnge » et sa couverture porte une bannière de site en bas.
+
+**Dossier `couvertures_epub`** (à côté de « Claude outputs », hors GitHub) :
+- `outils/extraire.py` : extrait les couvertures en `images/<identifiant du livre>.jpg` (900 px de haut au plus, JPEG qualité 85) et écrit `rapport.csv` (une ligne par livre : origine de l'image, taille, fichier, ou problème). Ne fait que lire les epub et mp3.
+- `outils/liste_sans_couverture.json` : les 653 livres (identifiant, formats, nom de fichier, titre, auteur), lus le 11/11.
+- `outils/inventaire.py` : l'inventaire du 11/11 ; `planches/` : les 9 planches de contrôle et leur index.
+
+**Section 9 de l'outil d'import refaite** (version de l'outil du 11/11/2026). Elle existait déjà (images nommées par identifiant) mais envoyait tout sans aperçu et pouvait remplacer une couverture existante. Désormais :
+- au choix des images, l'outil lit le catalogue et affiche un **aperçu** (vignette, titre, auteur, état) : « nouvelle couverture » (cochée), « a déjà une couverture — ignorée », « aucun livre avec cet identifiant », « nom de fichier inattendu » (verrouillées) ; un clic sur une vignette l'agrandit ;
+- case **« Ne jamais remplacer une couverture déjà présente »**, cochée par défaut ; décochée, une image pour un livre déjà couvert devient cochable (jamais cochée d'office) avec l'avertissement « remplacera la couverture actuelle » ;
+- seules les images **cochées** sont envoyées ; juste avant l'envoi, l'outil relit quelles fiches ont une couverture, et la mise à jour de `cover_path` est conditionnée à `cover_path` vide : une couverture apparue entre-temps est signalée, jamais écrasée.
+
+**Vérifié** : nouvelle suite `outil/test_section9.js` (19 vérifications, 1 100 px et 390 px : rapprochement, verrouillage, décocher, protection, envoi des seules images cochées, couverture apparue entre-temps, pas de débordement) ; `test_section7.js` ne dépend plus de la date de l'outil. 23 suites. Le script d'extraction a été essayé sur un epub fabriqué (couverture trouvée, redimensionnée en 600 × 900, livre écarté et fichier absent bien rapportés).
+
+### 4.49 Fin du lot « Données » : genres à valider, tomes absents, doublons du disque, delta réutilisable (version 3.2)
+
+Suite de la revue de code (« Données »), après les couvertures du §4.48 : Christophe les a envoyées le 11/11 par la section 9 ; vu depuis le site, **2 010 des 2 015 livres visibles ont désormais une couverture**.
+
+**1. Genres : 417 livres à valider** (fichier `genres\propositions_genres.json`, à côté de « Claude outputs »). Ce sont les 195 livres « Non classé » et les 248 fiches marquées « à revoir » à l'import (`needs_review`), dont 26 en commun. Pour chacun, une proposition faite à partir des autres livres de l'auteur, des sujets (`dc:subject`) et du résumé (`dc:description`) lus dans 388 epub (script `genres\outils\meta_epub.py`, lecture seule), et de la connaissance du livre : 198 genres confirmés, 219 changés. Exemples de corrections : les enquêtes d'Ed et Am Hunter de Fredric Brown étaient en Science-fiction (→ Policier) ; *La Tour sombre* de King était en Horreur (→ Fantasy) ; la trilogie napoléonienne de Rambaud était en Humour (→ Historique) ; *Les Feux de l'Eden* de Simmons en Science-fiction (→ Horreur). Un genre nouveau est proposé, **Vie pratique** (santé, informatique : 5 livres). Deux propositions sont marquées « à vérifier » (*Les dessous de la femme de ménage*, *Le père Noël est mort*).
+
+**Nouvelle section 10 de l'outil d'import, « Valider des genres proposés par Claude »** : charger le fichier, puis lot par lot (9 lots de 50 au plus) : pour chaque livre, genre actuel, genre proposé dans une liste modifiable (genres de la base + nouveaux), note éventuelle, case à cocher. « Enregistrer ce lot » écrit le genre et retire la marque « à revoir » (`needs_review: false`). Garde-fous : l'écriture est conditionnée au genre lu à l'ouverture (`genre=eq.…`, et pour « Non classé » `or=(genre.eq."Non classé",genre.is.null)`) : un livre changé entre-temps n'est pas touché et le journal le dit ; un livre déjà classé apparaît « fait », ce qui permet de s'arrêter entre deux lots et de reprendre en rechargeant le fichier ; case « Masquer les livres dont le genre est seulement confirmé ».
+
+**2. Tomes absents d'une saga (appli 3.2, propriétaire seulement).** Sur la page d'un auteur, sous le nom de chaque saga : « Tomes absents : 1, 2, 8 à 10 · visible de toi seul ». Ce sont les numéros entiers manquants entre 1 et le plus grand tome possédé (la longueur réelle de la saga n'est pas connue : rien n'est dit des tomes suivants) ; trois numéros consécutifs ou plus forment une plage ; un numéro non entier (2.5) est ignoré. La ligne disparaît à la déconnexion. Fonctions `plagesTomes()` et `tomesAbsents()` (`js/app.js`), style `.s-manque` (`css/style.css`).
+
+**3. Corrections de titres** (`6_corrections_titres_2026-11-11.json`, section 7) :
+- *LappeldelAnge* (Musso) était un doublon de *L'Appel de l'ange* : sa note d'import est ajoutée à la bonne fiche, puis il est masqué ;
+- *Anges&amp;amp;démons* → *Anges & démons* ; *Jonathan Strange &amp;amp; Mr Norrell* → *Jonathan Strange & Mr Norrell* (entités HTML restées dans les titres) ;
+- *Les ann&amp;#xE9;es glorieuses T 4 : Les Belles promesses* → *Les Belles Promesses*, saga *Les Années glorieuses*, tome 4.
+L'ancien titre est gardé dans `source_title`. Vérifié en simulant la section 7 : 5 mises à jour, 0 introuvable.
+
+**4. Doublons sur le disque** (`doublons\outils\doublons.py`, lecture seule ; résultat `doublons\doublons_disque.csv`) :
+- **ebooks identiques** (même taille, même début et même fin) : 1 794 groupes, presque tous dans les trois archives « AA - Integrale … Team » ; 199 groupes ont au moins une copie hors de ces archives ;
+- **livres audio en double exact** (mêmes tailles de fichiers) : 2 — *Le Secret des secrets* (Dan Brown) et *Nouvelle Babel* (Bussi, dossier « [mp3-64]2 ») ;
+- **livres audio probablement en double** (mêmes mots dans le nom du dossier, fichiers différents) : 10 — la *Trilogie des ombres* d'Indridason en deux exemplaires (tomes 1 et 2 repérés), et des livres présents à la fois en M4B et dans un sous-dossier « MP3 par chapitre » (Tolkien, Pullman, *Le Réseau Corneille*).
+Le disque est lent à lire depuis la machine de Claude : les empreintes sont gardées dans `doublons\etat\empreintes.json` et le script s'arrête de lui-même au bout de 95 s (« reste N », à relancer) ; la première fois a demandé 4 lancements, les suivants ne relisent que les fichiers nouveaux. Option `--depuis AAAA-MM-JJ` : seulement les doublons qui touchent un fichier récent (pour un delta).
+
+**5. « Delta ebook » réutilisable.** La procédure des deltas (24/10, 10/11) est écrite sous forme de savoir-faire enregistré, comme `delta-bd` : Christophe dit « fais le delta ebook ». Elle s'appuie sur `delta\dernier_delta.txt` (date du dernier delta, ici 2026-11-10), la relecture du catalogue, la comparaison sans accents ni majuscules et avec les métadonnées epub, les trois fichiers JSON (sections 2, 3, 7, la section 3 acceptant maintenant la saga et le tome), la simulation des imports, la liste des doublons du disque et l'extraction des couvertures (section 9).
+
+**Vérifié** : nouvelles suites `tomes.js` (12 vérifications) et `outil/test_section10.js` (35 vérifications : lots, livres faits ou modifiés entre-temps, changement de genre, décocher, filtre tolérant pour « Non classé », passage au lot suivant, reprise, iPhone) ; 25 suites réussies. Mode d'emploi PDF mis à jour (version 3.2 : tomes absents, sections 9 et 10, delta). Version 3.2.
+
+### 4.50 Nouvelles présentations de l'accueil : Éventail, Étagère, Mur (version 3.3)
+
+Retour de Christophe sur l'accueil en grille : les cartes d'un auteur à un seul livre laissent trois emplacements vides sur quatre, ce qui « ne fait pas pro ». Il garde la grille et la liste, et demande d'autres présentations. Cinq maquettes ont été faites avec ses vrais auteurs et ses vraies couvertures (lettres A et B, couvertures réduites lues depuis le site) : Mur, Mosaïque, Étagère, Éventail et Liste illustrée. **Retenues : Éventail, Étagère et Mur** ; la Mosaïque (carte de taille variable selon le nombre de livres) et la Liste illustrée (qui recréait des vides) sont écartées.
+
+Le sélecteur à droite de l'index A–Z propose désormais **Grille, Éventail, Étagère, Mur et Liste** ; le choix reste mémorisé sur l'appareil (`mabiblio.accueil`), et une valeur inconnue retombe sur la grille. La grille reste la présentation par défaut (changé en 3.4, voir §4.51).
+- **Éventail** (`carteEventail`) : la carte habituelle, mais les couvertures (cinq au plus) sont posées en éventail au centre ; un livre seul est centré, un peu plus grand. Au survol, l'éventail s'ouvre.
+- **Étagère** (`carteEtagere`) : les livres debout côte à côte (six au plus, puis « +N »), hauteurs légèrement variées, sur des planches qui traversent la page ; le nom de l'auteur sous la planche, sur deux lignes au plus et jamais plus large que ses livres. Au survol, les livres se soulèvent. Sur iPhone, quatre livres au plus par auteur, plus petits.
+- **Mur** (`carteMur`) : une grande couverture par auteur (la première vraie couverture), le nom et « N livres » par-dessus sur un dégradé ; une pile de feuilles derrière la couverture quand l'auteur a 2 livres, deux à partir de 3. Toutes les cases ont la même taille. Sans couverture, la jaquette générée met son titre en haut pour ne pas se mêler à la légende.
+Sur iPhone, la barre de choix défile horizontalement si besoin, sans faire déborder la page.
+
+**Vérifié** : nouvelle suite `accueil.js` (22 vérifications : cinq présentations, grille par défaut, ordre des auteurs, nombre de couvertures, éventail centré, nom sous la planche sans trou, piles du mur, cases de même taille, clic vers l'auteur, mémorisation, valeur inconnue, mode sombre, iPhone sans débordement pour les cinq) ; 26 suites réussies. Mode d'emploi PDF mis à jour (version 3.3). Version 3.3.
+
+### 4.51 Présentation de l'accueil par défaut : Éventail, réglable par le propriétaire (version 3.4)
+
+Choix de Christophe : **l'Éventail par défaut**, et ce choix doit être **réglable dans les Réglages, par le propriétaire seul**. Un réglage pour tous les visiteurs ne peut pas vivre dans le navigateur (chacun a le sien) : il est enregistré dans la base.
+
+**Nouvelle table `reglages`** (`migration_2026-11_reglages.sql`, à exécuter dans Supabase → SQL Editor ; relançable sans risque ; retour arrière `migration_2026-11_reglages_retour.sql`) : une ligne par réglage (`cle`, `valeur`, `updated_at`), lecture pour tous (clé publique comprise), ajout et modification réservés au propriétaire connecté (`mabiblio_proprietaire()`, version 3.0 ; le script refuse de tourner sans elle), pas de suppression. Une contrainte n'accepte pour `accueil_defaut` que `grille`, `eventail`, `etagere`, `mur` ou `liste`. Valeur de départ : `eventail`. Testé sur un PostgreSQL 16 local qui imite Supabase : le visiteur lit mais ne peut ni modifier (« permission denied ») ni insérer ; une session anonyme modifie 0 ligne ; le propriétaire enregistre ; une valeur inconnue est refusée ; la suppression est refusée ; le retour arrière supprime la table.
+
+**Dans l'appli** (`js/app.js`) :
+- Présentation affichée (`vueAccueil()`) : le choix fait **sur cet appareil** (boutons de l'accueil, `mabiblio.accueil`) l'emporte ; sinon le réglage du site (`reglages.accueil_defaut`, lu au démarrage en même temps que le catalogue) ; sinon **l'Éventail** (valeur par défaut du code, `DEFAULTS.accueil`), ce qui couvre aussi le temps où le script SQL n'a pas encore été exécuté.
+- Réglages → **Accueil des visiteurs** (propriétaire seulement) : les cinq présentations ; un clic enregistre dans la base (`upsert` contrôlé par le nombre de lignes renvoyées) et confirme « Enregistré : les visiteurs arrivent sur « … » ». Si l'appareil du propriétaire a son propre choix, la rubrique le rappelle, avec un lien « Suivre le réglage du site » qui l'efface. Messages clairs si la table n'existe pas encore (nom du script à exécuter) ou si la base refuse (session expirée).
+- Un visiteur qui a déjà choisi une présentation sur son appareil garde la sienne : le réglage du site ne s'applique qu'à ceux qui n'ont pas choisi.
+
+**Vérifié** : `accueil.js` passe à 36 vérifications (défaut Éventail, réglage du site lu par un visiteur, choix personnel prioritaire, table vide, rubrique absente pour un visiteur, enregistrement par le propriétaire puis accueil mis à jour, rappel et oubli du choix personnel, table absente, refus de la base) ; le faux Supabase des tests (`stub-auth.js`) simule la table `reglages`. 26 suites réussies. Mode d'emploi PDF mis à jour (version 3.4). Version 3.4.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -1021,6 +1092,14 @@ Le choix est mémorisé sur l'appareil (`mabiblio.tri`) ; un tri réservé au pr
 52. **Christophe redéploie `index.html`, `css/style.css` et `js/app.js` — version 3.0**, puis se connecte (Réglages → Mode propriétaire → Connexion sécurisée) **sur son PC et sur son iPhone**, et vérifie que ses statuts s'affichent et qu'une case se coche.
 53. **Seulement ensuite : `migration_2026-11_securite.sql`** dans Supabase → SQL Editor. Résultat attendu : 12 règles, `lignes_dans_lecture` = le nombre de livres qui avaient un statut ou un avis, `restes_dans_books` = 0. Puis, dans l'appli : statuts et avis toujours là une fois connecté ; dans une fenêtre de navigation privée, plus aucune pastille de statut. En cas de problème : `migration_2026-11_securite_retour.sql`. — **Fait le 11/11 et vérifié** (voir §4.47).
 54. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js`, `js/config.js` et `Mode_emploi_proprietaire.pdf` — version 3.1** (voir §4.47). Vérifier « version 3.1 » en bas des Réglages, la bascule Grille / Liste sur l'accueil et le menu « Trier par » dans une recherche.
+55. **Couvertures tirées des fichiers** (voir §4.48) : Claude lance `couvertures_epub\outils\extraire.py` sur le PC (il faut que la conversation soit reliée au PC) → 648 images dans `couvertures_epub\images` — **fait le 11/11**. Puis Christophe ouvre l'outil d'import, section 1 (clé `service_role`), section 9 : sélectionne toutes les images du dossier, parcourt l'aperçu, décoche ce qu'il ne veut pas, « Téléverser ». Vérifier ensuite dans l'appli que les couvertures apparaissent. — **Fait le 11/11** : 2 010 livres sur 2 015 ont une couverture.
+56. **Suite de la 3.2** — livrée le 11/11, voir §4.49.
+57. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.2** (voir §4.49). Vérifier « version 3.2 » en bas des Réglages, puis, connecté, la ligne « Tomes absents » sur la page de Jo Nesbø (Harry Hole) ou de Michael Connelly (Harry Bosch).
+58. **Christophe importe `6_corrections_titres_2026-11-11.json` en section 7** de l'outil d'import (5 corrections, dont la fusion du doublon *LappeldelAnge*).
+59. **Christophe valide les genres** : outil d'import, section 10, fichier `genres\propositions_genres.json`, lot par lot (9 lots). Il peut s'arrêter entre deux lots.
+60. **Ménage du disque, au choix de Christophe** : `doublons\doublons_disque.csv` (Claude ne supprime rien).
+61. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.3** (voir §4.50). Vérifier « version 3.3 » en bas des Réglages et essayer les présentations Éventail, Étagère et Mur sur l'accueil (PC et iPhone).
+62. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.4** (voir §4.51), puis **exécute `migration_2026-11_reglages.sql`** dans Supabase → SQL Editor (résultat attendu : `accueil_defaut = eventail`, 3 règles). L'ordre importe peu : sans la table, l'appli s'ouvre déjà sur l'Éventail. Vérifier « version 3.4 », puis Réglages → Accueil des visiteurs : choisir une présentation, et contrôler dans une fenêtre de navigation privée qu'elle s'affiche à l'ouverture.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -1058,5 +1137,8 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 2.2 | 10/11/2026 | `supabase-js` figé (2.45.4) avec empreinte ; outil d'import : section 7 sans majuscules ni accents, section 3 avec saga et tome ; 20 titres à marques de fichier corrigés (10 doublons fusionnés, 10 renommés) et 4 sagas renseignées par `4_corrections_titres_2026-11-10.json` ; tests copiés sur le PC (21 suites). | §4.45 |
 | 3.0 | 11/11/2026 | Connexion sécurisée (e-mail et mot de passe Supabase, une fois par appareil) à la place du code propriétaire ; statuts et avis dans la table privée `lecture` ; base verrouillée par `migration_2026-11_securite.sql` (écriture réservée au propriétaire, avis et statuts invisibles des visiteurs) ; modifications refusées en silence détectées. | §4.46 |
 | 3.1 | 11/11/2026 | Menu « Trier par » dans les résultats (Auteur, Titre, Ajoutés récemment ; Lus récemment et Note pour le propriétaire) ; accueil en grille ou en liste compacte ; `ownerHash` retiré de `config.js` ; mode d'emploi PDF refait. | §4.47 |
+| 3.2 | 11/11/2026 | Tomes absents d'une saga sur la page auteur (propriétaire) ; outil d'import : section 9 avec aperçu et protection des couvertures existantes, nouvelle section 10 pour valider les genres par lots ; corrections de titres ; liste des doublons du disque ; procédure « delta ebook ». | §4.48, §4.49 |
+| 3.3 | 11/11/2026 | Accueil : trois nouvelles présentations des auteurs, Éventail, Étagère et Mur, en plus de la Grille et de la Liste. | §4.50 |
+| 3.4 | 11/11/2026 | Éventail par défaut à l'accueil ; nouvelle rubrique Réglages → Accueil des visiteurs (propriétaire) qui enregistre la présentation par défaut dans la nouvelle table `reglages`. | §4.51 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

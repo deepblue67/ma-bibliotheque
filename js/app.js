@@ -65,12 +65,12 @@ const STYLE_PRESETS = [
   ['mixte',   'Mixte',             { titres: 'theme', bandeau: 'bd', cartes: 'bd', pastilles: 'bd', commandes: 'bd', panneaux: 'bd', ...BANDEAU_BD }],
   ['bd',      'Tout BD',           { titres: 'bd',    bandeau: 'bd', cartes: 'bd', pastilles: 'bd', commandes: 'bd', panneaux: 'bd', ...BANDEAU_BD }],
 ];
-const DEFAULTS = {theme:"nordique", mode:"auto", tri:"auteur", accueil:"grille"};
+const DEFAULTS = {theme:"nordique", mode:"auto", tri:"auteur", accueil:"eventail"};
 for (const [k, v] of Object.entries(STYLE_PRESETS.find(p => p[0] === 'mixte')[2])) DEFAULTS['style.' + k] = v;
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '3.2';
+const APP_VERSION = '3.4';
 const APP_VERSION_DATE = '2026-11-11';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
@@ -678,25 +678,27 @@ function renderHome() {
       : `<a class="off">${L}</a>`
   ).join('');
 
-  // affichage en grille de cartes (défaut) ou en liste compacte (version 3.1), mémorisé sur l'appareil
-  const liste = prefGet('accueil') === 'liste';
+  // présentation : celle choisie sur cet appareil, sinon celle du site (version 3.4)
+  const vue = vueAccueil();
+  const corps = list => {
+    if (vue === 'liste') return `<ul class="author-list">
+      ${list.map(a => `<li><a href="#/author/${a.id}"><span class="nom">${escapeHtml(a.name)}</span><span class="nb">${a.books.length}</span></a></li>`).join('')}
+    </ul>`;
+    if (vue === 'eventail') return `<div class="author-grid fan-grid">${list.map(carteEventail).join('')}</div>`;
+    if (vue === 'etagere') return `<div class="shelf">${list.map(carteEtagere).join('')}</div>`;
+    if (vue === 'mur') return `<div class="wall">${list.map(carteMur).join('')}</div>`;
+    return `<div class="author-grid">${list.map(a => authorCard(a)).join('')}</div>`;
+  };
   const sections = Array.from(groups.entries()).map(([L, list]) => `
     <h2 class="letter-head" id="L-${L}">${L}</h2>
-    ${liste ? `
-    <ul class="author-list">
-      ${list.map(a => `<li><a href="#/author/${a.id}"><span class="nom">${escapeHtml(a.name)}</span><span class="nb">${a.books.length}</span></a></li>`).join('')}
-    </ul>` : `
-    <div class="author-grid">
-      ${list.map(a => authorCard(a)).join('')}
-    </div>`}
+    ${corps(list)}
   `).join('');
 
   el.app.innerHTML = `
     <div class="home-head">
       <nav class="az" aria-label="Aller à une lettre">${az}</nav>
       <div class="segmented vue-auteurs" role="group" aria-label="Affichage des auteurs">
-        <button type="button" data-vue="grille" class="${liste ? '' : 'on'}" aria-pressed="${!liste}">Grille</button>
-        <button type="button" data-vue="liste" class="${liste ? 'on' : ''}" aria-pressed="${liste}">Liste</button>
+        ${VUES_ACCUEIL.map(([k, lib]) => `<button type="button" data-vue="${k}" class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}">${lib}</button>`).join('')}
       </div>
     </div>
     ${sections}
@@ -716,6 +718,77 @@ function renderHome() {
   });
 }
 
+
+// ---- Présentations de l'accueil (version 3.3) ----
+// Grille (cartes à quatre emplacements, depuis l'origine), Éventail, Étagère, Mur et Liste
+// (version 3.1). Choix mémorisé sur l'appareil (préférence « accueil »).
+const VUES_ACCUEIL = [['grille', 'Grille'], ['eventail', 'Éventail'], ['etagere', 'Étagère'], ['mur', 'Mur'], ['liste', 'Liste']];
+function couverturesAuteur(a, n) {
+  return a.books.filter(b => b.cover_path).concat(a.books.filter(b => !b.cover_path)).slice(0, n);
+}
+const nbLivres = n => `${n} livre${n > 1 ? 's' : ''}`;
+const vueValide = v => VUES_ACCUEIL.some(x => x[0] === v);
+// Présentation de l'accueil (version 3.4) : le choix fait sur CET appareil (boutons de
+// l'accueil) l'emporte ; sinon la présentation par défaut du site, réglée par le
+// propriétaire et lue dans la table « reglages » ; sinon l'Éventail.
+function vueAccueil() {
+  let perso = null;
+  try { perso = localStorage.getItem('mabiblio.accueil'); } catch (e) {}
+  if (vueValide(perso)) return perso;
+  if (vueValide(SITE.accueil)) return SITE.accueil;
+  return DEFAULTS.accueil;
+}
+const libelleVue = v => (VUES_ACCUEIL.find(x => x[0] === v) || [, v])[1];
+
+// ---- Réglages du site (version 3.4) : table « reglages », lisible par tous, modifiable par
+// le propriétaire seul. Tant que le script SQL n'a pas été exécuté, la table n'existe pas :
+// l'appli garde ses valeurs par défaut et la rubrique des Réglages le dit.
+const SITE = { accueil: null };
+let REGLAGES_READY = null;      // null = pas encore lu ; true = table présente ; false = absente
+async function chargeReglagesSite() {
+  try {
+    const r = await sb.from('reglages').select('cle, valeur');
+    if (!r || r.error) {
+      REGLAGES_READY = r && r.error && (r.error.code === 'PGRST205' || /reglages/i.test(r.error.message || '')) ? false : null;
+      return;
+    }
+    REGLAGES_READY = true;
+    for (const row of r.data || []) if (row.cle === 'accueil_defaut') SITE.accueil = row.valeur;
+  } catch (e) { /* hors ligne : on garde les valeurs par défaut */ }
+}
+async function enregistreAccueilSite(v) {
+  const { data, error } = await sb.from('reglages')
+    .upsert({ cle: 'accueil_defaut', valeur: v, updated_at: new Date().toISOString() }, { onConflict: 'cle' })
+    .select('cle');
+  if (error) throw error;
+  if (!Array.isArray(data) || data.length !== 1) throw new Error('aucune ligne enregistrée');
+  SITE.accueil = v;
+  REGLAGES_READY = true;
+}
+// Éventail : les couvertures se chevauchent en éventail ; une seule est centrée. Carte toujours pleine.
+function carteEventail(a) {
+  const pick = couverturesAuteur(a, 5), n = pick.length;
+  return `<a class="author-card fan-card" href="#/author/${a.id}">
+    <div class="fan" style="--n:${n}">${pick.map((b, i) => `<div class="fan-item" style="--i:${i - (n - 1) / 2}">${coverTile(b)}</div>`).join('')}</div>
+    <div class="meta"><span class="name">${escapeHtml(a.name)}</span><span class="count">${a.books.length}</span></div>
+  </a>`;
+}
+// Étagère : les livres debout, côte à côte, sur une planche ; le nom de l'auteur sur l'étiquette.
+function carteEtagere(a) {
+  const pick = couverturesAuteur(a, 6), reste = a.books.length - pick.length;
+  return `<a class="shelf-author" href="#/author/${a.id}" title="${escapeHtml(a.name)} — ${nbLivres(a.books.length)}">
+    <div class="shelf-books">${pick.map(b => coverTile(b)).join('')}${reste > 0 ? `<span class="shelf-more">+${reste}</span>` : ''}</div>
+    <span class="shelf-name">${escapeHtml(a.name)}</span>
+  </a>`;
+}
+// Mur : une grande couverture par auteur, son nom par-dessus ; une pile derrière quand il a plusieurs livres.
+function carteMur(a) {
+  const b = couverturesAuteur(a, 1)[0], nb = a.books.length;
+  return `<a class="wall-tile ${nb >= 3 ? 'pile3' : nb === 2 ? 'pile2' : ''}" href="#/author/${a.id}">
+    ${coverTile(b)}
+    <span class="wall-cap"><span class="name">${escapeHtml(a.name)}</span><span class="count">${nbLivres(nb)}</span></span>
+  </a>`;
+}
 // Mini-mosaïque : jusqu'à 4 couvertures de l'auteur, les vraies d'abord.
 function authorCard(a, avecSagas = false) {
   const nbSagas = avecSagas ? groupBySeries(a.books).filter(g => g.nom).length : 0;
@@ -1788,6 +1861,8 @@ function renderSettings() {
       ${setBlock('proprietaire', 'Mode propriétaire', renderOwnerBlock())}
 
 
+      ${OWNER ? setBlock('accueil-site', 'Accueil des visiteurs', renderAccueilSiteBlock()) : ''}
+
       ${(EDITABLE && OWNER) ? setBlock('anomalies', 'Anomalies', renderAnomaliesBlock()) : ''}
 
       ${(EDITABLE && OWNER) ? setBlock('masques', 'Livres masqués', renderHiddenBlock()) : ''}
@@ -1820,12 +1895,65 @@ function renderSettings() {
   wireStyleBlock();
   wireOwnerBlock();
   wireAnomalies();
+  wireAccueilSite();
   wireAide();
   el.app.querySelectorAll('.hidden-row button').forEach(b => {
     b.addEventListener('click', () => {
       const book = HIDDEN_BOOKS.find(x => x.id === b.dataset.id);
       if (book) restoreBook(book);
     });
+  });
+}
+
+// Rubrique « Accueil des visiteurs » (propriétaire, version 3.4) : la présentation que voit
+// en arrivant quiconque n'a pas encore choisi la sienne. Enregistrée dans la base, donc
+// valable sur tous les appareils, y compris ceux de la famille.
+function renderAccueilSiteBlock() {
+  const actuelle = vueValide(SITE.accueil) ? SITE.accueil : DEFAULTS.accueil;
+  let perso = null;
+  try { perso = localStorage.getItem('mabiblio.accueil'); } catch (e) {}
+  return `
+    <p class="hint-sm" style="margin:0 0 0.8rem; max-width:60ch;">
+      La présentation de l'accueil pour tous ceux qui n'ont pas encore choisi la leur (boutons à
+      droite de l'index A–Z). Chacun peut ensuite en changer pour son appareil.</p>
+    <div class="segmented" id="accueil-site-seg" role="group" aria-label="Présentation de l'accueil par défaut">
+      ${VUES_ACCUEIL.map(([k, lib]) => `<button type="button" data-vue="${k}" class="${actuelle === k ? 'on' : ''}" aria-pressed="${actuelle === k}">${lib}</button>`).join('')}
+    </div>
+    <p class="site-msg" id="accueil-site-msg" aria-live="polite">${
+      REGLAGES_READY === false
+        ? "La base n'a pas encore la table des réglages : exécute <code>migration_2026-11_reglages.sql</code> dans Supabase (SQL Editor). En attendant, l'accueil s'ouvre sur l'Éventail."
+        : ''}</p>
+    ${vueValide(perso) && perso !== actuelle ? `<p class="hint-sm" id="accueil-site-perso">Sur cet appareil, tu as choisi « ${escapeHtml(libelleVue(perso))} » : c'est elle que tu vois.
+      <button type="button" class="link-btn" id="accueil-site-oublie">Suivre le réglage du site</button></p>` : ''}`;
+}
+function wireAccueilSite() {
+  const seg = document.getElementById('accueil-site-seg');
+  if (!seg) return;
+  const msg = document.getElementById('accueil-site-msg');
+  seg.querySelectorAll('button').forEach(bt => bt.addEventListener('click', async () => {
+    const v = bt.dataset.vue;
+    seg.querySelectorAll('button').forEach(x => { x.disabled = true; });
+    msg.className = 'site-msg'; msg.textContent = 'Enregistrement…';
+    try {
+      await enregistreAccueilSite(v);
+      renderSettings();
+      const m = document.getElementById('accueil-site-msg');
+      if (m) { m.className = 'site-msg ok'; m.textContent = `Enregistré : les visiteurs arrivent sur « ${libelleVue(v)} ».`; }
+    } catch (e) {
+      const code = e && e.code;
+      msg.className = 'site-msg err';
+      msg.innerHTML = code === 'PGRST205' || /reglages/i.test((e && e.message) || '')
+        ? "La base n'a pas encore la table des réglages : exécute <code>migration_2026-11_reglages.sql</code> dans Supabase (SQL Editor)."
+        : code === '42501' || /row-level|aucune ligne/.test((e && e.message) || '')
+          ? 'Refusé par la base : ta session a peut-être expiré. Reconnecte-toi, puis recommence.'
+          : 'Échec de l’enregistrement (' + escapeHtml((e && e.message) || 'erreur inconnue') + ').';
+      seg.querySelectorAll('button').forEach(x => { x.disabled = false; });
+    }
+  }));
+  const oublie = document.getElementById('accueil-site-oublie');
+  if (oublie) oublie.addEventListener('click', () => {
+    try { localStorage.removeItem('mabiblio.accueil'); } catch (e) {}
+    renderSettings();
   });
 }
 
@@ -2586,7 +2714,7 @@ syncStatusFilterVisibility();
     });
   } catch (e) { OWNER = false; }
   syncStatusFilterVisibility();
-  const ok = await loadLibrary();
+  const [ok] = await Promise.all([loadLibrary(), chargeReglagesSite()]);
   syncStatusFilterVisibility();   // la pastille « En cours » dépend de la base chargée
   if (ok) await loadPrivate();    // ne fait rien pour un visiteur
   if (ok) route();

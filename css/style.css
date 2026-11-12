@@ -1995,7 +1995,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 /* Liste compacte des auteurs : nom et nombre de livres, en colonnes */
 .author-list{
   list-style:none; margin:0 0 1.6rem; padding:0;
-  columns:3 15rem; column-gap:1.6rem;
+  columns:3 15rem; column-gap:1.4rem;
 }
 .author-list li{break-inside:avoid;}
 .author-list a{
@@ -2019,3 +2019,90 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   padding:0.35em 0.9em; min-height:36px;
 }
 .book-card .tri-line{font-family:var(--font-mono); font-size:0.68rem; color:var(--sub); margin:-0.3rem 0 0.5rem;}
+
+/* =========================================================
+   Présentations de l'accueil — version 3.3 (Éventail, Étagère, Mur)
+   ========================================================= */
+.vue-auteurs{flex-wrap:wrap;}
+
+/* --- Éventail : couvertures en éventail, carte toujours pleine --- */
+.fan-card{gap:0.55rem;}
+.fan{position:relative; height:150px; margin:0.2rem 0 0.1rem;}
+.fan-item{
+  position:absolute; bottom:0; left:50%; width:88px; height:132px;
+  transform:translateX(calc(-50% + var(--i) * 34px)) rotate(calc(var(--i) * 5deg));
+  transform-origin:50% 120%;
+  transition:transform .2s ease;
+}
+.fan-item .cover{width:100%; height:100%; border-radius:4px; box-shadow:0 3px 10px rgba(0,0,0,.22);}
+.fan[style*="--n:1"] .fan-item{width:96px; height:144px;}
+.fan-card:hover .fan-item{transform:translateX(calc(-50% + var(--i) * 40px)) rotate(calc(var(--i) * 7deg));}
+
+/* --- Étagère : livres debout sur une planche --- */
+.shelf{
+  display:flex; flex-wrap:wrap; align-items:flex-end; column-gap:1.4rem; row-gap:0;
+  padding:0 0.6rem;
+  background:repeating-linear-gradient(to bottom, transparent 0 150px,
+    color-mix(in srgb, var(--accent) 55%, #6b4f35) 150px 162px, transparent 162px 196px);
+}
+.shelf-author{display:flex; flex-direction:column; height:196px; justify-content:flex-start;}
+.shelf-books{height:150px; display:flex; align-items:flex-end; gap:3px; padding-bottom:0;}
+.shelf-books .cover{width:72px; height:108px; border-radius:2px 4px 4px 2px; box-shadow:2px 0 4px rgba(0,0,0,.25), inset 3px 0 0 rgba(0,0,0,.12);}
+.shelf-books .cover:nth-child(3n+2){height:116px;}
+.shelf-books .cover:nth-child(3n){height:102px;}
+.shelf-author:hover .cover{transform:translateY(-6px); transition:transform .15s ease;}
+.shelf-more{align-self:flex-end; font-family:var(--font-mono); font-size:0.7rem; color:var(--sub); padding:0 0.2rem 0.3rem;}
+.shelf-name{margin-top:14px; font-size:0.74rem; line-height:1.15; font-weight:600; width:0; min-width:100%; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
+.shelf-author{min-width:72px;}
+
+/* --- Mur : une grande couverture par auteur, pile derrière s'il en a plusieurs --- */
+.wall{display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:1.3rem 1rem; padding:6px 8px 0 0;}
+.wall-tile{position:relative; aspect-ratio:2 / 3; border-radius:6px; transition:transform .15s ease;}
+.wall-tile .cover{position:absolute; inset:0; width:100%; height:100%; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:1;}
+.wall-tile.pile2::before, .wall-tile.pile3::before, .wall-tile.pile3::after{
+  content:""; position:absolute; inset:0; border-radius:6px; background:var(--card); border:1px solid var(--line);
+  box-shadow:0 2px 6px rgba(0,0,0,.15);
+}
+.wall-tile.pile2::before, .wall-tile.pile3::before{transform:translate(5px, -5px);}
+.wall-tile.pile3::after{transform:translate(10px, -10px); z-index:-1;}
+.wall-tile:hover{transform:translateY(-4px);}
+/* jaquette de remplacement : le titre en haut, le nom de l'auteur est déjà dans la légende */
+.wall-tile .jacket{justify-content:flex-start; padding-top:24%;}
+.wall-tile .jacket .j-author{display:none;}
+.wall-cap{
+  position:absolute; left:0; right:0; bottom:0; z-index:2; padding:2.2rem 0.6rem 0.55rem;
+  border-radius:0 0 6px 6px; color:#fff; display:flex; flex-direction:column; gap:0.1rem;
+  background:linear-gradient(to top, rgba(0,0,0,.82), rgba(0,0,0,.45) 60%, transparent);
+}
+.wall-cap .name{font-weight:700; font-size:0.86rem; line-height:1.2; text-shadow:0 1px 2px rgba(0,0,0,.5);}
+.wall-cap .count{font-family:var(--font-mono); font-size:0.64rem; opacity:0.85;}
+
+@media (max-width:640px){
+  .wall{grid-template-columns:repeat(3, 1fr); gap:1rem 0.7rem;}
+  .wall-cap{padding:1.6rem 0.4rem 0.4rem;}
+  .wall-cap .name{font-size:0.72rem;}
+  .fan-grid{grid-template-columns:repeat(2, 1fr);}
+  .fan{height:118px;}
+  .fan-item{width:66px; height:99px; transform:translateX(calc(-50% + var(--i) * 20px)) rotate(calc(var(--i) * 5deg));}
+  .fan[style*="--n:1"] .fan-item{width:72px; height:108px;}
+}
+@media (max-width:640px){
+  .home-head{flex-wrap:wrap;}
+  .vue-auteurs{max-width:100%; overflow-x:auto; flex-wrap:nowrap; scrollbar-width:none;}
+  .vue-auteurs button{white-space:nowrap;}
+}
+@media (max-width:640px){
+  .shelf{column-gap:0.9rem; padding:0 0.2rem;}
+  .shelf-books .cover{width:58px; height:87px;}
+  .shelf-books .cover:nth-child(3n+2){height:93px;}
+  .shelf-books .cover:nth-child(3n){height:82px;}
+  .shelf-books .cover:nth-child(n+5){display:none;}
+}
+
+/* Réglages → Accueil des visiteurs (3.4) */
+#accueil-site-seg{flex-wrap:wrap;}
+.site-msg{font-size:0.8rem; color:var(--sub); margin:0.7rem 0 0; min-height:1.2em; max-width:62ch;}
+.site-msg:empty{display:none;}
+.site-msg.ok{color:var(--ok, #4a7a5c);}
+.site-msg.err{color:var(--danger, #b2685a);}
+.link-btn{background:none; border:none; padding:0; color:var(--accent); font:inherit; text-decoration:underline; cursor:pointer;}
