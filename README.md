@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 3.4 du 11/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 3.5 du 12/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -1036,6 +1036,18 @@ Choix de Christophe : **l'Éventail par défaut**, et ce choix doit être **rég
 
 **Vérifié** : `accueil.js` passe à 36 vérifications (défaut Éventail, réglage du site lu par un visiteur, choix personnel prioritaire, table vide, rubrique absente pour un visiteur, enregistrement par le propriétaire puis accueil mis à jour, rappel et oubli du choix personnel, table absente, refus de la base) ; le faux Supabase des tests (`stub-auth.js`) simule la table `reglages`. 26 suites réussies. Mode d'emploi PDF mis à jour (version 3.4). Version 3.4.
 
+### 4.52 Le choix de présentation passe de l'accueil aux Réglages (version 3.5)
+
+Demande de Christophe (12/11) : retirer de l'accueil le sélecteur Grille / Éventail / Étagère / Mur / Liste ; le choix se fait dans les Réglages.
+
+- **Accueil** : l'en-tête collant ne porte plus que l'index A–Z.
+- **Réglages → Présentation de l'accueil** (pour tous, en tête des Réglages) : « Par défaut », Grille, Éventail, Étagère, Mur, Liste. Le choix vaut pour **cet appareil** (`mabiblio.accueil`) ; « Par défaut » l'efface et suit la présentation réglée pour tous, dont le nom est rappelé (« actuellement : Éventail »). Sur iPhone, les six boutons sont rangés en grille de trois.
+- **Réglages → Accueil des visiteurs** (propriétaire, §4.51) : inchangé, sauf le rappel « Sur cet appareil, tu as choisi… » et son lien « Suivre le réglage du site », devenus inutiles (c'est le bouton « Par défaut » de la rubrique précédente).
+
+**Question de Christophe sur le menu « Trier par »** : il n'apparaît qu'après une recherche ou un filtre. C'est voulu : l'accueil montre des **auteurs**, le tri porte sur des **livres** (titre, date d'ajout, date de lecture, note) ; il n'apparaît que lorsqu'une liste de livres est affichée (et qu'elle en compte plus d'un).
+
+**Vérifié** : `accueil.js` (41 vérifications : plus de sélecteur sur l'accueil, rubrique pour tous avec « Par défaut » qui annonce la présentation du site, choix de l'appareil prioritaire puis effacé par « Par défaut », réglages iPhone sans débordement) et `tri.js` adaptés ; 26 suites réussies. Mode d'emploi PDF mis à jour (version 3.5). Version 3.5.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -1100,6 +1112,7 @@ Choix de Christophe : **l'Éventail par défaut**, et ce choix doit être **rég
 60. **Ménage du disque, au choix de Christophe** : `doublons\doublons_disque.csv` (Claude ne supprime rien).
 61. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.3** (voir §4.50). Vérifier « version 3.3 » en bas des Réglages et essayer les présentations Éventail, Étagère et Mur sur l'accueil (PC et iPhone).
 62. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.4** (voir §4.51), puis **exécute `migration_2026-11_reglages.sql`** dans Supabase → SQL Editor (résultat attendu : `accueil_defaut = eventail`, 3 règles). L'ordre importe peu : sans la table, l'appli s'ouvre déjà sur l'Éventail. Vérifier « version 3.4 », puis Réglages → Accueil des visiteurs : choisir une présentation, et contrôler dans une fenêtre de navigation privée qu'elle s'affiche à l'ouverture.
+63. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.5** (voir §4.52). Vérifier « version 3.5 », l'accueil sans sélecteur, et Réglages → Présentation de l'accueil.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -1140,5 +1153,6 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 3.2 | 11/11/2026 | Tomes absents d'une saga sur la page auteur (propriétaire) ; outil d'import : section 9 avec aperçu et protection des couvertures existantes, nouvelle section 10 pour valider les genres par lots ; corrections de titres ; liste des doublons du disque ; procédure « delta ebook ». | §4.48, §4.49 |
 | 3.3 | 11/11/2026 | Accueil : trois nouvelles présentations des auteurs, Éventail, Étagère et Mur, en plus de la Grille et de la Liste. | §4.50 |
 | 3.4 | 11/11/2026 | Éventail par défaut à l'accueil ; nouvelle rubrique Réglages → Accueil des visiteurs (propriétaire) qui enregistre la présentation par défaut dans la nouvelle table `reglages`. | §4.51 |
+| 3.5 | 12/11/2026 | Le choix de présentation quitte l'accueil pour Réglages → Présentation de l'accueil (pour tous, par appareil, avec « Par défaut »). | §4.52 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

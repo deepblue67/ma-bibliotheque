@@ -1980,7 +1980,7 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 #auth-form .row{margin-top:0.2rem;}
 
 /* ---------- Accueil et résultats (version 3.1) ---------- */
-/* L'en-tête collant porte l'index A–Z et la bascule Grille / Liste */
+/* L'en-tête collant porte l'index A–Z (le choix de présentation est dans les Réglages depuis la 3.5) */
 .home-head{
   position:sticky; top:0; z-index:15;
   display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem 0.8rem;
@@ -1989,8 +1989,6 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 :root .home-head > .az{position:static; flex:1 1 320px; margin:0; padding:0.1rem 0; border:0; background:none; z-index:auto;}
 :root[data-panneaux="bd"] .home-head{border-bottom:var(--bd-s) solid var(--hdr-line);}
-.vue-auteurs{margin-left:auto; flex:none;}
-.vue-auteurs button{padding:0.35em 0.95em; font-size:0.75rem;}
 
 /* Liste compacte des auteurs : nom et nombre de livres, en colonnes */
 .author-list{
@@ -2023,7 +2021,6 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 /* =========================================================
    Présentations de l'accueil — version 3.3 (Éventail, Étagère, Mur)
    ========================================================= */
-.vue-auteurs{flex-wrap:wrap;}
 
 /* --- Éventail : couvertures en éventail, carte toujours pleine --- */
 .fan-card{gap:0.55rem;}
@@ -2088,8 +2085,6 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 @media (max-width:640px){
   .home-head{flex-wrap:wrap;}
-  .vue-auteurs{max-width:100%; overflow-x:auto; flex-wrap:nowrap; scrollbar-width:none;}
-  .vue-auteurs button{white-space:nowrap;}
 }
 @media (max-width:640px){
   .shelf{column-gap:0.9rem; padding:0 0.2rem;}
@@ -2100,9 +2095,14 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 
 /* Réglages → Accueil des visiteurs (3.4) */
-#accueil-site-seg{flex-wrap:wrap;}
+#accueil-site-seg, #presentation-seg{flex-wrap:wrap;}
 .site-msg{font-size:0.8rem; color:var(--sub); margin:0.7rem 0 0; min-height:1.2em; max-width:62ch;}
 .site-msg:empty{display:none;}
 .site-msg.ok{color:var(--ok, #4a7a5c);}
 .site-msg.err{color:var(--danger, #b2685a);}
 .link-btn{background:none; border:none; padding:0; color:var(--accent); font:inherit; text-decoration:underline; cursor:pointer;}
+@media (max-width:640px){
+  /* six boutons : en grille de trois plutôt qu'une pilule qui se casse en deux lignes */
+  #presentation-seg, #accueil-site-seg{display:grid; grid-template-columns:repeat(3, 1fr); border-radius:16px; width:100%;}
+  #presentation-seg button, #accueil-site-seg button{text-align:center; border-radius:12px;}
+}

@@ -70,8 +70,8 @@ for (const [k, v] of Object.entries(STYLE_PRESETS.find(p => p[0] === 'mixte')[2]
 
 // Version de la livraison — à augmenter à CHAQUE livraison, en même temps que le ?v= des
 // liens css/js dans index.html et l'historique « Versions » du README.
-const APP_VERSION = '3.4';
-const APP_VERSION_DATE = '2026-11-11';
+const APP_VERSION = '3.5';
+const APP_VERSION_DATE = '2026-11-12';
 
 // localStorage peut lever une exception (navigation privée, cookies bloqués) :
 // l'app doit continuer à fonctionner sans, d'où les try/catch.
@@ -678,7 +678,7 @@ function renderHome() {
       : `<a class="off">${L}</a>`
   ).join('');
 
-  // présentation : celle choisie sur cet appareil, sinon celle du site (version 3.4)
+  // présentation : celle choisie sur cet appareil (Réglages), sinon celle du site (versions 3.4, 3.5)
   const vue = vueAccueil();
   const corps = list => {
     if (vue === 'liste') return `<ul class="author-list">
@@ -697,16 +697,9 @@ function renderHome() {
   el.app.innerHTML = `
     <div class="home-head">
       <nav class="az" aria-label="Aller à une lettre">${az}</nav>
-      <div class="segmented vue-auteurs" role="group" aria-label="Affichage des auteurs">
-        ${VUES_ACCUEIL.map(([k, lib]) => `<button type="button" data-vue="${k}" class="${vue === k ? 'on' : ''}" aria-pressed="${vue === k}">${lib}</button>`).join('')}
-      </div>
     </div>
     ${sections}
   `;
-  el.app.querySelectorAll('.vue-auteurs button').forEach(bt => bt.addEventListener('click', () => {
-    prefSet('accueil', bt.dataset.vue);
-    renderHome();
-  }));
 
   // l'index A–Z fait défiler sans changer l'URL (sinon on casse le retour arrière)
   el.app.querySelectorAll('.az a[data-jump]').forEach(a => {
@@ -1841,6 +1834,8 @@ function renderSettings() {
         <button type="button" class="set-all-btn" data-all="close">Tout replier</button>
       </div>
 
+      ${setBlock('presentation', "Présentation de l'accueil", renderPresentationBlock())}
+
       ${setBlock('mode', 'Clair ou sombre', `
         <div class="segmented" id="mode-seg">
           <button data-mode="auto" class="${mode==='auto'?'on':''}">Automatique</button>
@@ -1895,6 +1890,7 @@ function renderSettings() {
   wireStyleBlock();
   wireOwnerBlock();
   wireAnomalies();
+  wirePresentation();
   wireAccueilSite();
   wireAide();
   el.app.querySelectorAll('.hidden-row button').forEach(b => {
@@ -1905,17 +1901,41 @@ function renderSettings() {
   });
 }
 
+// Rubrique « Présentation de l'accueil » (pour tous, version 3.5) : le choix de CET appareil.
+// « Par défaut » suit la présentation réglée par le propriétaire pour tout le monde.
+function renderPresentationBlock() {
+  let perso = null;
+  try { perso = localStorage.getItem('mabiblio.accueil'); } catch (e) {}
+  const choix = vueValide(perso) ? perso : 'defaut';
+  const defaut = vueValide(SITE.accueil) ? SITE.accueil : DEFAULTS.accueil;
+  return `
+    <div class="segmented" id="presentation-seg" role="group" aria-label="Présentation de l'accueil sur cet appareil">
+      <button type="button" data-vue="defaut" class="${choix === 'defaut' ? 'on' : ''}" aria-pressed="${choix === 'defaut'}">Par défaut</button>
+      ${VUES_ACCUEIL.map(([k, lib]) => `<button type="button" data-vue="${k}" class="${choix === k ? 'on' : ''}" aria-pressed="${choix === k}">${lib}</button>`).join('')}
+    </div>
+    <p class="lede" style="margin:0.8rem 0 0; font-size:0.8rem;">
+      Comment les auteurs s'affichent sur l'accueil, sur cet appareil. « Par défaut » suit la
+      présentation choisie pour tous (actuellement : ${escapeHtml(libelleVue(defaut))}).</p>`;
+}
+function wirePresentation() {
+  document.querySelectorAll('#presentation-seg button').forEach(bt => bt.addEventListener('click', () => {
+    try {
+      if (bt.dataset.vue === 'defaut') localStorage.removeItem('mabiblio.accueil');
+      else localStorage.setItem('mabiblio.accueil', bt.dataset.vue);
+    } catch (e) {}
+    renderSettings();
+  }));
+}
+
 // Rubrique « Accueil des visiteurs » (propriétaire, version 3.4) : la présentation que voit
 // en arrivant quiconque n'a pas encore choisi la sienne. Enregistrée dans la base, donc
 // valable sur tous les appareils, y compris ceux de la famille.
 function renderAccueilSiteBlock() {
   const actuelle = vueValide(SITE.accueil) ? SITE.accueil : DEFAULTS.accueil;
-  let perso = null;
-  try { perso = localStorage.getItem('mabiblio.accueil'); } catch (e) {}
   return `
     <p class="hint-sm" style="margin:0 0 0.8rem; max-width:60ch;">
-      La présentation de l'accueil pour tous ceux qui n'ont pas encore choisi la leur (boutons à
-      droite de l'index A–Z). Chacun peut ensuite en changer pour son appareil.</p>
+      La présentation de l'accueil pour tous ceux qui n'en ont pas choisi une autre sur leur
+      appareil (rubrique « Présentation de l'accueil » ci-dessus).</p>
     <div class="segmented" id="accueil-site-seg" role="group" aria-label="Présentation de l'accueil par défaut">
       ${VUES_ACCUEIL.map(([k, lib]) => `<button type="button" data-vue="${k}" class="${actuelle === k ? 'on' : ''}" aria-pressed="${actuelle === k}">${lib}</button>`).join('')}
     </div>
@@ -1923,8 +1943,7 @@ function renderAccueilSiteBlock() {
       REGLAGES_READY === false
         ? "La base n'a pas encore la table des réglages : exécute <code>migration_2026-11_reglages.sql</code> dans Supabase (SQL Editor). En attendant, l'accueil s'ouvre sur l'Éventail."
         : ''}</p>
-    ${vueValide(perso) && perso !== actuelle ? `<p class="hint-sm" id="accueil-site-perso">Sur cet appareil, tu as choisi « ${escapeHtml(libelleVue(perso))} » : c'est elle que tu vois.
-      <button type="button" class="link-btn" id="accueil-site-oublie">Suivre le réglage du site</button></p>` : ''}`;
+`;
 }
 function wireAccueilSite() {
   const seg = document.getElementById('accueil-site-seg');
@@ -1950,11 +1969,6 @@ function wireAccueilSite() {
       seg.querySelectorAll('button').forEach(x => { x.disabled = false; });
     }
   }));
-  const oublie = document.getElementById('accueil-site-oublie');
-  if (oublie) oublie.addEventListener('click', () => {
-    try { localStorage.removeItem('mabiblio.accueil'); } catch (e) {}
-    renderSettings();
-  });
 }
 
 // Sections des Réglages repliables (titre cliquable, comme la rubrique Aide). Ce qui est
