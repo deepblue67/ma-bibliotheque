@@ -2030,22 +2030,24 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
    ========================================================= */
 
 /* --- Éventail : couvertures en éventail, carte toujours pleine --- */
-.fan-card{gap:0.55rem;}
-.fan{position:relative; height:150px; margin:0.2rem 0 0.1rem;}
+.fan-card{gap:0.5rem;}
+/* 3.8 : couvertures agrandies, comme sur l'appli BD — l'éventail occupe un carré de la largeur
+   de la carte, chaque couverture fait 56 % de cette largeur ; 4 colonnes sur ordinateur, 2 sur téléphone */
+.fan{position:relative; aspect-ratio:1 / 1; margin:0;}
 .fan-item{
-  position:absolute; bottom:0; left:50%; width:88px; height:132px;
-  transform:translateX(calc(-50% + var(--i) * 34px)) rotate(calc(var(--i) * 5deg));
-  transform-origin:50% 120%;
-  transition:transform .2s ease;
+  position:absolute; top:6%; left:22%; width:56%; aspect-ratio:2 / 3;
+  transform:translateX(calc(var(--i) * 8%)) rotate(calc(var(--i) * 4.5deg));
+  transform-origin:50% 100%;
+  transition:transform .18s ease;
 }
 .fan-item .cover{width:100%; height:100%; border-radius:4px; box-shadow:0 3px 10px rgba(0,0,0,.22);}
-.fan[style*="--n:1"] .fan-item{width:96px; height:144px;}
-.fan-card:hover .fan-item{transform:translateX(calc(-50% + var(--i) * 40px)) rotate(calc(var(--i) * 7deg));}
+.fan-card:hover .fan-item, .fan-card:focus-visible .fan-item{transform:translateX(calc(var(--i) * 12%)) rotate(calc(var(--i) * 7deg));}
+
 /* sans cadre (version 3.8, comme l'appli BD) : les couvertures seules, le nom centré dessous ;
    le sélecteur commence par :root pour l'emporter sur les styles de cartes (Réglages → Style) */
-.fan-grid{gap:1.6rem 1rem;}
+.fan-grid{grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:1.4rem 1.3rem;}
 :root .fan-grid .fan-card.author-card,
-:root .fan-grid .fan-card.author-card:hover{background:transparent; border:0; border-radius:0; box-shadow:none; transform:none; padding:0 0.2rem;}
+:root .fan-grid .fan-card.author-card:hover{background:transparent; border:0; border-radius:0; box-shadow:none; transform:none; padding:0;}
 .fan-grid .fan-card:focus-visible{outline:2px solid var(--accent); outline-offset:4px; border-radius:var(--radius);}
 .fan-grid .fan-card .meta{flex-direction:column; align-items:center; text-align:center; gap:0.15rem;}
 .fan-grid .fan-card .name{transition:color .15s ease;}
@@ -2094,9 +2096,8 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
   .wall-cap{padding:1.6rem 0.4rem 0.4rem;}
   .wall-cap .name{font-size:0.72rem;}
   .fan-grid{grid-template-columns:repeat(2, 1fr);}
-  .fan{height:118px;}
-  .fan-item{width:66px; height:99px; transform:translateX(calc(-50% + var(--i) * 20px)) rotate(calc(var(--i) * 5deg));}
-  .fan[style*="--n:1"] .fan-item{width:72px; height:108px;}
+  .fan-grid{gap:1.1rem 0.9rem;}
+  .fan-item{transform:translateX(calc(var(--i) * 6%)) rotate(calc(var(--i) * 3.5deg));}   /* éventail moins ouvert */
 }
 @media (max-width:640px){
   .home-head{flex-wrap:wrap;}
