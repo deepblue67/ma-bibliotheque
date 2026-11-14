@@ -148,7 +148,7 @@ function carteEventail(a) {
   const pick = couverturesAuteur(a, 5), n = pick.length;
   return `<a class="author-card fan-card" href="#/author/${a.id}">
     <div class="fan" style="--n:${n}">${pick.map((b, i) => `<div class="fan-item" style="--i:${i - (n - 1) / 2}">${coverTile(b)}</div>`).join('')}</div>
-    <div class="meta"><span class="name">${escapeHtml(a.name)}</span><span class="count">${a.books.length}</span></div>
+    <div class="meta"><span class="name">${escapeHtml(a.name)}</span><span class="count">${nbLivres(a.books.length)}</span></div>
   </a>`;
 }
 // Étagère : les livres debout, côte à côte, sur une planche ; le nom de l'auteur sur l'étiquette.

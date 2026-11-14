@@ -740,6 +740,27 @@ const AIDE_SECTIONS = [
         l'outil reconnaît et associe automatiquement à la bonne fiche.</p>`,
   },
   {
+    id: 'discretion',
+    titre: 'Site non référencé',
+    corps: `
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        Depuis la version 3.8, l'application vit à l'adresse <strong>livres.cdesmottes.fr</strong>
+        (l'ancienne adresse GitHub y renvoie toute seule). Ses pages demandent aux moteurs de
+        recherche de ne pas les lister, et le fichier <code>robots.txt</code> leur interdit le mode
+        d'emploi PDF et l'outil d'import : quelqu'un qui cherche « Ma Bibliothèque » sur Google ne
+        tombe pas dessus.</p>
+      <p class="hint-sm" style="margin:0 0 0.8rem;">
+        Ce n'est <strong>pas une protection</strong> : qui connaît l'adresse ouvre le site, et les
+        robots malveillants ignorent ces consignes. Le code du site reste lisible dans le dépôt
+        GitHub public. Ce qui est personnel — statuts, notes, dates, commentaires — reste réservé à
+        ta connexion par les règles de Supabase.</p>
+      <p class="hint-sm" style="margin:0;">
+        Changer d'adresse se refait sur chaque appareil : le navigateur range ses données par
+        adresse. Sur la nouvelle, reconnecte-toi (rubrique « Mode propriétaire »), refais thème,
+        style et présentation si tu les avais changés, et recrée l'icône sur l'écran d'accueil de
+        l'iPhone. Rien n'est perdu : tout le reste est dans la base.</p>`,
+  },
+  {
     id: 'limites',
     titre: 'Ce qui reste utile de transmettre à Claude',
     corps: `

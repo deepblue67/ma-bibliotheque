@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 3.7 du 12/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 3.8 du 14/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -1093,6 +1093,26 @@ Demande de Christophe (12/11) : faire le chantier technique proposé, **en s'ass
 - Affichage depuis le cache comparé à l'affichage depuis la base (accueil, auteur, sagas, carnet, fiche, Réglages) : contenu identique.
 - Nouvelle suite `cache.js` (29 vérifications, sur un petit serveur local) ; `livraison.js` vérifie les sept fichiers et leurs `?v=` ; 28 suites réussies. Version 3.7.
 
+### 4.56 Nouvelle adresse livres.cdesmottes.fr, site non référencé, Éventail sans cadre (version 3.8)
+
+Demande de Christophe (14/11) : reprendre ce qui a été fait le même jour sur l'appli BD (version 3.10, « Discrétion : site non référencé »), et tester l'Éventail sans bordure comme sur la BD.
+
+**Adresse.** L'appli est désormais servie à **https://livres.cdesmottes.fr** (Christophe a confirmé que l'adresse est en place). Même méthode que pour `bd.cdesmottes.fr` : domaine `cdesmottes.fr` chez Infomaniak, zone DNS `livres` CNAME `deepblue67.github.io`, domaine vérifié dans le compte GitHub ; dans le dépôt `ma-bibliotheque`, Settings → Pages → Custom domain = `livres.cdesmottes.fr`, « Enforce HTTPS » coché. GitHub a ajouté au dépôt un fichier **`CNAME`** (contenant `livres.cdesmottes.fr`) : **il doit y rester** (ne pas le supprimer lors d'un envoi de fichiers). L'ancienne adresse `deepblue67.github.io/ma-bibliotheque/` renvoie automatiquement vers la nouvelle. Supabase : rien à changer (connexion par e-mail et mot de passe, sans lien de redirection).
+- **Pourquoi c'était nécessaire** : un `robots.txt` n'est lu qu'à la racine d'un domaine ; à l'adresse GitHub (`…github.io/ma-bibliotheque/`), il aurait été ignoré.
+- **Pour chaque appareil** : le navigateur range ses données par adresse. Sur la nouvelle, il faut se reconnecter (Réglages → Mode propriétaire), refaire thème, style et présentation si on les avait changés, et recréer l'icône de l'écran d'accueil de l'iPhone ; le catalogue se remet en cache tout seul. Statuts, avis, corrections sont dans Supabase : rien n'est perdu.
+
+**Site non référencé** (discrétion, pas une protection) :
+- `<meta name="robots" content="noindex, nofollow, noarchive">` dans `index.html` et dans `supabase_import_tool.html` (l'outil d'import, publié avec le site, qui sert aussi à envoyer les couvertures) ; ligne « Version de l'outil » de ce dernier : 14/11/2026.
+- Nouveau **`robots.txt`** à la racine du site : les robots peuvent lire les pages HTML (sinon ils ne verraient pas la consigne « noindex ») mais pas `Mode_emploi_proprietaire.pdf` ni `supabase_import_tool.html`. Le catalogue n'est pas un fichier du site (il vient de Supabase) : rien d'autre à interdire.
+- Limites : qui connaît l'adresse ouvre le site ; les robots malveillants ignorent ces consignes ; le dépôt GitHub reste public (code lisible). Ce qui est personnel (statuts, notes, dates, commentaires) reste protégé par les règles Supabase de la 3.0.
+- Aide (nouvelle section « Site non référencé », neuf sections au lieu de huit) et mode d'emploi PDF (nouvelle section 11, adresse dans l'en-tête et le pied de page).
+
+**Mode d'emploi PDF refait** : son générateur était resté dans un dossier de travail de Claude, perdu depuis ; il a été réécrit à l'identique du contenu de la 3.7 (même texte, même mise en page à quelques espacements près, 5 pages au lieu de 4) et il est désormais gardé **sur le PC**, dans `mode_emploi\mode_emploi.py` (`python3 mode_emploi.py <sortie.pdf>` ; Python, reportlab et les polices DejaVu).
+
+**Éventail sans cadre** : comme sur l'appli BD, les couvertures en éventail ne sont plus posées sur une carte (ni fond, ni bordure, ni ombre, quel que soit le style choisi dans Réglages → Style) ; le nom de l'auteur est centré dessous, avec « N livres » en dessous ; il prend la couleur d'accent au survol. Les autres présentations ne changent pas.
+
+**Vérifié** : `livraison.js` contrôle la balise « noindex » des deux pages et le contenu de `robots.txt` ; `accueil.js` (« N livres » sous le nom) et `aideproprietaire.js` (neuf sections) adaptés ; 28 suites réussies ; Éventail regardé en clair, en sombre, en style Tout BD et sur iPhone. Version 3.8.
+
 ## 5. Prochaines étapes (dans l'ordre)
 
 1. ~~Christophe exécute `supabase_schema.sql` une fois dans Supabase Studio → SQL Editor → Run.~~ **Fait.**
@@ -1161,6 +1181,7 @@ Demande de Christophe (12/11) : faire le chantier technique proposé, **en s'ass
 64. **Christophe envoie les cinq dernières couvertures** (voir §4.53) : outil d'import, section 1 (clé `service_role`), section 9, dossier `couvertures_epub\images_complement` (5 images), « Téléverser ». Ensuite, plus aucun livre visible sans couverture.
 65. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.6** (voir §4.54). Vérifier « version 3.6 » en bas des Réglages, la nouvelle icône des sagas dans le bandeau, les graphiques du carnet (connecté) et Réglages → Présentation de l'accueil → Ordre des auteurs.
 66. **Christophe redéploie la version 3.7** (voir §4.55) : `index.html`, `css/style.css`, **les sept fichiers de `js/`** (`app.js`, `accueil.js`, `livres.js`, `carnet.js`, `anomalies.js`, `reglages.js`, `demarrage.js` — `config.js` ne change pas) et `Mode_emploi_proprietaire.pdf`. Le plus simple sur GitHub : « Add file → Upload files », glisser les sept fichiers dans le dossier `js`. Vérifier « version 3.7 » en bas des Réglages ; rouvrir ensuite l'appli : la bibliothèque doit s'afficher immédiatement.
+67. **Christophe redéploie la version 3.8** (voir §4.56 ; elle contient la 3.7) : `index.html`, `css/style.css`, les sept fichiers de `js/`, `Mode_emploi_proprietaire.pdf`, `supabase_import_tool.html` et le **nouveau `robots.txt`** (à la racine du dépôt, à côté d'`index.html`). **Ne pas supprimer le fichier `CNAME`** que GitHub a ajouté au dépôt. Vérifier « version 3.8 » en bas des Réglages, puis https://livres.cdesmottes.fr/robots.txt. Sur chaque appareil : ouvrir la nouvelle adresse, se reconnecter, recréer l'icône de l'iPhone.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -1204,5 +1225,6 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 3.5 | 12/11/2026 | Le choix de présentation quitte l'accueil pour Réglages → Présentation de l'accueil (pour tous, par appareil, avec « Par défaut »). | §4.52 |
 | 3.6 | 12/11/2026 | Page « Toutes les sagas » (icône du bandeau ; progression et tomes absents pour le propriétaire) ; graphiques du carnet (répartition des notes, lectures par mois) ; ordre des auteurs sur l'accueil (alphabétique, nombre de livres, enrichis récemment). | §4.54 |
 | 3.7 | 12/11/2026 | Chantier technique, sans changement visible : catalogue gardé sur l'appareil (ouverture immédiate, mise à jour en arrière-plan, rien de privé), `app.js` découpé en sept fichiers, `style.css` nettoyé ; banc de non-régression visuelle (160 captures identiques). | §4.55 |
+| 3.8 | 14/11/2026 | Adresse livres.cdesmottes.fr ; site non référencé (« noindex » dans les pages, `robots.txt`), section d'aide et du PDF « Site non référencé » ; Éventail sans cadre ; générateur du mode d'emploi gardé sur le PC. | §4.56 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.
