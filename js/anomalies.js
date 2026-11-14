@@ -3,7 +3,8 @@
 // ---------------------------------------------------------------
 // Anomalies
 //
-// Six familles de défauts, toutes repérées sur les données déjà chargées :
+// Sept familles (six de défauts, plus les tomes absents des sagas depuis la 3.10), toutes repérées
+// sur les données déjà chargées :
 // aucune requête supplémentaire, aucun appel extérieur. Les règles ont été
 // calibrées sur la bibliothèque réelle — chacune a été élargie puis resserrée
 // jusqu'à ce qu'elle ne signale pratiquement plus que de vrais défauts, car
@@ -186,6 +187,21 @@ function detecteAnomalies() {
     `Un seul mot en guise de nom. Souvent légitime — Ayerdhal, Collectif — parfois le signe d'un
      nom de fichier coupé trop tôt. À parcourir des yeux, rien de plus.`,
     mononymes, 'copier');
+
+  // 7. Tomes absents dans les sagas (version 3.10) : les trous entre le premier et le dernier
+  // tome présents, même calcul que sur la page de l'auteur et la page des sagas. Ce n'est pas
+  // un défaut de la base, mais une liste de livres à se procurer.
+  const fr = (x, y) => x.localeCompare(y, 'fr', { sensitivity: 'base' });
+  const trous = toutesLesSagas()
+    .map(x => ({ type: 'saga', auteur: x.auteur, nom: x.nom, livres: x.livres, manque: numerosAbsents(x.livres) }))
+    .filter(x => x.manque.length)
+    .sort((x, y) => fr(x.auteur.name_sort || x.auteur.name, y.auteur.name_sort || y.auteur.name) || fr(x.nom, y.nom));
+  ajoute('tomes', 'Tomes absents dans les sagas',
+    `Les sagas dont il manque des tomes entre le premier et le dernier que tu possèdes. Les tomes
+     parus après le dernier ne peuvent pas être repérés : la bibliothèque ne connaît pas la
+     longueur des sagas. « Voir » ouvre la page de l'auteur à cette saga ; « Copier la liste »
+     donne une liste de livres à chercher.`,
+    trous, 'saga');
 
   return fam;
 }

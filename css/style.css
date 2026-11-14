@@ -1074,6 +1074,10 @@ a:focus-visible, button:focus-visible, .toggle:focus-within, input:focus-visible
 }
 .btn-mini:hover{background:var(--ink); border-color:var(--ink); color:var(--bg);}
 .btn-mini:disabled{opacity:0.5; cursor:default;}
+/* 3.10 : famille « Tomes absents dans les sagas » — le nom à gauche, « Voir » à droite */
+.ano-saga{display:flex; align-items:center; justify-content:space-between; gap:0.8rem;}
+.ano-saga .ano-who .a b{color:var(--ink); font-weight:600;}
+a.btn-mini{display:inline-flex; align-items:center; text-decoration:none;}
 
 .ano-opts{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:0.6rem; margin-top:0.5rem;}
 .ano-opt{

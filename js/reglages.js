@@ -408,6 +408,17 @@ function renderAnomaliesBlock() {
         <p class="ano-msg" hidden></p>
       </div>`;
     }
+    if (action === 'saga') {
+      const nb = l.manque.length;
+      return `<div class="ano-row ano-saga">
+        <div class="ano-who">
+          <span class="t">${escapeHtml(l.nom)}</span>
+          <span class="a">${escapeHtml(l.auteur.name)} · ${l.livres.length} tome${l.livres.length > 1 ? 's' : ''} présent${l.livres.length > 1 ? 's' : ''} ·
+            absent${nb > 1 ? 's' : ''} : <b>${plagesTomes(l.manque)}</b></span>
+        </div>
+        <a class="btn-mini" href="#/author/${l.auteur.id}" data-auteur="${l.auteur.id}" data-saga="${escapeHtml(l.nom)}">Voir</a>
+      </div>`;
+    }
     const a = l.auteur;
     const sous = a ? a.books.map(b => b.title).slice(0, 3).join(' · ')
                    : l.livres[0].author_name + (l.vise ? ` — vise probablement ${l.vise}` : '');
@@ -434,7 +445,7 @@ function renderAnomaliesBlock() {
         <div class="ano-body" ${ANO_OUVERTES.has(f.id) ? '' : 'hidden'}>
           <p class="hint-sm" style="margin:0 0 0.9rem;">${f.aide}</p>
           ${f.lignes.map((l, i) => ligne(l, f.action, i)).join('')}
-          ${f.action === 'copier'
+          ${f.action === 'copier' || f.action === 'saga'
             ? `<button type="button" class="linkish" data-copie="${f.id}">Copier la liste</button>` : ''}
         </div>
       </div>`).join('')}`;
@@ -459,12 +470,19 @@ function wireAnomalies() {
     b.addEventListener('click', async () => {
       const f = parId.get(b.dataset.copie);
       if (!f) return;
-      const txt = f.lignes.map(l => l.auteur
+      const txt = f.lignes.map(l => l.type === 'saga'
+        ? `${l.auteur.name} — ${l.nom} : tome${l.manque.length > 1 ? 's' : ''} ${plagesTomes(l.manque)}`
+        : l.auteur
         ? `${l.auteur.name} — ${l.auteur.books.map(x => x.title).join(' | ')}`
         : `${l.livres[0].author_name} — ${l.livres[0].title}`).join('\n');
       try { await navigator.clipboard.writeText(txt); b.textContent = 'Liste copiée'; }
       catch (e) { b.textContent = 'Copie impossible sur cet appareil'; }
     });
+  });
+
+  // « Voir » : la page de l'auteur s'ouvre au niveau de la saga (même mécanisme que la page des sagas)
+  el.app.querySelectorAll('.ano-saga a[data-saga]').forEach(a => {
+    a.addEventListener('click', () => { SAGA_CIBLE = { auteur: a.dataset.auteur, nom: a.dataset.saga }; });
   });
 
   el.app.querySelectorAll('[data-fix]').forEach(btn => {
@@ -553,6 +571,8 @@ const AIDE_FAMILLES = [
     action: 'Pareil — Copier la liste, à transmettre.' },
   { nom: 'Auteurs sans prénom', repere: 'un seul mot en guise de nom (parfois légitime : Ayerdhal, Collectif)',
     action: 'À parcourir des yeux, rien de plus.' },
+  { nom: 'Tomes absents dans les sagas', repere: 'les tomes qui manquent entre le premier et le dernier que tu possèdes (ceux parus après le dernier ne peuvent pas être repérés)',
+    action: '« Voir » ouvre la saga chez l\'auteur ; « Copier la liste » donne les livres à chercher.' },
 ];
 
 const AIDE_SECTIONS = [
@@ -618,7 +638,7 @@ const AIDE_SECTIONS = [
     titre: "L'écran des anomalies",
     corps: `
       <p class="hint-sm" style="margin:0 0 0.8rem;">
-        Six familles, recalculées à chaque ouverture de cette page, à partir des livres déjà
+        Sept familles, recalculées à chaque ouverture de cette page, à partir des livres déjà
         chargés — rien n'est envoyé nulle part tant qu'aucun bouton n'est cliqué.</p>
       ${AIDE_FAMILLES.map(f => `
         <p class="hint-sm" style="margin:0 0 0.6rem;">
