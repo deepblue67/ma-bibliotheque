@@ -767,8 +767,8 @@ const AIDE_SECTIONS = [
         Depuis la version 3.8, l'application vit à l'adresse <strong>livres.cdesmottes.fr</strong>
         (l'ancienne adresse GitHub y renvoie toute seule). Ses pages demandent aux moteurs de
         recherche de ne pas les lister, et le fichier <code>robots.txt</code> leur interdit le mode
-        d'emploi PDF et l'outil d'import : quelqu'un qui cherche « Ma Bibliothèque » sur Google ne
-        tombe pas dessus.</p>
+        d'emploi PDF (un PDF ne peut pas porter cette consigne) : quelqu'un qui cherche
+        « Ma Bibliothèque » sur Google ne tombe pas dessus.</p>
       <p class="hint-sm" style="margin:0 0 0.8rem;">
         Ce n'est <strong>pas une protection</strong> : qui connaît l'adresse ouvre le site, et les
         robots malveillants ignorent ces consignes. Le code du site reste lisible dans le dépôt

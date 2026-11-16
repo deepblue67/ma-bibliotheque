@@ -1,8 +1,8 @@
 # Ma Bibliothèque (livres.cdesmottes.fr) — site personnel, à ne pas référencer.
-# Les pages HTML portent aussi <meta name="robots" content="noindex…"> : on laisse les robots
-# les lire (sans quoi ils ne verraient pas cette consigne), mais pas le mode d'emploi PDF ni
-# l'outil d'import. Le catalogue, lui, vient de Supabase (autre adresse) : il n'est pas dans le site.
+# Les pages HTML (index.html, supabase_import_tool.html) portent <meta name="robots" content="noindex…"> :
+# elles ne sont PAS bloquées ici, sinon les robots ne liraient jamais cette consigne (3.11).
+# Seul le mode d'emploi PDF est bloqué : un PDF ne peut pas porter de balise « noindex », et
+# GitHub Pages ne permet pas de l'envoyer autrement. Le catalogue vient de Supabase (autre adresse).
 # Ce n'est PAS une protection : quiconque connaît l'adresse peut ouvrir le site.
 User-agent: *
 Disallow: /Mode_emploi_proprietaire.pdf
-Disallow: /supabase_import_tool.html
