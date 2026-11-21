@@ -8,7 +8,7 @@ Ce fichier a deux rôles :
 
 **Ce fichier doit être mis à jour à chaque changement fonctionnel, visuel ou technique important.**
 
-**Version actuellement livrée : 3.8 du 14/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
+**Version actuellement livrée : 3.11 du 16/11/2026** — affichée en bas de la page Réglages de l'application. Règle et historique : §7.
 
 ---
 
@@ -49,6 +49,7 @@ Une bibliothèque numérique personnelle, sous forme d'application web, présent
 - [x] **Bug de complétude des couvertures identifié (deuxième retour de Christophe, exemple : Isaac Asimov)** et fonction de recherche automatique de couvertures manquantes ajoutée à l'outil autonome (section 5) — voir §4.7.
 - [x] Fonction de couverture manuelle ajoutée à l'outil (section 6, troisième retour de Christophe sur les sites de couverture) — voir §4.8.
 - [x] **Barre de recherche disproportionnée sur iPhone corrigée, et croix d'effacement ajoutée sur tous les appareils (dix-septième retour)** — livré le 2026-10-24 — voir §4.28.
+- [x] **Synchronisation du 21 novembre 2026 : 16 livres (2 ebooks, 14 livres audio), 5 auteurs nouveaux** — importée par Christophe le jour même (443 auteurs, 2 053 fiches) ; couvertures prêtes — voir §4.59.
 - [x] **Synchronisation du 10 novembre 2026 : 34 livres audio, 3 auteurs, 3 ebooks Ken Follett** — importée par Christophe le soir même (2037 fiches en base ensuite) — voir §4.43.
 - [x] **Synchronisation du 24 octobre 2026 : delta des nouveaux fichiers dans `Mes Ebooks` et `Mes livres audio`** — 4 nouveaux livres et 5 mises à jour de format identifiés, 3 JSON préparés — voir §4.27.
 - [x] **L'outil d'import Supabase et le mode d'emploi (PDF) sont désormais accessibles depuis deux liens dans les réglages, réservés au propriétaire** (déployés avec le reste de l'app) — livré le 2026-10-20 — voir §4.26.
@@ -1109,9 +1110,49 @@ Demande de Christophe (14/11) : reprendre ce qui a été fait le même jour sur 
 
 **Mode d'emploi PDF refait** : son générateur était resté dans un dossier de travail de Claude, perdu depuis ; il a été réécrit à l'identique du contenu de la 3.7 (même texte, même mise en page à quelques espacements près, 5 pages au lieu de 4) et il est désormais gardé **sur le PC**, dans `mode_emploi\mode_emploi.py` (`python3 mode_emploi.py <sortie.pdf>` ; Python, reportlab et les polices DejaVu).
 
-**Éventail sans cadre** : comme sur l'appli BD, les couvertures en éventail ne sont plus posées sur une carte (ni fond, ni bordure, ni ombre, quel que soit le style choisi dans Réglages → Style) ; le nom de l'auteur est centré dessous, avec « N livres » en dessous ; il prend la couleur d'accent au survol. Les autres présentations ne changent pas.
+**Éventail sans cadre** : comme sur l'appli BD, les couvertures en éventail ne sont plus posées sur une carte (ni fond, ni bordure, ni ombre, quel que soit le style choisi dans Réglages → Style) ; le nom de l'auteur est centré dessous, avec « N livres » en dessous ; il prend la couleur d'accent au survol. Les autres présentations ne changent pas. **Couvertures agrandies — version 3.9** (demande de Christophe le même jour, après la mise en ligne de la 3.8, « plus agréable à lire », comme sur la BD) : l'éventail occupe un carré de la largeur de la carte et chaque couverture fait 56 % de cette largeur, soit environ 160 × 240 px sur ordinateur (au lieu de 88 × 132) ; 4 colonnes sur ordinateur (cartes de 240 px au moins), 2 sur téléphone avec un éventail moins ouvert.
 
 **Vérifié** : `livraison.js` contrôle la balise « noindex » des deux pages et le contenu de `robots.txt` ; `accueil.js` (« N livres » sous le nom) et `aideproprietaire.js` (neuf sections) adaptés ; 28 suites réussies ; Éventail regardé en clair, en sombre, en style Tout BD et sur iPhone. Version 3.8.
+
+### 4.57 Anomalies : tomes absents dans les sagas (version 3.10)
+
+Demande de Christophe (14/11) : ajouter à l'écran des anomalies une section qui liste les livres manquants des sagas.
+
+- Septième famille, en dernier : **« Tomes absents dans les sagas »**. Une ligne par saga trouée : nom de la saga, auteur, nombre de tomes présents, tomes absents (« absents : 1, 2, 5 à 7 »), triées par auteur puis par saga. Même calcul que la ligne « Tomes absents » de la page auteur (§4.49) et de la page des sagas (§4.54) : les trous entre le premier et le dernier tome présents. **Limite** : les tomes parus après le dernier possédé ne peuvent pas être repérés, la base ne connaissant pas la longueur des sagas.
+- **« Voir »** ouvre la page de l'auteur au niveau de la saga ; **« Copier la liste »** copie une liste de livres à chercher (« G.J. Arnaud — La Compagnie des Glaces : tomes 1, 2, 5 à 7 », une ligne par saga).
+- Comme tout l'écran des anomalies : propriétaire connecté seulement, rien n'est écrit dans la base.
+- Aide (« Sept familles ») et mode d'emploi PDF (ligne du tableau des anomalies) complétés.
+
+**Vérifié** : `sagas.js` (familles absente sans trou, présente avec deux sagas trouées, ordre, texte copié, « Voir » et retour arrière, rien pour un visiteur) ; `anomalies.js` inchangé (ses données de test n'ont pas de saga) ; 28 suites réussies. Version 3.10.
+
+### 4.58 robots.txt corrigé : seules les pages non HTML sont bloquées (version 3.11)
+
+Remarque de Christophe (16/11) : en interdisant aux robots des pages qui portent aussi la balise « noindex », on les empêche de lire cette balise. **Il avait raison pour l'outil d'import** : un robot qui respecte `robots.txt` ne télécharge pas la page, ne voit donc jamais son « noindex », et Google peut quand même lister l'adresse seule (sans contenu) si un lien y mène ailleurs. Pour `index.html`, il n'y avait pas de souci : la page n'était pas bloquée.
+
+- `robots.txt` ne bloque plus que **`Mode_emploi_proprietaire.pdf`** : un PDF ne peut pas porter de balise « noindex », et GitHub Pages ne permet pas d'envoyer l'équivalent par l'en-tête HTTP `X-Robots-Tag`. C'est donc le seul moyen pour lui. Risque résiduel faible : le lien vers le PDF n'apparaît que dans les Réglages une fois connecté (dessiné par l'appli), aucun robot ne le croise.
+- `supabase_import_tool.html` n'est plus bloqué : sa balise « noindex » est désormais lisible et suffit.
+- Aide et mode d'emploi PDF corrigés en conséquence ; `livraison.js` vérifie qu'aucune page HTML n'est bloquée.
+- **Même remarque pour l'appli BD** : son `robots.txt` bloque `uploader.html`, qui porte aussi « noindex ». À corriger de la même façon dans ce projet-là (et garder le blocage de `data/` et du PDF, qui ne peuvent pas porter la balise).
+
+### 4.59 Synchronisation du 21 novembre 2026 — delta des nouveaux fichiers
+
+Demande de Christophe (21/11) : « insère-moi le delta ». Méthode : compétence « delta-ebook » (fichiers et dossiers plus récents que le dernier delta du 10/11, métadonnées des epub, étiquettes des mp3, rapprochement avec le catalogue relu en entier : 2 037 fiches dont 23 masquées, 438 auteurs).
+
+- **Déjà présents, rien à faire** : les dossiers audio Michael Connelly (6), Arnaldur Indridason (13), Jo Nesbø (10) et Ragnar Jónasson (1), datés du 10/11 sur le disque, sont ceux du delta précédent (§4.43).
+- **Nouveaux auteurs (5)** : Catherine Newman, Colleen Hoover, Gillian Flynn, Emma Donoghue, Lisa Jewell (`name_sort` au format « Nom Prénom », celui de la grande majorité de la base).
+- **Nouveaux livres (16)** :
+  - Catherine Newman — *Chutes libres* (ebook, Littérature générale).
+  - Colleen Hoover — *Verity* (ebook, Thriller) ; en audio, Romance : *Jamais plus* et *À tout jamais* (saga « Jamais plus », tomes 1 et 2 — l'étiquette du second dit « Jamais plus 2 »), *Confess*, *Maybe Someday* (saga « Maybe Someday », tome 1), *Sans regret*, *Pour toi*, *Entre nous* (saga « Slammed », tomes 1 à 3).
+  - Gillian Flynn — *Les Apparences* (audio, Thriller).
+  - Emma Donoghue — *Le Pavillon des combattantes* (audio ; Littérature générale, à revoir : roman historique).
+  - Lisa Jewell — en audio, Thriller : *Là où le bonheur s'est envolé* (à revoir), *Sortir de l'ombre* (Marvel Crime, une enquête de Jessica Jones), *Ne le laissez pas entrer*, *Rentre avant la nuit*, *Tout près de moi*.
+- **Formats ajoutés à des fiches existantes** : aucun (pas de fichier 3). **Cas douteux** : aucun.
+- **Doublons sur le disque** (`doublons_depuis_2026-11-10.csv`) : aucun.
+- **Simulation** de l'outil d'import contre une copie du catalogue : section 2 → 5 auteurs, section 3 → 16 livres insérés, aucun doublon, sagas et tomes corrects.
+- **À importer, dans l'ordre** : section 2 → `1_nouveaux_auteurs_2026-11-21.json` ; section 3 → `2_nouveaux_livres_2026-11-21.json`. Couvertures ensuite (section 9), une fois les livres en base.
+- **Incident à l'import (corrigé le jour même)** : la section 3 a refusé le fichier avec `PGRST102 « All object keys must match »` — 0 livre inséré, rien d'abîmé. Supabase exige qu'un envoi groupé ait les mêmes colonnes sur toutes les lignes ; or l'outil n'envoie `series`/`series_index` que pour les livres d'une saga, et ce fichier mélangeait les deux (la simulation ne reproduisait pas cette règle). **Outil corrigé** (« Version de l'outil : 21/11/2026 ») : les livres avec et sans saga partent en lots séparés — sans envoyer `series: null` aux autres, pour ne jamais effacer la saga d'une fiche existante. La fausse base des tests (`tests\outil\test_section7.js`) et la simulation refusent désormais, comme Supabase, un lot aux colonnes différentes. À redéployer sur GitHub avec la prochaine livraison : `supabase_import_tool.html`.
+- **Import fait le 21/11** avec l'outil corrigé : base à 443 auteurs et 2 053 fiches (vérifié).
+- **Couvertures** : 15 tirées des fichiers (`extraire.py` : métadonnées des epub, image du dossier ou image intégrée aux mp3), toutes regardées sur une planche (`couvertures_epub\planches\planche_2026-11-21.jpg`) ; la 16e, *Les Apparences* (mp3 sans image), est la pochette Audiolib trouvée sur Audible. Les 16 images, nommées par l'identifiant du livre, sont rassemblées dans `couvertures_epub\images_2026-11-21\` (copies ; les 15 premières sont aussi dans `images\`). À envoyer par la section 9.
 
 ## 5. Prochaines étapes (dans l'ordre)
 
@@ -1182,6 +1223,10 @@ Demande de Christophe (14/11) : reprendre ce qui a été fait le même jour sur 
 65. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.6** (voir §4.54). Vérifier « version 3.6 » en bas des Réglages, la nouvelle icône des sagas dans le bandeau, les graphiques du carnet (connecté) et Réglages → Présentation de l'accueil → Ordre des auteurs.
 66. **Christophe redéploie la version 3.7** (voir §4.55) : `index.html`, `css/style.css`, **les sept fichiers de `js/`** (`app.js`, `accueil.js`, `livres.js`, `carnet.js`, `anomalies.js`, `reglages.js`, `demarrage.js` — `config.js` ne change pas) et `Mode_emploi_proprietaire.pdf`. Le plus simple sur GitHub : « Add file → Upload files », glisser les sept fichiers dans le dossier `js`. Vérifier « version 3.7 » en bas des Réglages ; rouvrir ensuite l'appli : la bibliothèque doit s'afficher immédiatement.
 67. **Christophe redéploie la version 3.8** (voir §4.56 ; elle contient la 3.7) : `index.html`, `css/style.css`, les sept fichiers de `js/`, `Mode_emploi_proprietaire.pdf`, `supabase_import_tool.html` et le **nouveau `robots.txt`** (à la racine du dépôt, à côté d'`index.html`). **Ne pas supprimer le fichier `CNAME`** que GitHub a ajouté au dépôt. Vérifier « version 3.8 » en bas des Réglages, puis https://livres.cdesmottes.fr/robots.txt. Sur chaque appareil : ouvrir la nouvelle adresse, se reconnecter, recréer l'icône de l'iPhone.
+68. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js` et `Mode_emploi_proprietaire.pdf` — version 3.9** (couvertures de l'Éventail agrandies, voir fin de §4.56). Vérifier « version 3.9 » en bas des Réglages.
+69. **Christophe redéploie `index.html`, `css/style.css`, `js/app.js`, `js/anomalies.js`, `js/reglages.js` et `Mode_emploi_proprietaire.pdf` — version 3.10** (voir §4.57). Vérifier « version 3.10 », puis Réglages → Anomalies → « Tomes absents dans les sagas ».
+70. **Christophe redéploie `robots.txt`, `index.html`, `js/app.js`, `js/reglages.js` et `Mode_emploi_proprietaire.pdf` — version 3.11** (voir §4.58). Vérifier « version 3.11 », puis https://livres.cdesmottes.fr/robots.txt (une seule ligne Disallow, pour le PDF).
+71. **Christophe importe le delta du 21/11/2026** (voir §4.59) : section 2 avec `1_nouveaux_auteurs_2026-11-21.json`, section 3 avec `2_nouveaux_livres_2026-11-21.json`. Attendu : 443 auteurs, 2 053 fiches. **Fait.** Puis section 9 avec les 16 images de `couvertures_epub\images_2026-11-21`.
 
 ## 6. Notes pour une reprise future du projet
 
@@ -1226,5 +1271,8 @@ Une livraison qui ne touche que la base (fichiers JSON d'import, scripts SQL) ne
 | 3.6 | 12/11/2026 | Page « Toutes les sagas » (icône du bandeau ; progression et tomes absents pour le propriétaire) ; graphiques du carnet (répartition des notes, lectures par mois) ; ordre des auteurs sur l'accueil (alphabétique, nombre de livres, enrichis récemment). | §4.54 |
 | 3.7 | 12/11/2026 | Chantier technique, sans changement visible : catalogue gardé sur l'appareil (ouverture immédiate, mise à jour en arrière-plan, rien de privé), `app.js` découpé en sept fichiers, `style.css` nettoyé ; banc de non-régression visuelle (160 captures identiques). | §4.55 |
 | 3.8 | 14/11/2026 | Adresse livres.cdesmottes.fr ; site non référencé (« noindex » dans les pages, `robots.txt`), section d'aide et du PDF « Site non référencé » ; Éventail sans cadre ; générateur du mode d'emploi gardé sur le PC. | §4.56 |
+| 3.9 | 14/11/2026 | Éventail : couvertures agrandies (environ 160 × 240 px, 4 colonnes sur ordinateur), comme sur l'appli BD. | §4.56 |
+| 3.10 | 14/11/2026 | Anomalies : nouvelle famille « Tomes absents dans les sagas » (Voir, Copier la liste). | §4.57 |
+| 3.11 | 16/11/2026 | `robots.txt` ne bloque plus que le PDF : la balise « noindex » de l'outil d'import redevient lisible ; aide et PDF corrigés. | §4.58 |
 
 Les livraisons antérieures au 24/10/2026 n'étaient pas numérotées ; leur historique est dans les sections §4.1 à §4.27.

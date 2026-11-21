@@ -107,7 +107,7 @@
 <body>
 <div class="wrap">
   <h1>Ma Bibliothèque — Outil d'import Supabase</h1>
-  <p class="hint" id="tool-version" style="margin:-0.2rem 0 0.6rem;">Version de l'outil : 14/11/2026 — page non référencée par les moteurs de recherche ; section 10 : genres à valider par lots ; section 9 : aperçu du lot de couvertures</p>
+  <p class="hint" id="tool-version" style="margin:-0.2rem 0 0.6rem;">Version de l'outil : 21/11/2026 — section 3 : livres avec et sans saga dans le même fichier ; page non référencée par les moteurs de recherche ; section 10 : genres à valider par lots ; section 9 : aperçu du lot de couvertures</p>
   <p class="subtitle">Outil autonome — accessible depuis les réglages de l'application (mode propriétaire), ou directement par un double-clic sur ce fichier. Il tourne entièrement dans ton navigateur et ne communique qu'avec ton propre projet Supabase — jamais avec Claude.</p>
 
   <div class="warn">
@@ -520,8 +520,22 @@ document.getElementById('btn-books').addEventListener('click', async () => {
     const BATCH = 100;
     const insertedForCover = [];
     let done = 0;
-    for (let i = 0; i < toInsert.length; i += BATCH) {
-      const chunk = toInsert.slice(i, i + BATCH);
+    // Supabase (PostgREST) refuse un envoi groupé dont les lignes n'ont pas toutes les mêmes
+    // colonnes (« All object keys must match ») : les livres avec saga et sans saga partent
+    // donc en lots séparés (21/11/2026). On n'envoie pas series: null aux autres, pour ne
+    // jamais effacer la saga d'une fiche existante en cas de conflit.
+    const lots = [];
+    const parForme = new Map();
+    for (const row of toInsert) {
+      const forme = Object.keys(row).filter(k => !k.startsWith('__')).sort().join(',');
+      if (!parForme.has(forme)) parForme.set(forme, []);
+      parForme.get(forme).push(row);
+    }
+    for (const groupe of parForme.values())
+      for (let j = 0; j < groupe.length; j += BATCH) lots.push(groupe.slice(j, j + BATCH));
+    let vus = 0;
+    for (const chunk of lots) {
+      const i = vus; vus += chunk.length;
       const rows = chunk.map(({__cover_i, __author_name, ...rest}) => rest);
       const res = await sbFetch('/rest/v1/books?on_conflict=author_id,title', {
         method: 'POST',
@@ -540,7 +554,7 @@ document.getElementById('btn-books').addEventListener('click', async () => {
           if (orig && orig.__cover_i) insertedForCover.push({ id: returned.id, cover_i: orig.__cover_i, title: returned.title });
         }
       }
-      setProgress('books-progress-wrap', 'books-progress', Math.round(((i+chunk.length)/toInsert.length)*100));
+      setProgress('books-progress-wrap', 'books-progress', Math.round((vus/toInsert.length)*100));
     }
     logTo('books-log', `Terminé : ${done} livre(s) insérés.`, 'ok');
 
